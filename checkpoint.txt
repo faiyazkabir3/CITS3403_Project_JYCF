@@ -1,2 +1,0 @@
-Checkpoint file created
-TARGET: A and B
