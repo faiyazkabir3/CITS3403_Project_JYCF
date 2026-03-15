@@ -1,0 +1,135 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  background-image: url("Background.gif");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-weight: 400;
+
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.login-container {
+  position: relative;
+  z-index: 1;
+
+  width: 90%;
+  max-width: 360px;
+
+  background: rgba(30, 30, 30, 0.75);
+  color: white;
+
+  padding: 24px;
+  border: 3px solid white;
+  border-radius: 0;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+
+  font-weight: 400;
+}
+
+h1 {
+  font-size: 1.8rem;
+  font-weight: 400;
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #d0d0d0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 400;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+  border: 2px solid #222;
+  border-radius: 0;
+  box-sizing: border-box;
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+button {
+  width: 100%;
+  box-sizing: border-box;
+
+  border: 2px solid white;
+  border-radius: 0;
+
+  padding: 10px 14px;
+  cursor: pointer;
+
+  font-weight: 400;
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-size: 0.75rem;
+
+  background: white;
+  color: black;
+
+  transition: 0.15s ease;
+
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.login-btn {
+  margin-bottom: 14px;
+  background: #9a906d;
+  color: #1f1600;
+}
+
+.secondary-buttons {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.signup-btn,
+.guest-btn {
+  flex: 1;
+}
+
+.signup-btn {
+  background: #6d9a79;
+  color: #1f1600;
+}
+
+.guest-btn {
+  background: #6d9a79;
+  color: #1f1600;
+}
+
+button:hover {
+  background: black;
+  color: white;
+  border-color: white;
+}
+
+button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 rgba(0,0,0,0.35);
+}
