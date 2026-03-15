@@ -1,0 +1,7 @@
+body{
+  background-image: url("MVP_backg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  height: 10vh;
+}
