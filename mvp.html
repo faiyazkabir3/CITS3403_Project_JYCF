@@ -1,41 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Zombie Game Login MVP</title>
-
-<link rel="stylesheet" href="mvp_style.css">
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zombie Game Login MVP</title>
+  <link rel="stylesheet" href="mvp_style.css" />
 </head>
-
 <body>
 
-<div class="login-container">
+  <div class="login-container">
+    <h1>Welcome, Survivor</h1>
+    <p class="subtitle">Access the safe zone</p>
 
-<h1>Welcome, Survivor</h1>
+    <form>
+      <label for="username">Username or Email</label>
+      <input type="text" id="username" placeholder="Enter username or email" />
 
-<form>
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter password" />
 
-<label>Username or Email:</label>
-<input type="text" placeholder="Enter username or email">
+      <button type="submit" class="login-btn">Log In</button>
 
-<br><br>
-
-<label>Password:</label>
-<input type="password" placeholder="Enter password">
-
-<br><br>
-
-<button type="submit">Log In</button>
-
-<br><br>
-
-<button type="button">New User Sign Up</button>
-<button type="button">Guest Login</button>
-
-</form>
-
-</div>
+      <div class="secondary-buttons">
+        <button type="button" class="signup-btn">New User Sign Up</button>
+        <button type="button" class="guest-btn">Guest Login</button>
+      </div>
+    </form>
+  </div>
 
 </body>
 </html>
