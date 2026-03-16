@@ -1,0 +1,128 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  background-image: url("MVP_backg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-family: Arial, Helvetica, sans-serif;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.login-container {
+  position: relative;
+  z-index: 1;
+
+  width: 90%;
+  max-width: 360px;
+
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+
+  padding: 28px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 6px;
+  font-size: 2rem;
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #d0d0d0;
+  font-size: 0.95rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+  border: none;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+button {
+  border: none;
+  border-radius: 6px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s ease;
+}
+
+.login-btn {
+  width: 100%;
+  margin-bottom: 14px;
+  background: #3ac8db;
+  color: rgb(70, 73, 73);
+}
+
+.login-btn:hover {
+  background: #2fd147;
+}
+
+.secondary-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.signup-btn,
+.guest-btn {
+  flex: 1;
+}
+
+.signup-btn {
+  background: #4b5fd1;
+  color: white;
+}
+
+.signup-btn:hover {
+  background: #6275e8;
+}
+
+.guest-btn {
+  background: #d8a12d;
+  color: #1f1600;
+}
+
+.guest-btn:hover {
+  background: #efb53a;
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 22px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .secondary-buttons {
+    flex-direction: column;
+  }
+}
