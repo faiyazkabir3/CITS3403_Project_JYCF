@@ -93,41 +93,73 @@ input {
 button {
   border: none;
   border-radius: 6px;
-
   padding: 10px 14px;
   cursor: pointer;
-
-  font-weight: 400; /* ✅ remove bold */
+  font-weight: 400;
   font-family: "Silkscreen", Arial, sans-serif;
   font-size: 0.75rem;
-
   transition: 0.2s ease;
 }
 
-/* LOGIN BUTTON */
-.login-btn {
+/* MAIN REGISTER BUTTON */
+.signup-btn {
   width: 100%;
   margin-bottom: 12px;
-
-  background: #3ac8db;
-  color: #1f1f1f;
+  background: #4b5fd1;
+  color: white;
 }
 
-.login-btn:hover {
-  background: #2fd147;
+.signup-btn:hover {
+  background: #6275e8;
 }
 
-/* SECONDARY BUTTONS */
+/* SECONDARY BUTTON ROW */
 .secondary-buttons {
   display: flex;
   gap: 10px;
 }
 
-.signup-btn,
-.guest-btn {
+.secondary-buttons .login-btn,
+.secondary-buttons .guest-btn {
   flex: 1;
+  width: auto;
+  margin-bottom: 0;
 }
 
+/* BACK TO LOGIN */
+.login-btn {
+  background: #666666;
+  color: white;
+}
+
+.login-btn:hover {
+  background: #7a7a7a;
+}
+
+/* GUEST */
+.guest-btn {
+  background: #d8a12d;
+  color: #1f1600;
+}
+
+.guest-btn:hover {
+  background: #efb53a;
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 22px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+  }
+
+  .secondary-buttons {
+    flex-direction: column;
+  }
+}
 /* SIGNUP */
 .signup-btn {
   background: #4b5fd1;
