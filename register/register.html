@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Placeholder Title - Register</title>
+  <title>Register</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +26,14 @@
       <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" />
 
       <button type="submit" class="signup-btn">Register</button>
+
+      <div class="secondary-buttons">
+        <button type="button" class="login-btn" onclick="window.location.href='../login_page/login.html'">Back to Login</button>
+        <button type="button" class="guest-btn" id="guest-login-btn">Guest Login</button>
+      </div>
     </form>
   </div>
+
+  <script src="register.js"></script>
 </body>
 </html>
