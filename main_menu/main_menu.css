@@ -3,7 +3,7 @@ body {
   min-height: 100vh;
 
   /* Background image path */
-  background-image: url("../assets/images/gif.gif");
+  background-image: url("../assets/images/Background.gif");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -49,7 +49,7 @@ body::before {
   padding: 10px 15px;
   border-bottom: 2px solid white;
 
-  background: rgba(100, 150, 120, 0.6);
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .logo {

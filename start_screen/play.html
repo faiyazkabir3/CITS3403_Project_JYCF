@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Play Game</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="play.css" />
+</head>
+<body>
+  <div class="screen-wrap">
+
+    <!-- START SCREEN -->
+    <section id="start-screen" class="panel active">
+      <button type="button" id="back-to-main-btn" class="back-arrow" aria-label="Back to main menu">
+        ←
+      </button>
+
+      <h1>PLAY GAME</h1>
+      <p class="subtitle">Choose how you want to begin.</p>
+
+      <div class="button-stack">
+        <button type="button" id="new-game-btn" class="primary-btn">NEW GAME</button>
+        <button type="button" id="load-game-btn" class="secondary-btn">LOAD GAME</button>
+      </div>
+    </section>
+
+    <!-- DIFFICULTY SCREEN -->
+    <section id="difficulty-screen" class="panel">
+      <button type="button" id="difficulty-back-btn" class="back-arrow" aria-label="Back">
+        ←
+      </button>
+
+      <h1>SELECT DIFFICULTY</h1>
+      <p class="subtitle">Choose your challenge level.</p>
+
+      <div class="button-stack">
+        <button type="button" class="primary-btn difficulty-btn" data-difficulty="Easy">EASY</button>
+        <button type="button" class="danger-btn difficulty-btn" data-difficulty="Hard">HARD</button>
+      </div>
+    </section>
+
+    <!-- LOAD GAME PLACEHOLDER -->
+    <section id="load-screen" class="panel">
+      <button type="button" id="load-back-btn" class="back-arrow" aria-label="Back">
+        ←
+      </button>
+
+      <h1>LOAD GAME</h1>
+      <p class="subtitle">Saved game loading will be added later.</p>
+
+      <div class="placeholder-box">
+        <p>NO SAVE DATA AVAILABLE</p>
+      </div>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section id="game-screen" class="panel game-panel">
+      <button type="button" id="game-back-btn" class="back-arrow" aria-label="Back">
+        ←
+      </button>
+
+      <div class="game-topbar">
+        <div class="top-left">PLAY GAME</div>
+        <div class="top-right">
+          DIFFICULTY: <span id="difficulty-display">EASY</span>
+        </div>
+      </div>
+
+      <div class="game-main">
+        <div class="graphics-area">
+          <p>PLACE HOLDER FOR GRAPHICS</p>
+        </div>
+
+        <div class="game-bottom">
+          <div class="todo-box">
+            <h2>TO DO</h2>
+            <div class="todo-buttons">
+              <button type="button" class="action-btn">ATTACK</button>
+              <button type="button" class="action-btn">DEFEND</button>
+              <button type="button" class="action-btn">INVENTORY</button>
+            </div>
+          </div>
+
+          <div class="player-stat-box">
+            <h2>PLAYER STAT</h2>
+            <ul>
+              <li>HP: 100</li>
+              <li>SHIELD: 20</li>
+              <li>WEAPON: PISTOL</li>
+              <li>LEVEL: 1</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="play.js"></script>
+</body>
+</html>
