@@ -1,0 +1,281 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-image: url("../assets/images/Background.gif");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-weight: 400;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.screen-wrap {
+  position: relative;
+  z-index: 1;
+  width: 92%;
+  max-width: 1050px;
+}
+
+.panel {
+  display: none;
+  position: relative;
+  background: rgba(0, 0, 0, 0.72);
+  color: white;
+  border: 3px solid white;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  padding: 34px 36px 30px;
+}
+
+.panel.active {
+  display: block;
+}
+
+.back-arrow {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 3;
+
+  width: 48px;
+  height: 48px;
+
+  border: 2px solid white;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.15s ease;
+}
+
+.back-arrow:hover {
+  background: white;
+  color: black;
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  margin-left: 64px; /* leaves room for arrow */
+  font-size: 1.55rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 24px;
+  margin-left: 64px; /* align with title */
+  color: #d0d0d0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.button-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 420px;
+}
+
+button {
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.primary-btn,
+.secondary-btn,
+.danger-btn,
+.action-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.primary-btn {
+  background: #3ac8db;
+  color: #1f1f1f;
+}
+
+.primary-btn:hover {
+  background: #2fd147;
+}
+
+.secondary-btn {
+  background: #4b5fd1;
+  color: white;
+}
+
+.secondary-btn:hover {
+  background: #6275e8;
+}
+
+.danger-btn {
+  background: #d8a12d;
+  color: #1f1600;
+}
+
+.danger-btn:hover {
+  background: #efb53a;
+}
+
+.placeholder-box {
+  width: 100%;
+  max-width: 500px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d0d0d0;
+  text-align: center;
+}
+
+.game-panel {
+  padding-top: 70px;
+}
+
+.game-panel h1,
+.game-panel .subtitle {
+  margin-left: 0;
+}
+
+.game-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border: 2px solid white;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+}
+
+.top-right {
+  text-align: right;
+}
+
+#difficulty-display {
+  color: #3ac8db;
+}
+
+.game-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.graphics-area {
+  min-height: 320px;
+  border: 2px solid white;
+  border-radius: 10px;
+  background: rgba(145, 125, 220, 0.72);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.game-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.todo-box,
+.player-stat-box {
+  min-height: 150px;
+  padding: 18px;
+  border: 2px solid white;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.86);
+}
+
+.todo-box h2,
+.player-stat-box h2 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.todo-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-btn {
+  background: #e7e4de;
+  color: #111;
+}
+
+.action-btn:hover {
+  background: #ffffff;
+}
+
+.player-stat-box ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.72rem;
+  line-height: 1.9;
+}
+
+@media (max-width: 700px) {
+  .panel {
+    padding: 28px 20px 24px;
+  }
+
+  h1,
+  .subtitle {
+    margin-left: 58px;
+  }
+
+  .button-stack {
+    max-width: 100%;
+  }
+
+  .game-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .game-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .top-right {
+    text-align: left;
+  }
+
+  .graphics-area {
+    min-height: 220px;
+  }
+}
