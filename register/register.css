@@ -1,0 +1,164 @@
+/* GLOBAL */
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  background-image: url("../assets/images/Background.gif");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-weight: 400; /* ✅ lighter */
+
+  position: relative;
+}
+
+/* DARK OVERLAY */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6); /* slightly darker for contrast */
+}
+
+/* CONTAINER */
+.login-container {
+  position: relative;
+  z-index: 1;
+
+  width: 90%;
+  max-width: 360px;
+
+  background: rgba(0, 0, 0, 0.7); /* slightly darker */
+  color: white;
+
+  padding: 26px;
+
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* TITLE */
+h1 {
+  margin-top: 0;
+  margin-bottom: 8px;
+
+  font-size: 1.6rem; /* slightly smaller */
+  font-weight: 500; /* ✅ not bold */
+
+  letter-spacing: 1px; /* subtle spacing */
+}
+
+/* SUBTITLE */
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 18px;
+
+  color: #cfcfcf;
+  font-size: 0.8rem;
+}
+
+/* LABELS */
+label {
+  display: block;
+  margin-bottom: 6px;
+
+  font-weight: 400; /* ✅ remove bold */
+  font-size: 0.75rem;
+
+  letter-spacing: 0.5px;
+}
+
+/* INPUTS */
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 14px;
+
+  border: none;
+  border-radius: 6px;
+
+  box-sizing: border-box;
+
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-size: 0.75rem;
+}
+
+/* BUTTON BASE */
+button {
+  border: none;
+  border-radius: 6px;
+
+  padding: 10px 14px;
+  cursor: pointer;
+
+  font-weight: 400; /* ✅ remove bold */
+  font-family: "Silkscreen", Arial, sans-serif;
+  font-size: 0.75rem;
+
+  transition: 0.2s ease;
+}
+
+/* LOGIN BUTTON */
+.login-btn {
+  width: 100%;
+  margin-bottom: 12px;
+
+  background: #3ac8db;
+  color: #1f1f1f;
+}
+
+.login-btn:hover {
+  background: #2fd147;
+}
+
+/* SECONDARY BUTTONS */
+.secondary-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.signup-btn,
+.guest-btn {
+  flex: 1;
+}
+
+/* SIGNUP */
+.signup-btn {
+  background: #4b5fd1;
+  color: white;
+}
+
+.signup-btn:hover {
+  background: #6275e8;
+}
+
+/* GUEST */
+.guest-btn {
+  background: #d8a12d;
+  color: #1f1600;
+}
+
+.guest-btn:hover {
+  background: #efb53a;
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 22px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+  }
+
+  .secondary-buttons {
+    flex-direction: column;
+  }
+}
