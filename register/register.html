@@ -4,37 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Placeholder Title - Register</title>
-  <link rel="stylesheet" href="register.css" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="register.css">
 </head>
 <body>
-  <div class="overlay"></div>
+  <div class="login-container">
+    <h1>Register</h1>
+    <p class="subtitle">Create your account below.</p>
 
-  <div class="container">
-    <div class="panel">
-      <h1 class="title">Placeholder Title</h1>
-      <p class="subtitle">Create your account below.</p>
+    <form>
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" placeholder="Choose a username" />
 
-      <form>
-        <div class="field">
-          <label for="username">Username</label>
-          <input type="text" id="username" name="username" placeholder="Choose a username" />
-        </div>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Create a password" />
 
-        <div class="field">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" placeholder="Create a password" />
-        </div>
+      <label for="confirm-password">Confirm Password</label>
+      <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" />
 
-        <div class="field">
-          <label for="confirm-password">Confirm Password</label>
-          <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" />
-        </div>
-
-        <div class="buttons">
-          <button type="submit">Register</button>
-        </div>
-      </form>
-    </div>
+      <button type="submit" class="signup-btn">Register</button>
+    </form>
   </div>
 </body>
 </html>
