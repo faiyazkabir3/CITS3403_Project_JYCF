@@ -4,7 +4,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="login.css" />
+
+<link rel="stylesheet" href="../static/css/login.css" />
 </head>
 <body>
 
@@ -13,16 +14,16 @@
     <p class="subtitle">Access the safe zone</p>
 
     <form>
-      <label for="username">Username or Email</label>
-      <input type="text" id="username" placeholder="Enter username or email" />
+      <label>Username or Email</label>
+      <input type="text" />
 
-      <label for="password">Password</label>
-      <input type="password" id="password" placeholder="Enter password" />
+      <label>Password</label>
+      <input type="password" />
 
       <button type="submit" class="login-btn">Log In</button>
 
       <div class="secondary-buttons">
-        <button type="button" class="signup-btn" onclick="window.location.href='../register/register.html'">
+        <button type="button" class="signup-btn" onclick="window.location.href='register.html'">
           New User Sign Up
         </button>
         <button type="button" class="guest-btn">Guest Login</button>

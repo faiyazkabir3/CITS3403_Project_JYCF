@@ -33,7 +33,7 @@ loadGameBtn.addEventListener("click", function () {
 });
 
 backToMainBtn.addEventListener("click", function () {
-  window.location.href = "../main_menu/main_menu.html";
+  window.location.href = "main_menu.html";
 });
 
 difficultyBackBtn.addEventListener("click", function () {
