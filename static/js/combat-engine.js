@@ -103,7 +103,6 @@ export function createNewGameState({ difficulty = "EASY", seed } = {}) {
   return { state, rng };
 }
 
-
 // ---------- Utility helpers ----------
 function clampHealth(s) {
   if (s.inventory.health > 100) s.inventory.health = 100;
@@ -242,3 +241,95 @@ const ACTIONS = {
   }
 };
 
+// ---------- Enemy turn ----------
+function enemyTurn(s, rng, events) {
+  if (!s.combat.inCombat || !s.combat.enemy) return;
+
+  // If enemy already dead, skip.
+  if (s.combat.enemy.hp <= 0) return;
+
+  // Dodge attempt?
+  if (s.combat.pendingDodge) {
+    s.combat.pendingDodge = false;
+    const dodged = rng.chance(RULES.dodgeSuccessChance);
+    if (dodged) {
+      events.push("You dodge successfully!");
+      return;
+    }
+    events.push("Dodge failed!");
+    // If dodge failed, continue to normal hit check.
+  }
+
+  // Miss chance
+  if (rng.chance(RULES.zombieMissChance)) {
+    events.push("The zombie misses!");
+    return;
+  }
+
+  const [minD, maxD] = s.combat.enemy.dmg;
+  const raw = rng.int(minD, maxD);
+  const dealt = applyShieldedDamage(s, raw, rng);
+
+  events.push(`Zombie hits for ${dealt} damage.`);
+}
+
+// ---------- Main dispatch ----------
+export function createCombatEngine({ difficulty = "EASY", seed } = {}) {
+  const { state, rng } = createNewGameState({ difficulty, seed });
+
+  const engine = {
+    state,
+    rng,
+
+    startCombat() {
+      const events = [];
+      const enemy = spawnEnemy(engine.state, engine.rng);
+      events.push(`A ${enemy.name} appears! HP: ${enemy.hp}`);
+      return events;
+    },
+
+    dispatch(actionKey) {
+      const events = [];
+      const s = engine.state;
+
+      if (!s.combat.inCombat) {
+        events.push("Not in combat. Start combat first.");
+        return events;
+      }
+
+      const action = ACTIONS[actionKey];
+      if (!action) {
+        events.push(`Unknown action: ${actionKey}`);
+        return events;
+      }
+
+      const valid = action(s, engine.rng, events);
+
+      // Check player death from knife recoil etc.
+      if (isDead(s)) {
+        events.push("You died. Game over.");
+        return events;
+      }
+
+      // If enemy died, end combat.
+      if (s.combat.enemy.hp <= 0) {
+        s.combat.inCombat = false;
+        events.push("Enemy defeated!");
+        return events;
+      }
+
+      // If valid action, enemy gets a turn (turn-based).
+      if (valid) {
+        enemyTurn(s, engine.rng, events);
+
+        if (isDead(s)) {
+          events.push("You died. Game over.");
+        }
+      }
+
+      return events;
+    }
+  };
+
+  return engine;
+}
