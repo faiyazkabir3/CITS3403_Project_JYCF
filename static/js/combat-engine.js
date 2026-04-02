@@ -102,3 +102,143 @@ export function createNewGameState({ difficulty = "EASY", seed } = {}) {
 
   return { state, rng };
 }
+
+
+// ---------- Utility helpers ----------
+function clampHealth(s) {
+  if (s.inventory.health > 100) s.inventory.health = 100;
+  if (s.inventory.health < 0) s.inventory.health = 0;
+}
+
+function applyShieldedDamage(s, rawDamage, rng) {
+  let dmg = rawDamage;
+
+  if (s.shield.equipped) {
+    const def = s.shield.deflect;
+    const blockFrac = Array.isArray(def) ? rng.float(def[0], def[1]) : def;
+    dmg = Math.floor(dmg * (1 - blockFrac));
+  }
+
+  s.inventory.health -= dmg;
+  clampHealth(s);
+  return dmg;
+}
+
+function isDead(s) {
+  return s.inventory.health <= 0;
+}
+
+function spawnEnemy(s, rng) {
+  // Later: scale by chapter, noise/ambush.
+  const keys = Object.keys(ENEMY_TYPES);
+  const typeKey = keys[rng.int(0, keys.length - 1)];
+  const type = ENEMY_TYPES[typeKey];
+
+  s.combat.enemy = {
+    type: typeKey,
+    name: type.name,
+    hp: type.maxHp,
+    baseHp: type.maxHp,
+    dmg: type.dmg
+  };
+  s.combat.inCombat = true;
+  s.combat.pendingDodge = false;
+
+  return s.combat.enemy;
+}
+
+// ---------- Player action handlers (Command map) ----------
+const ACTIONS = {
+  pistol(s, rng, events) {
+    if (s.pistol.ammoInGun <= 0) {
+      events.push("No pistol ammo in the gun.");
+      return false;
+    }
+    s.pistol.ammoInGun -= 1;
+
+    const range = s.pistol.hasLaser ? RULES.pistolDamageLaser : RULES.pistolDamageNoLaser;
+    const dmg = rng.int(range[0], range[1]);
+
+    s.combat.enemy.hp -= dmg;
+    s.stats.noiseLevel += 5;
+
+    events.push(`You fire your pistol for ${dmg} damage.`);
+    return true;
+  },
+
+  grenade(s, rng, events) {
+    if (s.inventory.grenades <= 0) {
+      events.push("You're out of grenades.");
+      return false;
+    }
+    s.inventory.grenades -= 1;
+
+    s.combat.enemy.hp -= RULES.grenadeDamage;
+    s.stats.noiseLevel += 15;
+
+    events.push(`BOOM! Grenade deals ${RULES.grenadeDamage} damage.`);
+    return true;
+  },
+
+  knife(s, rng, events) {
+    const baseHp = s.combat.enemy.baseHp;
+    const dmg = Math.floor(baseHp * RULES.knifePercentOfBaseHp);
+
+    s.combat.enemy.hp -= dmg;
+    s.inventory.health -= RULES.knifeSelfDamage;
+    clampHealth(s);
+
+    events.push(`Knife strike deals ${dmg} damage (but you take ${RULES.knifeSelfDamage}).`);
+    return true;
+  },
+
+  heal(s, rng, events) {
+    if (s.inventory.medKits <= 0) {
+      events.push("No med kits left.");
+      return false;
+    }
+    s.inventory.medKits -= 1;
+    s.inventory.health += 50;
+    clampHealth(s);
+
+    events.push(`You heal. HP is now ${s.inventory.health}.`);
+    return true;
+  },
+
+  reloadPistol(s, rng, events) {
+    const needed = s.pistol.magCapacity - s.pistol.ammoInGun;
+    if (needed <= 0) {
+      events.push("Pistol already full.");
+      return false;
+    }
+    if (s.pistol.ammoInBag <= 0) {
+      events.push("No pistol ammo in bag.");
+      return false;
+    }
+
+    const take = Math.min(needed, s.pistol.ammoInBag);
+    s.pistol.ammoInGun += take;
+    s.pistol.ammoInBag -= take;
+
+    events.push(`Reloaded pistol (+${take}). Ammo: ${s.pistol.ammoInGun}/${s.pistol.magCapacity}.`);
+    return true;
+  },
+
+  dodge(s, rng, events) {
+    // This sets a flag; resolution happens on enemy turn.
+    s.combat.pendingDodge = true;
+    events.push("You prepare to dodge the next attack...");
+    return true;
+  },
+
+  toggleShield(s, rng, events) {
+    if (!s.shield.hasShield) {
+      events.push("No shield owned.");
+      return false;
+    }
+    s.shield.equipped = !s.shield.equipped;
+    events.push(`Shield ${s.shield.equipped ? "equipped" : "unequipped"}.`);
+    return true;
+  }
+};
+
