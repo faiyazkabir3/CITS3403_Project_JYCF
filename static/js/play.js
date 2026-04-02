@@ -1,3 +1,5 @@
+import { bootGameUI } from "./gameUI.js";
+
 const startScreen = document.getElementById("start-screen");
 const difficultyScreen = document.getElementById("difficulty-screen");
 const loadScreen = document.getElementById("load-screen");
@@ -13,6 +15,8 @@ const gameBackBtn = document.getElementById("game-back-btn");
 
 const difficultyButtons = document.querySelectorAll(".difficulty-btn");
 const difficultyDisplay = document.getElementById("difficulty-display");
+
+let gameStarted = false;
 
 function showScreen(screenToShow) {
   const screens = [startScreen, difficultyScreen, loadScreen, gameScreen];
@@ -51,7 +55,13 @@ gameBackBtn.addEventListener("click", function () {
 difficultyButtons.forEach(function (button) {
   button.addEventListener("click", function () {
     const selectedDifficulty = button.dataset.difficulty;
+
     difficultyDisplay.textContent = selectedDifficulty.toUpperCase();
     showScreen(gameScreen);
+
+    if (!gameStarted) {
+      bootGameUI({ difficultyText: selectedDifficulty });
+      gameStarted = true;
+    }
   });
 });

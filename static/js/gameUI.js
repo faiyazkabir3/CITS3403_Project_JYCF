@@ -1,5 +1,5 @@
 // gameUI.js
-import { createCombatEngine } from "./combatEngine.js";
+import { createCombatEngine } from "./combat-engine.js";
 
 function $(sel) {
   return document.querySelector(sel);
