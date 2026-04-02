@@ -3,7 +3,7 @@ body {
   min-height: 100vh;
 
   /* Background image path */
-  background-image: url("../assets/images/Background.gif");
+  background-image: url("../images/Background.gif");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -18,12 +18,12 @@ body {
   position: relative;
 }
 
-body::before {
+ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-}
+  background: rgba(0, 0, 0, 0.3);
+} 
 
 /* MAIN CONTAINER */
 .menu-container {

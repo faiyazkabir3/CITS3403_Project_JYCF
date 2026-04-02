@@ -32,7 +32,7 @@ function registerUser(event) {
 
   alert("Account created. Your username is: " + username);
 
-  window.location.href = "../main_menu/main_menu.html";
+  window.location.href = "main_menu.html";
 }
 
 function guestLogin() {
@@ -42,7 +42,7 @@ function guestLogin() {
 
   alert("Your guest operator ID is: " + guestName);
 
-  window.location.href = "../main_menu/main_menu.html";
+  window.location.href = "main_menu.html";
 }
 
 if (registerForm) {
