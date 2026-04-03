@@ -15,7 +15,11 @@
     <h1>Register</h1>
     <p class="subtitle">Create your account below.</p>
 
-    <form id="register-form">
+    {% if error %}
+      <p class="subtitle">{{ error }}</p>
+    {% endif %}
+
+    <form id="register-form" method="POST" action="/register">
       <label for="username">Username</label>
       <input type="text" id="username" name="username" placeholder="Choose a username" />
 
@@ -28,7 +32,7 @@
       <button type="submit" class="signup-btn">Register</button>
 
       <div class="secondary-buttons">
-        <button onclick="window.location.href='login.html'">Back to Login</button>
+        <button type="button" onclick="window.location.href='/login'">Back to Login</button>
         <button type="button" class="guest-btn" id="guest-login-btn">Guest Login</button>
       </div>
     </form>
