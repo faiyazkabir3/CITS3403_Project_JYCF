@@ -1,7 +1,7 @@
 import os
 
-from flask import Flask, render_template, request, redirect, url_for
-from werkzeug.security import generate_password_hash
+from flask import Flask, render_template, request, redirect, url_for, session
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User
 
@@ -20,9 +20,32 @@ with app.app_context():
 
 
 @app.route("/")
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def show_login():
-    return render_template("login.html")
+    if request.method == "POST":
+        name = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        if name == "":
+            return render_template("login.html", error="Please enter your username.")
+
+        if password == "":
+            return render_template("login.html", error="Please enter your password.")
+
+        user = User.query.filter_by(username=name).first()
+
+        if user is None:
+            return render_template("login.html", error="Invalid username or password.")
+
+        if not check_password_hash(user.password_hash, password):
+            return render_template("login.html", error="Invalid username or password.")
+
+        session["user_id"] = user.id
+        session["username"] = user.username
+
+        return redirect(url_for("show_main_menu"))
+
+    return render_template("login.html", error=None)
 
 
 @app.route("/register", methods=["GET", "POST"])
