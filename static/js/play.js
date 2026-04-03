@@ -16,52 +16,53 @@ const gameBackBtn = document.getElementById("game-back-btn");
 const difficultyButtons = document.querySelectorAll(".difficulty-btn");
 const difficultyDisplay = document.getElementById("difficulty-display");
 
-let gameStarted = false;
+let gameEngine = null;
 
 function showScreen(screenToShow) {
   const screens = [startScreen, difficultyScreen, loadScreen, gameScreen];
 
-  screens.forEach(function (screen) {
+  screens.forEach((screen) => {
     screen.classList.remove("active");
   });
 
   screenToShow.classList.add("active");
 }
 
-newGameBtn.addEventListener("click", function () {
+newGameBtn.addEventListener("click", () => {
   showScreen(difficultyScreen);
 });
 
-loadGameBtn.addEventListener("click", function () {
+loadGameBtn.addEventListener("click", () => {
   showScreen(loadScreen);
 });
 
-backToMainBtn.addEventListener("click", function () {
-  window.location.href = "main_menu.html";
+backToMainBtn.addEventListener("click", () => {
+  window.location.href = "/main-menu";
 });
 
-difficultyBackBtn.addEventListener("click", function () {
+difficultyBackBtn.addEventListener("click", () => {
   showScreen(startScreen);
 });
 
-loadBackBtn.addEventListener("click", function () {
+loadBackBtn.addEventListener("click", () => {
   showScreen(startScreen);
 });
 
-gameBackBtn.addEventListener("click", function () {
+gameBackBtn.addEventListener("click", () => {
   showScreen(startScreen);
 });
 
-difficultyButtons.forEach(function (button) {
-  button.addEventListener("click", function () {
-    const selectedDifficulty = button.dataset.difficulty;
+difficultyButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const selectedDifficulty = button.dataset.difficulty.toUpperCase();
 
-    difficultyDisplay.textContent = selectedDifficulty.toUpperCase();
+    difficultyDisplay.textContent = selectedDifficulty;
     showScreen(gameScreen);
 
-    if (!gameStarted) {
-      bootGameUI({ difficultyText: selectedDifficulty });
-      gameStarted = true;
-    }
+    gameEngine = bootGameUI({
+      difficultyText: selectedDifficulty
+    });
+
+    window.gameEngine = gameEngine;
   });
 });
