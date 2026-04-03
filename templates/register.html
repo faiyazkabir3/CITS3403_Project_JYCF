@@ -30,14 +30,15 @@
       <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" />
 
       <button type="submit" class="signup-btn">Register</button>
-
-      <div class="secondary-buttons">
-        <button type="button" onclick="window.location.href='/login'">Back to Login</button>
-        <button type="button" class="guest-btn" id="guest-login-btn">Guest Login</button>
-      </div>
     </form>
-  </div>
 
-  <script src="../static/js/register.js"></script>
+    <div class="secondary-buttons">
+      <button type="button" onclick="window.location.href='/login'">Back to Login</button>
+
+      <form method="POST" action="/guest-login">
+        <button type="submit" class="guest-btn">Guest Login</button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

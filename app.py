@@ -1,4 +1,5 @@
 import os
+import random
 
 from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,6 +18,11 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
+
+
+def make_guest_name():
+    num = random.randint(10000, 99999)
+    return "Operator" + str(num)
 
 
 @app.route("/")
@@ -42,6 +48,7 @@ def show_login():
 
         session["user_id"] = user.id
         session["username"] = user.username
+        session["is_guest"] = False
 
         return redirect(url_for("show_main_menu"))
 
@@ -81,18 +88,44 @@ def show_register():
     return render_template("register.html", error=None)
 
 
+@app.route("/guest-login", methods=["POST"])
+def guest_login():
+    name = make_guest_name()
+
+    session.pop("user_id", None)
+    session["username"] = name
+    session["is_guest"] = True
+
+    return redirect(url_for("show_main_menu"))
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("show_login"))
+
+
 @app.route("/main-menu")
 def show_main_menu():
-    return render_template("main_menu.html")
+    if "username" not in session:
+        return redirect(url_for("show_login"))
+
+    return render_template("main_menu.html", username=session.get("username", "Player"))
 
 
 @app.route("/play")
 def show_play():
+    if "username" not in session:
+        return redirect(url_for("show_login"))
+
     return render_template("play.html")
 
 
 @app.route("/achievements")
 def show_achievements():
+    if "username" not in session:
+        return redirect(url_for("show_login"))
+
     return render_template("achievements.html")
 
 
