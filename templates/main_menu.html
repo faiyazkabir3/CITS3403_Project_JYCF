@@ -12,7 +12,10 @@
 
   <div class="menu-container">
     <div class="top-bar">
-      <img src="../static/images/Shadows.gif" class="logo" alt="Game Logo">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="../static/images/Shadows.gif" class="logo" alt="Game Logo">
+        <span style="color: white; font-family: 'Silkscreen', cursive;">Operator: {{ username }}</span>
+      </div>
       <div class="version">v0.1</div>
     </div>
 
@@ -29,10 +32,10 @@
       </div>
 
       <div class="menu-buttons">
-        <button onclick="window.location.href='play.html'">PLAY GAME</button>
-        <button>SETTINGS</button>
-        <button onclick="window.location.href='achievements.html'">ACHIEVEMENTS</button>
-        <button onclick="window.location.href='login.html'">LOG OUT</button>
+        <button onclick="window.location.href='/play'">PLAY GAME</button>
+        <button type="button">SETTINGS</button>
+        <button onclick="window.location.href='/achievements'">ACHIEVEMENTS</button>
+        <button onclick="window.location.href='/logout'">LOG OUT</button>
       </div>
     </div>
   </div>
