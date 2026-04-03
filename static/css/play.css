@@ -24,7 +24,7 @@ body::before {
   position: relative;
   z-index: 1;
   width: 92%;
-  max-width: 1050px;
+  max-width: 1150px;
 }
 
 .panel {
@@ -47,20 +47,16 @@ body::before {
   top: 18px;
   left: 18px;
   z-index: 3;
-
   width: 48px;
   height: 48px;
-
   border: 2px solid white;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
   color: white;
-
   font-family: "Silkscreen", Arial, sans-serif;
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,7 +71,7 @@ body::before {
 h1 {
   margin-top: 0;
   margin-bottom: 10px;
-  margin-left: 64px; /* leaves room for arrow */
+  margin-left: 64px;
   font-size: 1.55rem;
   font-weight: 400;
   letter-spacing: 1px;
@@ -84,7 +80,7 @@ h1 {
 .subtitle {
   margin-top: 0;
   margin-bottom: 24px;
-  margin-left: 64px; /* align with title */
+  margin-left: 64px;
   color: #d0d0d0;
   font-size: 0.8rem;
   line-height: 1.6;
@@ -106,7 +102,8 @@ button {
 .primary-btn,
 .secondary-btn,
 .danger-btn,
-.action-btn {
+.action-btn,
+.choice-btn {
   border: none;
   border-radius: 8px;
   padding: 14px 16px;
@@ -159,11 +156,6 @@ button {
   padding-top: 70px;
 }
 
-.game-panel h1,
-.game-panel .subtitle {
-  margin-left: 0;
-}
-
 .game-topbar {
   display: flex;
   justify-content: space-between;
@@ -190,16 +182,95 @@ button {
   gap: 16px;
 }
 
+.top-game-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
 .graphics-area {
-  min-height: 320px;
+  min-height: 220px;
   border: 2px solid white;
   border-radius: 10px;
   background: rgba(145, 125, 220, 0.72);
   display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.story-text {
+  white-space: pre-line;
+  line-height: 1.8;
   font-size: 0.85rem;
+  max-width: 100%;
+}
+
+.combat-log-box,
+.path-choice-box {
+  border: 2px solid white;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 16px;
+}
+
+.combat-log-box {
+  min-height: 220px;
+}
+
+.combat-log-box h2,
+.path-choice-box h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.combat-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.combat-log-entry {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.choice-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.choice-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  background: #e7e4de;
+  color: #111;
+}
+
+.choice-btn:hover {
+  background: #ffffff;
+}
+
+.choice-title {
+  font-size: 0.78rem;
+}
+
+.choice-desc {
+  font-size: 0.68rem;
+  opacity: 0.8;
 }
 
 .game-bottom {
@@ -240,11 +311,23 @@ button {
   background: #ffffff;
 }
 
+.action-btn:disabled,
+.choice-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .player-stat-box ul {
   margin: 0;
   padding-left: 18px;
   font-size: 0.72rem;
   line-height: 1.9;
+}
+
+@media (max-width: 900px) {
+  .top-game-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 700px) {
@@ -276,6 +359,6 @@ button {
   }
 
   .graphics-area {
-    min-height: 220px;
+    min-height: 180px;
   }
 }

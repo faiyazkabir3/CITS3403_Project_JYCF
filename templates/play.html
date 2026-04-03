@@ -14,7 +14,6 @@
 <body>
   <div class="screen-wrap">
 
-    <!-- START SCREEN -->
     <section id="start-screen" class="panel active">
       <button type="button" id="back-to-main-btn" class="back-arrow" aria-label="Back to main menu">
         ←
@@ -29,7 +28,6 @@
       </div>
     </section>
 
-    <!-- DIFFICULTY SCREEN -->
     <section id="difficulty-screen" class="panel">
       <button type="button" id="difficulty-back-btn" class="back-arrow" aria-label="Back">
         ←
@@ -44,7 +42,6 @@
       </div>
     </section>
 
-    <!-- LOAD GAME PLACEHOLDER -->
     <section id="load-screen" class="panel">
       <button type="button" id="load-back-btn" class="back-arrow" aria-label="Back">
         ←
@@ -58,41 +55,72 @@
       </div>
     </section>
 
-    <!-- GAME SCREEN -->
     <section id="game-screen" class="panel game-panel">
       <button type="button" id="game-back-btn" class="back-arrow" aria-label="Back">
         ←
       </button>
 
       <div class="game-topbar">
-        <div class="top-left">PLAY GAME</div>
+        <div class="top-left">LEVEL 1</div>
         <div class="top-right">
           DIFFICULTY: <span id="difficulty-display">EASY</span>
         </div>
       </div>
 
       <div class="game-main">
-        <div class="graphics-area">
-          <p>PLACE HOLDER FOR GRAPHICS</p>
+        <div class="top-game-row">
+          <div class="graphics-area">
+            <div id="story-text" class="story-text">Mission starting...</div>
+          </div>
+
+          <div class="combat-log-box">
+            <h2>COMBAT LOG</h2>
+            <div id="combat-log-list" class="combat-log-list"></div>
+          </div>
+        </div>
+
+        <div id="path-choice-box" class="path-choice-box" style="display: none;">
+          <h2>CHOOSE YOUR PATH</h2>
+          <div id="path-choice-buttons" class="choice-buttons"></div>
         </div>
 
         <div class="game-bottom">
           <div class="todo-box">
-            <h2>TO DO</h2>
-            <div class="todo-buttons">
-              <button type="button" class="action-btn">ATTACK</button>
-              <button type="button" class="action-btn">DEFEND</button>
-              <button type="button" class="action-btn">INVENTORY</button>
+            <h2>ACTIONS</h2>
+
+            <div class="todo-buttons" id="main-actions">
+              <button type="button" class="action-btn" id="attack-btn">ATTACK</button>
+              <button type="button" class="action-btn" id="defend-btn">DEFEND</button>
+              <button type="button" class="action-btn" id="inventory-btn">INVENTORY</button>
+            </div>
+
+            <div class="todo-buttons" id="attack-actions" style="display: none;">
+              <button type="button" class="action-btn" id="pistol-btn">PISTOL</button>
+              <button type="button" class="action-btn" id="knife-btn">KNIFE</button>
+              <button type="button" class="action-btn" id="grenade-btn">GRENADE</button>
+              <button type="button" class="action-btn" id="attack-back-btn">BACK</button>
+            </div>
+
+            <div class="todo-buttons" id="inventory-actions" style="display: none;">
+              <button type="button" class="action-btn" id="reload-btn">RELOAD</button>
+              <button type="button" class="action-btn" id="medkit-btn">USE MEDKIT</button>
+              <button type="button" class="action-btn" id="shield-btn">TOGGLE SHIELD</button>
+              <button type="button" class="action-btn" id="inventory-back-btn">BACK</button>
             </div>
           </div>
 
           <div class="player-stat-box">
-            <h2>PLAYER STAT</h2>
+            <h2>PLAYER STATS</h2>
             <ul>
               <li>HP: 100</li>
-              <li>SHIELD: 20</li>
-              <li>WEAPON: PISTOL</li>
+              <li>MED: 2</li>
+              <li>GREN: 2</li>
+              <li>PISTOL: 8/8</li>
+              <li>BAG AMMO: 20</li>
+              <li>SHIELD: ON</li>
               <li>LEVEL: 1</li>
+              <li>ENEMIES LEFT: 1</li>
+              <li>ENEMY HP: 50</li>
             </ul>
           </div>
         </div>
@@ -101,7 +129,6 @@
 
   </div>
 
-<script type="module" src="../static/js/play.js"></script>
-
+  <script type="module" src="../static/js/play.js"></script>
 </body>
 </html>

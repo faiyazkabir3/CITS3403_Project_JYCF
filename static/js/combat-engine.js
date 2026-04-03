@@ -1,10 +1,8 @@
-// combatEngine.js
-// A small, scalable turn-based combat core for your web UI.
-// Start as one file; later split into modules (state.js, rng.js, combat.js, etc.).
+// combat-engine.js
+import { LEVELS } from "./levels.js";
 
-// ---------- RNG (seedable for testability) ----------
+// ---------- RNG ----------
 function mulberry32(seed) {
-  // Small, fast PRNG (good for games/tests; not for security).
   let t = seed >>> 0;
   return function () {
     t += 0x6D2B79F5;
@@ -30,42 +28,74 @@ function createRng(seed = Date.now()) {
   };
 }
 
-// ---------- Game definitions (data-driven) ----------
+// ---------- Enemy data ----------
 const ENEMY_TYPES = {
-  regular: { name: "Regular Zombie", maxHp: 50, dmg: [10, 25] },
-  fast:    { name: "Fast Zombie",    maxHp: 30, dmg: [8, 18]  },
-  heavy:   { name: "Heavy Zombie",   maxHp: 60, dmg: [12, 26] },
-  spitter: { name: "Spitter Zombie", maxHp: 40, dmg: [7, 20]  }
+  regular: {
+    name: "Regular Zombie",
+    maxHp: 50,
+    dmg: [10, 25],
+    drops: {
+      pistolAmmo: { chance: 0.25, amount: [2, 5] },
+      medKit: { chance: 0.08, amount: [1, 1] }
+    }
+  },
+  fast: {
+    name: "Fast Zombie",
+    maxHp: 30,
+    dmg: [8, 18],
+    drops: {
+      pistolAmmo: { chance: 0.18, amount: [1, 4] },
+      medKit: { chance: 0.05, amount: [1, 1] }
+    }
+  },
+  heavy: {
+    name: "Heavy Zombie",
+    maxHp: 60,
+    dmg: [12, 26],
+    drops: {
+      pistolAmmo: { chance: 0.45, amount: [4, 8] },
+      medKit: { chance: 0.22, amount: [1, 1] },
+      grenade: { chance: 0.18, amount: [1, 1] }
+    }
+  },
+  spitter: {
+    name: "Spitter Zombie",
+    maxHp: 40,
+    dmg: [7, 20],
+    drops: {
+      pistolAmmo: { chance: 0.32, amount: [3, 6] },
+      medKit: { chance: 0.12, amount: [1, 1] }
+    }
+  }
 };
 
+// ---------- Rules ----------
 const RULES = {
-  zombieMissChance: 0.31,     // 31% miss
-  dodgeSuccessChance: 0.40,   // 40% dodge
-  knifeSelfDamage: 3,
-  knifePercentOfBaseHp: 0.27,
-  grenadeDamage: 87,
+  zombieMissChance: 0.31,
+  dodgeSuccessChance: 0.4,
   pistolDamageNoLaser: [27, 33],
-  pistolDamageLaser: [33, 41]
+  pistolDamageLaser: [33, 41],
+  knifePercentOfBaseHp: 0.27,
+  knifeSelfDamage: 3,
+  grenadeDamage: 87
 };
 
-// ---------- State creation ----------
+// ---------- State ----------
 export function createNewGameState({ difficulty = "EASY", seed } = {}) {
   const rng = createRng(seed);
-
-  // Difficulty hook: keep it simple now, scale later.
   const diff = difficulty.toUpperCase();
-  const hp = diff === "HARD" ? 85 : 100;
-  const med = diff === "HARD" ? 1 : 2;
+
+  const startingHealth = diff === "HARD" ? 85 : 100;
+  const startingMedKits = diff === "HARD" ? 1 : 2;
 
   const state = {
     difficulty: diff,
     rngSeed: seed ?? Date.now(),
 
     inventory: {
-      health: hp,
-      medKits: med,
-      grenades: 2,
-      flashGrenades: 1
+      health: startingHealth,
+      medKits: startingMedKits,
+      grenades: 2
     },
 
     pistol: {
@@ -75,17 +105,10 @@ export function createNewGameState({ difficulty = "EASY", seed } = {}) {
       hasLaser: false
     },
 
-    rifle: {
-      hasRifle: false,
-      magCapacity: 30,
-      ammoInGun: 0,
-      ammoInBag: 0
-    },
-
     shield: {
       hasShield: true,
       equipped: true,
-      deflect: [0.30, 0.40] // 30–40% block range
+      deflect: [0.3, 0.4]
     },
 
     stats: {
@@ -97,183 +120,267 @@ export function createNewGameState({ difficulty = "EASY", seed } = {}) {
       inCombat: false,
       enemy: null,
       pendingDodge: false
+    },
+
+    progression: {
+      currentLevelId: "1",
+      enemiesRemaining: 0,
+      levelComplete: false,
+      awaitingChoice: false,
+      gameWon: false
     }
   };
 
   return { state, rng };
 }
 
-// ---------- Utility helpers ----------
-function clampHealth(s) {
-  if (s.inventory.health > 100) s.inventory.health = 100;
-  if (s.inventory.health < 0) s.inventory.health = 0;
+// ---------- Helpers ----------
+function clampHealth(state) {
+  if (state.inventory.health > 100) state.inventory.health = 100;
+  if (state.inventory.health < 0) state.inventory.health = 0;
 }
 
-function applyShieldedDamage(s, rawDamage, rng) {
-  let dmg = rawDamage;
+function applyShieldedDamage(state, rawDamage, rng) {
+  let finalDamage = rawDamage;
 
-  if (s.shield.equipped) {
-    const def = s.shield.deflect;
-    const blockFrac = Array.isArray(def) ? rng.float(def[0], def[1]) : def;
-    dmg = Math.floor(dmg * (1 - blockFrac));
+  if (state.shield.equipped) {
+    const deflect = state.shield.deflect;
+    const blockFraction = Array.isArray(deflect)
+      ? rng.float(deflect[0], deflect[1])
+      : deflect;
+
+    finalDamage = Math.floor(finalDamage * (1 - blockFraction));
   }
 
-  s.inventory.health -= dmg;
-  clampHealth(s);
-  return dmg;
+  state.inventory.health -= finalDamage;
+  clampHealth(state);
+
+  return finalDamage;
 }
 
-function isDead(s) {
-  return s.inventory.health <= 0;
+function isDead(state) {
+  return state.inventory.health <= 0;
 }
 
-function spawnEnemy(s, rng) {
-  // Later: scale by chapter, noise/ambush.
-  const keys = Object.keys(ENEMY_TYPES);
-  const typeKey = keys[rng.int(0, keys.length - 1)];
+function getLevelById(levelId) {
+  return LEVELS[levelId] || null;
+}
+
+function getCurrentLevelData(state) {
+  return getLevelById(state.progression.currentLevelId);
+}
+
+function spawnEnemyForLevel(state, rng, level) {
+  const pool = level.enemyPool;
+  const typeKey = pool[rng.int(0, pool.length - 1)];
   const type = ENEMY_TYPES[typeKey];
 
-  s.combat.enemy = {
+  state.combat.enemy = {
     type: typeKey,
     name: type.name,
     hp: type.maxHp,
     baseHp: type.maxHp,
-    dmg: type.dmg
+    dmg: type.dmg,
+    drops: type.drops
   };
-  s.combat.inCombat = true;
-  s.combat.pendingDodge = false;
 
-  return s.combat.enemy;
+  state.combat.inCombat = true;
+  state.combat.pendingDodge = false;
+
+  return state.combat.enemy;
 }
 
-// ---------- Player action handlers (Command map) ----------
+function applyRewards(state, rewards, events) {
+  if (!rewards || rewards.length === 0) return;
+
+  rewards.forEach((reward) => {
+    if (reward.type === "pistolMagUpgrade") {
+      state.pistol.magCapacity = reward.value;
+      if (state.pistol.ammoInGun > state.pistol.magCapacity) {
+        state.pistol.ammoInGun = state.pistol.magCapacity;
+      }
+      events.push(reward.text);
+    }
+
+    if (reward.type === "medKits") {
+      state.inventory.medKits += reward.value;
+      events.push(reward.text);
+    }
+
+    if (reward.type === "grenades") {
+      state.inventory.grenades += reward.value;
+      events.push(reward.text);
+    }
+
+    if (reward.type === "pistolAmmo") {
+      state.pistol.ammoInBag += reward.value;
+      events.push(reward.text);
+    }
+
+    if (reward.type === "pistolLaser") {
+      state.pistol.hasLaser = true;
+      events.push(reward.text);
+    }
+  });
+}
+
+function applyEnemyDrops(state, enemy, rng, events) {
+  if (!enemy || !enemy.drops) return;
+
+  const { drops } = enemy;
+
+  if (drops.pistolAmmo && rng.chance(drops.pistolAmmo.chance)) {
+    const amount = rng.int(drops.pistolAmmo.amount[0], drops.pistolAmmo.amount[1]);
+    state.pistol.ammoInBag += amount;
+    events.push(`You found ${amount} pistol ammo.`);
+  }
+
+  if (drops.medKit && rng.chance(drops.medKit.chance)) {
+    const amount = rng.int(drops.medKit.amount[0], drops.medKit.amount[1]);
+    state.inventory.medKits += amount;
+    events.push(`You found ${amount} med kit.`);
+  }
+
+  if (drops.grenade && rng.chance(drops.grenade.chance)) {
+    const amount = rng.int(drops.grenade.amount[0], drops.grenade.amount[1]);
+    state.inventory.grenades += amount;
+    events.push(`You found ${amount} grenade.`);
+  }
+}
+
+// ---------- Actions ----------
 const ACTIONS = {
-  pistol(s, rng, events) {
-    if (s.pistol.ammoInGun <= 0) {
+  pistol(state, rng, events) {
+    if (state.pistol.ammoInGun <= 0) {
       events.push("No pistol ammo in the gun.");
       return false;
     }
-    s.pistol.ammoInGun -= 1;
 
-    const range = s.pistol.hasLaser ? RULES.pistolDamageLaser : RULES.pistolDamageNoLaser;
-    const dmg = rng.int(range[0], range[1]);
+    state.pistol.ammoInGun -= 1;
 
-    s.combat.enemy.hp -= dmg;
-    s.stats.noiseLevel += 5;
+    const range = state.pistol.hasLaser
+      ? RULES.pistolDamageLaser
+      : RULES.pistolDamageNoLaser;
 
-    events.push(`You fire your pistol for ${dmg} damage.`);
+    const damage = rng.int(range[0], range[1]);
+
+    state.combat.enemy.hp -= damage;
+    state.stats.noiseLevel += 5;
+
+    events.push(`You fire your pistol for ${damage} damage.`);
     return true;
   },
 
-  grenade(s, rng, events) {
-    if (s.inventory.grenades <= 0) {
-      events.push("You're out of grenades.");
+  knife(state, rng, events) {
+    const damage = Math.floor(state.combat.enemy.baseHp * RULES.knifePercentOfBaseHp);
+    state.combat.enemy.hp -= damage;
+    state.inventory.health -= RULES.knifeSelfDamage;
+    clampHealth(state);
+
+    events.push(
+      `You slash with your knife for ${damage} damage, but take ${RULES.knifeSelfDamage} damage in close combat.`
+    );
+    return true;
+  },
+
+  grenade(state, rng, events) {
+    if (state.inventory.grenades <= 0) {
+      events.push("No grenades left.");
       return false;
     }
-    s.inventory.grenades -= 1;
 
-    s.combat.enemy.hp -= RULES.grenadeDamage;
-    s.stats.noiseLevel += 15;
+    state.inventory.grenades -= 1;
+    state.combat.enemy.hp -= RULES.grenadeDamage;
+    state.stats.noiseLevel += 15;
 
-    events.push(`BOOM! Grenade deals ${RULES.grenadeDamage} damage.`);
+    events.push(`BOOM! Your grenade deals ${RULES.grenadeDamage} damage.`);
     return true;
   },
 
-  knife(s, rng, events) {
-    const baseHp = s.combat.enemy.baseHp;
-    const dmg = Math.floor(baseHp * RULES.knifePercentOfBaseHp);
-
-    s.combat.enemy.hp -= dmg;
-    s.inventory.health -= RULES.knifeSelfDamage;
-    clampHealth(s);
-
-    events.push(`Knife strike deals ${dmg} damage (but you take ${RULES.knifeSelfDamage}).`);
-    return true;
-  },
-
-  heal(s, rng, events) {
-    if (s.inventory.medKits <= 0) {
+  heal(state, rng, events) {
+    if (state.inventory.medKits <= 0) {
       events.push("No med kits left.");
       return false;
     }
-    s.inventory.medKits -= 1;
-    s.inventory.health += 50;
-    clampHealth(s);
 
-    events.push(`You heal. HP is now ${s.inventory.health}.`);
+    state.inventory.medKits -= 1;
+    state.inventory.health += 50;
+    clampHealth(state);
+
+    events.push(`You use a med kit. HP is now ${state.inventory.health}.`);
     return true;
   },
 
-  reloadPistol(s, rng, events) {
-    const needed = s.pistol.magCapacity - s.pistol.ammoInGun;
+  reloadPistol(state, rng, events) {
+    const needed = state.pistol.magCapacity - state.pistol.ammoInGun;
+
     if (needed <= 0) {
       events.push("Pistol already full.");
       return false;
     }
-    if (s.pistol.ammoInBag <= 0) {
-      events.push("No pistol ammo in bag.");
+
+    if (state.pistol.ammoInBag <= 0) {
+      events.push("No pistol ammo left in bag.");
       return false;
     }
 
-    const take = Math.min(needed, s.pistol.ammoInBag);
-    s.pistol.ammoInGun += take;
-    s.pistol.ammoInBag -= take;
+    const taken = Math.min(needed, state.pistol.ammoInBag);
+    state.pistol.ammoInGun += taken;
+    state.pistol.ammoInBag -= taken;
 
-    events.push(`Reloaded pistol (+${take}). Ammo: ${s.pistol.ammoInGun}/${s.pistol.magCapacity}.`);
+    events.push(
+      `You reload your pistol. Ammo: ${state.pistol.ammoInGun}/${state.pistol.magCapacity}.`
+    );
     return true;
   },
 
-  dodge(s, rng, events) {
-    // This sets a flag; resolution happens on enemy turn.
-    s.combat.pendingDodge = true;
+  dodge(state, rng, events) {
+    state.combat.pendingDodge = true;
     events.push("You prepare to dodge the next attack...");
     return true;
   },
 
-  toggleShield(s, rng, events) {
-    if (!s.shield.hasShield) {
-      events.push("No shield owned.");
+  toggleShield(state, rng, events) {
+    if (!state.shield.hasShield) {
+      events.push("No shield available.");
       return false;
     }
-    s.shield.equipped = !s.shield.equipped;
-    events.push(`Shield ${s.shield.equipped ? "equipped" : "unequipped"}.`);
+
+    state.shield.equipped = !state.shield.equipped;
+    events.push(`Shield ${state.shield.equipped ? "equipped" : "unequipped"}.`);
     return true;
   }
 };
 
 // ---------- Enemy turn ----------
-function enemyTurn(s, rng, events) {
-  if (!s.combat.inCombat || !s.combat.enemy) return;
+function enemyTurn(state, rng, events) {
+  if (!state.combat.inCombat || !state.combat.enemy) return;
+  if (state.combat.enemy.hp <= 0) return;
 
-  // If enemy already dead, skip.
-  if (s.combat.enemy.hp <= 0) return;
+  if (state.combat.pendingDodge) {
+    state.combat.pendingDodge = false;
 
-  // Dodge attempt?
-  if (s.combat.pendingDodge) {
-    s.combat.pendingDodge = false;
-    const dodged = rng.chance(RULES.dodgeSuccessChance);
-    if (dodged) {
+    if (rng.chance(RULES.dodgeSuccessChance)) {
       events.push("You dodge successfully!");
       return;
     }
+
     events.push("Dodge failed!");
-    // If dodge failed, continue to normal hit check.
   }
 
-  // Miss chance
   if (rng.chance(RULES.zombieMissChance)) {
     events.push("The zombie misses!");
     return;
   }
 
-  const [minD, maxD] = s.combat.enemy.dmg;
-  const raw = rng.int(minD, maxD);
-  const dealt = applyShieldedDamage(s, raw, rng);
+  const [minDamage, maxDamage] = state.combat.enemy.dmg;
+  const rawDamage = rng.int(minDamage, maxDamage);
+  const dealtDamage = applyShieldedDamage(state, rawDamage, rng);
 
-  events.push(`Zombie hits for ${dealt} damage.`);
+  events.push(`Zombie hits for ${dealtDamage} damage.`);
 }
 
-// ---------- Main dispatch ----------
+// ---------- Engine ----------
 export function createCombatEngine({ difficulty = "EASY", seed } = {}) {
   const { state, rng } = createNewGameState({ difficulty, seed });
 
@@ -281,19 +388,50 @@ export function createCombatEngine({ difficulty = "EASY", seed } = {}) {
     state,
     rng,
 
-    startCombat() {
+    getCurrentLevel() {
+      return getCurrentLevelData(state);
+    },
+
+    hasChoices() {
+      return state.progression.awaitingChoice;
+    },
+
+    getAvailableChoices() {
+      const level = getCurrentLevelData(state);
+      if (!level || !level.choices) return [];
+      return level.choices;
+    },
+
+    startLevel() {
       const events = [];
-      const enemy = spawnEnemy(engine.state, engine.rng);
+      const level = getCurrentLevelData(state);
+
+      if (!level) {
+        state.progression.gameWon = true;
+        events.push("You completed all available levels.");
+        events.push("For now, this is the end of the mission.");
+        return events;
+      }
+
+      state.progression.levelComplete = false;
+      state.progression.awaitingChoice = false;
+      state.progression.enemiesRemaining = level.enemyCount;
+
+      events.push(`LEVEL ${level.id}: ${level.title}`);
+      events.push(level.description);
+      events.push(level.introText);
+
+      const enemy = spawnEnemyForLevel(state, rng, level);
       events.push(`A ${enemy.name} appears! HP: ${enemy.hp}`);
+
       return events;
     },
 
     dispatch(actionKey) {
       const events = [];
-      const s = engine.state;
 
-      if (!s.combat.inCombat) {
-        events.push("Not in combat. Start combat first.");
+      if (!state.combat.inCombat) {
+        events.push("Not in combat right now.");
         return events;
       }
 
@@ -303,31 +441,108 @@ export function createCombatEngine({ difficulty = "EASY", seed } = {}) {
         return events;
       }
 
-      const valid = action(s, engine.rng, events);
+      const validMove = action(state, rng, events);
 
-      // Check player death from knife recoil etc.
-      if (isDead(s)) {
+      if (isDead(state)) {
         events.push("You died. Game over.");
         return events;
       }
 
-      // If enemy died, end combat.
-      if (s.combat.enemy.hp <= 0) {
-        s.combat.inCombat = false;
+      if (state.combat.enemy && state.combat.enemy.hp <= 0) {
+        const defeatedEnemy = { ...state.combat.enemy };
+
+        state.progression.enemiesRemaining -= 1;
+
         events.push("Enemy defeated!");
+        applyEnemyDrops(state, defeatedEnemy, rng, events);
+
+        if (state.progression.enemiesRemaining > 0) {
+          const level = getCurrentLevelData(state);
+          const nextEnemy = spawnEnemyForLevel(state, rng, level);
+
+          events.push(
+            `${state.progression.enemiesRemaining} enemy/enemies remaining in this level.`
+          );
+          events.push(`A ${nextEnemy.name} appears! HP: ${nextEnemy.hp}`);
+          return events;
+        }
+
+        state.combat.inCombat = false;
+        state.progression.levelComplete = true;
+
+        const level = getCurrentLevelData(state);
+
+        events.push(`Level ${level.id} complete!`);
+        events.push(level.completeText);
+
+        applyRewards(state, level.rewards, events);
+
+        if (level.choices && level.choices.length > 0) {
+          state.progression.awaitingChoice = true;
+          events.push("Choose your next route.");
+        } else if (!level.next) {
+          state.progression.gameWon = true;
+          events.push("You have completed this branch of the mission.");
+        }
+
         return events;
       }
 
-      // If valid action, enemy gets a turn (turn-based).
-      if (valid) {
-        enemyTurn(s, engine.rng, events);
+      if (validMove) {
+        enemyTurn(state, rng, events);
 
-        if (isDead(s)) {
+        if (isDead(state)) {
           events.push("You died. Game over.");
         }
       }
 
       return events;
+    },
+
+    advanceToNextLevel() {
+      const events = [];
+
+      if (!state.progression.levelComplete) {
+        events.push("Current level is not complete yet.");
+        return events;
+      }
+
+      if (state.progression.awaitingChoice) {
+        events.push("You must choose a route first.");
+        return events;
+      }
+
+      const currentLevel = getCurrentLevelData(state);
+      if (!currentLevel || !currentLevel.next) {
+        state.progression.gameWon = true;
+        events.push("No further level available.");
+        return events;
+      }
+
+      state.progression.currentLevelId = currentLevel.next;
+      return engine.startLevel();
+    },
+
+    choosePath(nextLevelId) {
+      const events = [];
+
+      if (!state.progression.awaitingChoice) {
+        events.push("No path choice is available right now.");
+        return events;
+      }
+
+      const currentLevel = getCurrentLevelData(state);
+      const validChoices = currentLevel?.choices?.map((choice) => choice.id) || [];
+
+      if (!validChoices.includes(nextLevelId)) {
+        events.push("Invalid path choice.");
+        return events;
+      }
+
+      state.progression.awaitingChoice = false;
+      state.progression.currentLevelId = nextLevelId;
+
+      return engine.startLevel();
     }
   };
 
