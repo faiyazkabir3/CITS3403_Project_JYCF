@@ -2,7 +2,6 @@ body {
   margin: 0;
   min-height: 100vh;
 
-  /* Background image path */
   background-image: url("../images/Background.gif");
   background-size: cover;
   background-position: center;
@@ -18,12 +17,12 @@ body {
   position: relative;
 }
 
- body::before {
+body::before {
   content: "";
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
-} 
+}
 
 /* MAIN CONTAINER */
 .menu-container {
@@ -98,7 +97,7 @@ body {
   gap: 12px;
 }
 
-/* BUTTON STYLE (same vibe as login) */
+/* BUTTON STYLE */
 button {
   width: 100%;
   border: 2px solid white;
