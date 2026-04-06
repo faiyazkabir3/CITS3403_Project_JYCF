@@ -29,16 +29,16 @@ def make_guest_name():
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
     if request.method == "POST":
-        name = request.form.get("username", "").strip()
+        username = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
 
-        if name == "":
+        if username == "":
             return render_template("login.html", error="Please enter your username.")
 
         if password == "":
             return render_template("login.html", error="Please enter your password.")
 
-        user = User.query.filter_by(username=name).first()
+        user = User.query.filter_by(username=username).first()
 
         if user is None:
             return render_template("login.html", error="Invalid username or password.")
@@ -58,11 +58,11 @@ def show_login():
 @app.route("/register", methods=["GET", "POST"])
 def show_register():
     if request.method == "POST":
-        name = request.form.get("username", "").strip()
+        username = request.form.get("username", "").strip().lower()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm-password", "")
 
-        if name == "":
+        if username == "":
             return render_template("register.html", error="Please enter a username.")
 
         if password == "":
@@ -71,16 +71,16 @@ def show_register():
         if password != confirm:
             return render_template("register.html", error="Passwords do not match.")
 
-        user = User.query.filter_by(username=name).first()
+        user = User.query.filter_by(username=username).first()
         if user is not None:
             return render_template("register.html", error="Username already exists.")
 
-        user = User(
-            username=name,
+        new_user = User(
+            username=username,
             password_hash=generate_password_hash(password)
         )
 
-        db.session.add(user)
+        db.session.add(new_user)
         db.session.commit()
 
         return redirect(url_for("show_login"))
