@@ -45,6 +45,17 @@ def get_or_create_save(user_id):
     return save_data
 
 
+def save_to_dict(save_data):
+    return {
+        "health": save_data.health,
+        "ammo": save_data.ammo,
+        "grenades": save_data.grenades,
+        "medkits": save_data.medkits,
+        "shield_on": save_data.shield_on,
+        "level_name": save_data.level_name
+    }
+
+
 @app.route("/")
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
@@ -143,6 +154,52 @@ def show_play():
         return redirect(url_for("show_login"))
 
     return render_template("play.html")
+
+
+@app.route("/save-game", methods=["POST"])
+def save_game():
+    if "user_id" not in session or session.get("is_guest"):
+        return redirect(url_for("show_login"))
+
+    save_data = get_or_create_save(session["user_id"])
+
+    health = request.form.get("health")
+    ammo = request.form.get("ammo")
+    grenades = request.form.get("grenades")
+    medkits = request.form.get("medkits")
+    shield_on = request.form.get("shield_on")
+    level_name = request.form.get("level_name", "").strip()
+
+    if health not in (None, ""):
+        save_data.health = int(health)
+
+    if ammo not in (None, ""):
+        save_data.ammo = int(ammo)
+
+    if grenades not in (None, ""):
+        save_data.grenades = int(grenades)
+
+    if medkits not in (None, ""):
+        save_data.medkits = int(medkits)
+
+    if shield_on not in (None, ""):
+        save_data.shield_on = shield_on.lower() == "true"
+
+    if level_name != "":
+        save_data.level_name = level_name
+
+    db.session.commit()
+
+    return redirect(url_for("show_play"))
+
+
+@app.route("/load-game")
+def load_game():
+    if "user_id" not in session or session.get("is_guest"):
+        return redirect(url_for("show_login"))
+
+    save_data = get_or_create_save(session["user_id"])
+    return save_to_dict(save_data)
 
 
 @app.route("/achievements")
