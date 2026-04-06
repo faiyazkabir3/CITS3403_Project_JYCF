@@ -62,8 +62,17 @@ input {
   border: none;
   border-radius: 6px;
   box-sizing: border-box;
-  font-family: "Silkscreen", Arial, sans-serif;
-  font-size: 0.75rem;
+  font-family: Arial, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+input::placeholder {
+  font-family: Arial, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 button {
