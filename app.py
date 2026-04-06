@@ -4,7 +4,7 @@ import random
 from flask import Flask, render_template, request, redirect, url_for, session
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User
+from models import db, User, SaveData
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -23,6 +23,26 @@ with app.app_context():
 def make_guest_name():
     num = random.randint(10000, 99999)
     return "Operator" + str(num)
+
+
+def get_user_save(user_id):
+    return SaveData.query.filter_by(user_id=user_id).first()
+
+
+def create_default_save(user_id):
+    save_data = SaveData(user_id=user_id)
+    db.session.add(save_data)
+    db.session.commit()
+    return save_data
+
+
+def get_or_create_save(user_id):
+    save_data = get_user_save(user_id)
+
+    if save_data is None:
+        save_data = create_default_save(user_id)
+
+    return save_data
 
 
 @app.route("/")
@@ -45,6 +65,8 @@ def show_login():
 
         if not check_password_hash(user.password_hash, password):
             return render_template("login.html", error="Invalid username or password.")
+
+        get_or_create_save(user.id)
 
         session["user_id"] = user.id
         session["username"] = user.username
@@ -82,6 +104,8 @@ def show_register():
 
         db.session.add(new_user)
         db.session.commit()
+
+        create_default_save(new_user.id)
 
         return redirect(url_for("show_login"))
 
