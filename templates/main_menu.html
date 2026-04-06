@@ -32,11 +32,11 @@
       </div>
 
       <div class="menu-buttons">
-        <button class="play-btn" onclick="window.location.href='{{ url_for('show_play') }}'">PLAY GAME</button>
-        <button type="button">SETTINGS</button>
-        <button onclick="window.location.href='{{ url_for('show_achievements') }}'">ACHIEVEMENTS</button>
-        <button onclick="window.location.href='{{ url_for('logout') }}'">LOG OUT</button>
-      </div>
+  <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
+  <button type="button">SETTINGS</button>
+  <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
+  <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
+</div>
     </div>
   </div>
 
