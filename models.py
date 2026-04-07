@@ -17,6 +17,7 @@ class SaveData(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
 
     difficulty = db.Column(db.String(20), nullable=False, default="EASY")
+    character_id = db.Column(db.String(20), nullable=False, default="leon")
 
     health = db.Column(db.Integer, nullable=False, default=100)
     medkits = db.Column(db.Integer, nullable=False, default=0)
