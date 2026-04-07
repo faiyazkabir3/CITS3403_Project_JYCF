@@ -5,16 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Main Menu</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main_menu.css') }}" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body>
+<body class="menu-page">
 
   <div class="menu-container">
     <div class="top-bar">
-      <div style="display: flex; align-items: center; gap: 12px;">
+      <div class="operator-bar">
         <img src="{{ url_for('static', filename='images/Shadows.gif') }}" class="logo" alt="Game Logo">
-        <span style="color: white; font-family: 'Silkscreen', cursive;">Operator: {{ username }}</span>
+        <span class="operator-name">Operator: {{ username }}</span>
       </div>
       <div class="version">v0.1</div>
     </div>

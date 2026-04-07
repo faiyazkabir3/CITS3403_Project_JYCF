@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="/static/css/play.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body>
+<body class="play-page">
   <div class="screen-wrap">
 
     <section id="start-screen" class="panel active">
@@ -38,7 +38,7 @@
 
       <div class="character-grid">
         <button type="button" class="character-card" data-character="leon">
-          <img src="/static/images/leon_ken_looby.png" alt="Leon character">
+          <img src="{{ url_for('static', filename='images/leon_ken_looby.png') }}" alt="Leon character">
           <span class="character-name">LEON</span>
           <div class="character-desc">
             <strong>TACTICAL SPECIALIST</strong>
@@ -47,7 +47,7 @@
         </button>
 
         <button type="button" class="character-card" data-character="quite">
-          <img src="/static/images/quite_dual_good.png" alt="Quite character">
+          <img src="{{ url_for('static', filename='images/quite_dual_good.png') }}" alt="Quite character">
           <span class="character-name">QUITE</span>
           <div class="character-desc">
             <strong>AGILE SURVIVOR</strong>
@@ -174,6 +174,6 @@
 
   </div>
 
-  <script type="module" src="/static/js/play.js"></script>
+  <script type="module" src="{{ url_for('static', filename='js/play.js') }}"></script>
 </body>
 </html>

@@ -5,117 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Achievements</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
-
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-
-      background-image: url("../static/images/Background.gif");
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-
-      display: flex;
-      justify-content: center;
-      align-items: center;
-
-      font-family: "Silkscreen", Arial, sans-serif;
-      font-weight: 400;
-
-      position: relative;
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.3);
-    }
-
-    /* MAIN BOX */
-    .menu-container {
-      position: relative;
-      z-index: 1;
-
-      width: 90%;
-      max-width: 900px;
-
-      background: rgba(30, 30, 30, 0.8);
-      color: white;
-
-      border: 3px solid white;
-      box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
-    }
-
-    /* TOP BAR */
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      padding: 10px 15px;
-      border-bottom: 2px solid white;
-
-      background: rgba(0, 0, 0, 0.6);
-    }
-
-    .title {
-      font-size: 0.9rem;
-    }
-
-    /* CONTENT */
-    .menu-content {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    /* ACHIEVEMENTS LIST */
-    .achievement-box {
-      border: 2px solid white;
-      padding: 12px;
-      background: rgba(255,255,255,0.1);
-      font-size: 0.75rem;
-    }
-
-    .achievement-title {
-      font-size: 0.8rem;
-      margin-bottom: 6px;
-    }
-
-    /* BUTTON STYLE (same as menu) */
-    button {
-      width: 100%;
-      border: 2px solid white;
-      padding: 12px;
-      cursor: pointer;
-
-      font-family: "Silkscreen", Arial, sans-serif;
-      font-size: 0.75rem;
-
-      background: white;
-      color: black;
-
-      box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
-      transition: 0.15s ease;
-    }
-
-    button:hover {
-      background: black;
-      color: white;
-    }
-
-    button:active {
-      transform: translate(2px, 2px);
-      box-shadow: 1px 1px 0 rgba(0,0,0,0.35);
-    }
-
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
 </head>
-<body>
+<body class="achievements-page">
 
   <div class="menu-container">
 
