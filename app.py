@@ -1,10 +1,11 @@
 import os
 import random
+from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User
+from models import db, User, SaveData
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -23,6 +24,71 @@ with app.app_context():
 def make_guest_name():
     num = random.randint(10000, 99999)
     return "Operator" + str(num)
+
+
+def get_user_save(create=False):
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return None
+
+    save_data = SaveData.query.filter_by(user_id=user_id).first()
+
+    if save_data is None and create:
+        save_data = SaveData(user_id=user_id)
+        db.session.add(save_data)
+
+    return save_data
+
+
+def update_save_data(save_data, data):
+    save_data.difficulty = str(data.get("difficulty", save_data.difficulty or "EASY")).upper()
+    save_data.character_id = str(data.get("character_id", save_data.character_id or "leon")).lower()
+
+    save_data.health = int(data.get("health", save_data.health))
+    save_data.medkits = int(data.get("medkits", save_data.medkits))
+    save_data.grenades = int(data.get("grenades", save_data.grenades))
+
+    save_data.ammo_in_gun = int(data.get("ammo_in_gun", save_data.ammo_in_gun))
+    save_data.ammo_in_bag = int(data.get("ammo_in_bag", save_data.ammo_in_bag))
+    save_data.mag_capacity = int(data.get("mag_capacity", save_data.mag_capacity))
+
+    save_data.laser_upgrade = bool(data.get("laser_upgrade", save_data.laser_upgrade))
+    save_data.shield_owned = bool(data.get("shield_owned", save_data.shield_owned))
+    save_data.shield_on = bool(data.get("shield_on", save_data.shield_on))
+
+    save_data.current_level_id = str(data.get("current_level_id", save_data.current_level_id))
+    save_data.enemies_remaining = int(data.get("enemies_remaining", save_data.enemies_remaining))
+
+    save_data.level_complete = bool(data.get("level_complete", save_data.level_complete))
+    save_data.awaiting_choice = bool(data.get("awaiting_choice", save_data.awaiting_choice))
+    save_data.game_won = bool(data.get("game_won", save_data.game_won))
+
+    save_data.has_started_game = True
+    save_data.updated_at = datetime.utcnow()
+
+
+def build_save_payload(save_data):
+    return {
+        "difficulty": save_data.difficulty,
+        "character_id": save_data.character_id,
+        "health": save_data.health,
+        "medkits": save_data.medkits,
+        "grenades": save_data.grenades,
+        "ammo_in_gun": save_data.ammo_in_gun,
+        "ammo_in_bag": save_data.ammo_in_bag,
+        "mag_capacity": save_data.mag_capacity,
+        "laser_upgrade": save_data.laser_upgrade,
+        "shield_owned": save_data.shield_owned,
+        "shield_on": save_data.shield_on,
+        "current_level_id": save_data.current_level_id,
+        "enemies_remaining": save_data.enemies_remaining,
+        "level_complete": save_data.level_complete,
+        "awaiting_choice": save_data.awaiting_choice,
+        "game_won": save_data.game_won,
+        "has_started_game": save_data.has_started_game,
+        "updated_at": save_data.updated_at.isoformat() if save_data.updated_at else None
+    }
 
 
 @app.route("/")
@@ -127,6 +193,55 @@ def show_achievements():
         return redirect(url_for("show_login"))
 
     return render_template("achievements.html", username=session.get("username", "Player"))
+
+
+@app.route("/save-game", methods=["POST"])
+def save_game():
+    if session.get("user_id") is None or session.get("is_guest"):
+        return jsonify({
+            "ok": False,
+            "message": "Please log in to save your game."
+        }), 401
+
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({
+            "ok": False,
+            "message": "No save data received."
+        }), 400
+
+    save_data = get_user_save(create=True)
+    update_save_data(save_data, data)
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "message": "Game saved."
+    })
+
+
+@app.route("/load-game")
+def load_game():
+    if session.get("user_id") is None or session.get("is_guest"):
+        return jsonify({
+            "ok": False,
+            "message": "Please log in to load your game."
+        }), 401
+
+    save_data = get_user_save()
+
+    if save_data is None or not save_data.has_started_game:
+        return jsonify({
+            "ok": False,
+            "message": "Start a new game first."
+        })
+
+    return jsonify({
+        "ok": True,
+        "message": "Save loaded.",
+        "save_data": build_save_payload(save_data)
+    })
 
 
 if __name__ == "__main__":
