@@ -6,14 +6,14 @@
   <title>Main Menu</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../static/css/main_menu.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main_menu.css') }}" />
 </head>
 <body>
 
   <div class="menu-container">
     <div class="top-bar">
       <div style="display: flex; align-items: center; gap: 12px;">
-        <img src="../static/images/Shadows.gif" class="logo" alt="Game Logo">
+        <img src="{{ url_for('static', filename='images/Shadows.gif') }}" class="logo" alt="Game Logo">
         <span style="color: white; font-family: 'Silkscreen', cursive;">Operator: {{ username }}</span>
       </div>
       <div class="version">v0.1</div>
@@ -32,11 +32,11 @@
       </div>
 
       <div class="menu-buttons">
-        <button onclick="window.location.href='/play'">PLAY GAME</button>
-        <button type="button">SETTINGS</button>
-        <button onclick="window.location.href='/achievements'">ACHIEVEMENTS</button>
-        <button onclick="window.location.href='/logout'">LOG OUT</button>
-      </div>
+  <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
+  <button type="button">SETTINGS</button>
+  <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
+  <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
+</div>
     </div>
   </div>
 

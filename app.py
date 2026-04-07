@@ -126,7 +126,7 @@ def show_achievements():
     if "username" not in session:
         return redirect(url_for("show_login"))
 
-    return render_template("achievements.html")
+    return render_template("achievements.html", username=session.get("username", "Player"))
 
 
 if __name__ == "__main__":
