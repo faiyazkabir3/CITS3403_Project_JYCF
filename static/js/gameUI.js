@@ -1,5 +1,4 @@
 import { createCombatEngine } from "./combat-engine.js";
-import { saveGame } from "./progression.js";
 
 function $(selector) {
   return document.querySelector(selector);
@@ -192,6 +191,43 @@ function renderChoiceBox(engine, onChoose) {
   });
 }
 
+function buildSavePayload(engine) {
+  const state = engine.state;
+
+  return {
+    difficulty: state.difficulty,
+    character_id: state.player.characterId,
+    health: state.inventory.health,
+    medkits: state.inventory.medKits,
+    grenades: state.inventory.grenades,
+    ammo_in_gun: state.pistol.ammoInGun,
+    ammo_in_bag: state.pistol.ammoInBag,
+    mag_capacity: state.pistol.magCapacity,
+    laser_upgrade: state.pistol.hasLaser,
+    shield_owned: state.shield.hasShield,
+    shield_on: state.shield.equipped,
+    current_level_id: state.progression.currentLevelId,
+    enemies_remaining: state.progression.enemiesRemaining,
+    level_complete: state.progression.levelComplete,
+    awaiting_choice: state.progression.awaitingChoice,
+    game_won: state.progression.gameWon
+  };
+}
+
+async function saveGameToBackend(engine) {
+  const payload = buildSavePayload(engine);
+
+  const response = await fetch("/save-game", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  return response.json();
+}
+
 export function bootGameUI({
   difficultyText = "EASY",
   selectedCharacter = "leon",
@@ -206,9 +242,14 @@ export function bootGameUI({
   const storyText = $("#story-text");
   let locked = false;
 
-  function autoSave() {
+  async function autoSave() {
     engine.state.analytics.savesMade += 1;
-    saveGame(engine);
+
+    try {
+      await saveGameToBackend(engine);
+    } catch (error) {
+      console.error("Auto save failed:", error);
+    }
   }
 
   async function runAndRender(events) {
@@ -219,7 +260,7 @@ export function bootGameUI({
     renderStats(engine);
     renderChoiceBox(engine, handlePathChoice);
     updateActionAvailability(engine, locked);
-    autoSave();
+    await autoSave();
   }
 
   async function postLevelFlow() {
@@ -335,11 +376,27 @@ export function bootGameUI({
   }
 
   if (saveBtn) {
-    saveBtn.addEventListener("click", () => {
-      autoSave();
-      appendCombatLog("Game saved successfully.");
-      if (storyText) {
-        storyText.textContent = "Game saved successfully.";
+    saveBtn.addEventListener("click", async () => {
+      try {
+        const result = await saveGameToBackend(engine);
+
+        if (result.ok) {
+          appendCombatLog("Game saved successfully.");
+          if (storyText) {
+            storyText.textContent = "Game saved successfully.";
+          }
+        } else {
+          appendCombatLog(result.message || "Save failed.");
+          if (storyText) {
+            storyText.textContent = result.message || "Save failed.";
+          }
+        }
+      } catch (error) {
+        console.error("Save failed:", error);
+        appendCombatLog("Save failed.");
+        if (storyText) {
+          storyText.textContent = "Save failed.";
+        }
       }
     });
   }
