@@ -1,5 +1,4 @@
 import { bootGameUI } from "./gameUI.js";
-import { loadGame, deleteSave, getSavePreviewText } from "./progression.js";
 
 const startScreen = document.getElementById("start-screen");
 const characterScreen = document.getElementById("character-screen");
@@ -33,6 +32,11 @@ const CHARACTER_LABELS = {
   quite: "QUITE"
 };
 
+const CHARACTER_PERKS = {
+  leon: "TACTICAL SPECIALIST",
+  quite: "AGILE SURVIVOR"
+};
+
 function showScreen(screenToShow) {
   const screens = [
     startScreen,
@@ -55,10 +59,70 @@ function updateSelectedCharacterText() {
   }
 }
 
-function refreshSavePreview() {
-  if (savePreview) {
-    savePreview.textContent = getSavePreviewText();
-  }
+function setSavePreview(lines) {
+  if (!savePreview) return;
+  savePreview.textContent = lines.join("\n");
+}
+
+function buildSavedState(saveData) {
+  const characterId = (saveData.character_id || "leon").toLowerCase();
+
+  return {
+    difficulty: (saveData.difficulty || "EASY").toUpperCase(),
+
+    player: {
+      characterId,
+      characterName: CHARACTER_LABELS[characterId] || "LEON",
+      perkName: CHARACTER_PERKS[characterId] || "TACTICAL SPECIALIST"
+    },
+
+    inventory: {
+      health: saveData.health ?? 100,
+      medKits: saveData.medkits ?? 0,
+      grenades: saveData.grenades ?? 0
+    },
+
+    pistol: {
+      magCapacity: saveData.mag_capacity ?? 8,
+      ammoInGun: saveData.ammo_in_gun ?? 0,
+      ammoInBag: saveData.ammo_in_bag ?? 0,
+      hasLaser: Boolean(saveData.laser_upgrade)
+    },
+
+    shield: {
+      hasShield: Boolean(saveData.shield_owned),
+      equipped: Boolean(saveData.shield_on),
+      deflect: [0.3, 0.4]
+    },
+
+    analytics: {
+      pistolShotsFired: 0,
+      grenadesUsed: 0,
+      medKitsUsed: 0,
+      reloads: 0,
+      knivesUsed: 0,
+      enemiesKilled: 0,
+      damageTaken: 0,
+      dodgesPrepared: 0,
+      savesMade: 0,
+      achievementsUnlocked: []
+    },
+
+    combat: {
+      inCombat: false,
+      enemy: null,
+      pendingDodge: false
+    },
+
+    progression: {
+      currentLevelId: String(saveData.current_level_id || "1"),
+      enemiesRemaining: saveData.enemies_remaining ?? 0,
+      levelComplete: Boolean(saveData.level_complete),
+      awaitingChoice: Boolean(saveData.awaiting_choice),
+      gameWon: Boolean(saveData.game_won),
+      gameOver: (saveData.health ?? 100) <= 0
+    }
+  };
 }
 
 function bootNewRun(selectedDifficulty) {
@@ -73,19 +137,46 @@ function bootNewRun(selectedDifficulty) {
   window.gameEngine = gameEngine;
 }
 
-function bootLoadedRun(savedPayload) {
-  if (!savedPayload || !savedPayload.state) return;
+function bootLoadedRun(saveData) {
+  const savedState = buildSavedState(saveData);
 
-  difficultyDisplay.textContent = savedPayload.state.difficulty || "EASY";
+  difficultyDisplay.textContent = savedState.difficulty || "EASY";
+  selectedCharacter = savedState.player.characterId || "leon";
+  updateSelectedCharacterText();
   showScreen(gameScreen);
 
   gameEngine = bootGameUI({
-    difficultyText: savedPayload.state.difficulty || "EASY",
-    selectedCharacter: savedPayload.state.player?.characterId || "leon",
-    savedState: savedPayload.state
+    difficultyText: savedState.difficulty || "EASY",
+    selectedCharacter,
+    savedState
   });
 
   window.gameEngine = gameEngine;
+}
+
+async function loadLatestSave() {
+  setSavePreview(["CHECKING SAVE DATA..."]);
+
+  try {
+    const response = await fetch("/load-game");
+    const result = await response.json();
+
+    if (!result.ok || !result.save_data) {
+      setSavePreview([
+        "NO SAVED GAME FOUND",
+        result.message || "Start a new game first."
+      ]);
+      return;
+    }
+
+    bootLoadedRun(result.save_data);
+  } catch (error) {
+    console.error("Failed to load save data:", error);
+    setSavePreview([
+      "LOAD FAILED",
+      "Please try again."
+    ]);
+  }
 }
 
 newGameBtn.addEventListener("click", () => {
@@ -93,8 +184,11 @@ newGameBtn.addEventListener("click", () => {
 });
 
 loadGameBtn.addEventListener("click", () => {
-  refreshSavePreview();
   showScreen(loadScreen);
+  setSavePreview([
+    "LOAD YOUR LATEST SAVE",
+    "Press LOAD LATEST SAVE to continue."
+  ]);
 });
 
 backToMainBtn.addEventListener("click", () => {
@@ -133,24 +227,17 @@ difficultyButtons.forEach((button) => {
 });
 
 if (loadLatestSaveBtn) {
-  loadLatestSaveBtn.addEventListener("click", () => {
-    const savedPayload = loadGame();
-
-    if (!savedPayload) {
-      refreshSavePreview();
-      return;
-    }
-
-    bootLoadedRun(savedPayload);
+  loadLatestSaveBtn.addEventListener("click", async () => {
+    await loadLatestSave();
   });
 }
 
 if (deleteSaveBtn) {
-  deleteSaveBtn.addEventListener("click", () => {
-    deleteSave();
-    refreshSavePreview();
-  });
+  deleteSaveBtn.style.display = "none";
 }
 
 updateSelectedCharacterText();
-refreshSavePreview();
+setSavePreview([
+  "NO SAVED GAME LOADED",
+  "Start a new game first."
+]);
