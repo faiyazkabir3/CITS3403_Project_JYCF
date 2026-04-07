@@ -64,6 +64,35 @@ function setSavePreview(lines) {
   savePreview.textContent = lines.join("\n");
 }
 
+function formatSavedTime(savedAt) {
+  if (!savedAt) return "UNKNOWN";
+
+  const date = new Date(savedAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "UNKNOWN";
+  }
+
+  return date.toLocaleString();
+}
+
+function showNoSavePreview(message = "Start a new game first.") {
+  setSavePreview([
+    "NO SAVED GAME FOUND",
+    message
+  ]);
+}
+
+function showSavePreview(saveData) {
+  setSavePreview([
+    `CHARACTER: ${CHARACTER_LABELS[(saveData.character_id || "leon").toLowerCase()] || "LEON"}`,
+    `DIFFICULTY: ${(saveData.difficulty || "EASY").toUpperCase()}`,
+    `LEVEL: ${saveData.current_level_id || "1"}`,
+    `HP: ${saveData.health ?? 100}`,
+    `SAVED: ${formatSavedTime(saveData.updated_at)}`
+  ]);
+}
+
 function buildSavedState(saveData) {
   const characterId = (saveData.character_id || "leon").toLowerCase();
 
@@ -154,22 +183,59 @@ function bootLoadedRun(saveData) {
   window.gameEngine = gameEngine;
 }
 
-async function loadLatestSave() {
+async function fetchCurrentSaveData() {
+  const response = await fetch("/load-game");
+  const result = await response.json();
+
+  if (!result.ok || !result.save_data) {
+    return {
+      ok: false,
+      message: result.message || "Start a new game first.",
+      saveData: null
+    };
+  }
+
+  return {
+    ok: true,
+    message: result.message || "Save loaded.",
+    saveData: result.save_data
+  };
+}
+
+async function refreshSavePreviewFromBackend() {
   setSavePreview(["CHECKING SAVE DATA..."]);
 
   try {
-    const response = await fetch("/load-game");
-    const result = await response.json();
+    const result = await fetchCurrentSaveData();
 
-    if (!result.ok || !result.save_data) {
-      setSavePreview([
-        "NO SAVED GAME FOUND",
-        result.message || "Start a new game first."
-      ]);
+    if (!result.ok || !result.saveData) {
+      showNoSavePreview(result.message);
+      return null;
+    }
+
+    showSavePreview(result.saveData);
+    return result.saveData;
+  } catch (error) {
+    console.error("Failed to load save preview:", error);
+    setSavePreview([
+      "LOAD FAILED",
+      "Please try again."
+    ]);
+    return null;
+  }
+}
+
+async function loadLatestSave() {
+  try {
+    const result = await fetchCurrentSaveData();
+
+    if (!result.ok || !result.saveData) {
+      showNoSavePreview(result.message);
       return;
     }
 
-    bootLoadedRun(result.save_data);
+    showSavePreview(result.saveData);
+    bootLoadedRun(result.saveData);
   } catch (error) {
     console.error("Failed to load save data:", error);
     setSavePreview([
@@ -183,12 +249,9 @@ newGameBtn.addEventListener("click", () => {
   showScreen(characterScreen);
 });
 
-loadGameBtn.addEventListener("click", () => {
+loadGameBtn.addEventListener("click", async () => {
   showScreen(loadScreen);
-  setSavePreview([
-    "LOAD YOUR LATEST SAVE",
-    "Press LOAD LATEST SAVE to continue."
-  ]);
+  await refreshSavePreviewFromBackend();
 });
 
 backToMainBtn.addEventListener("click", () => {
@@ -237,7 +300,4 @@ if (deleteSaveBtn) {
 }
 
 updateSelectedCharacterText();
-setSavePreview([
-  "NO SAVED GAME LOADED",
-  "Start a new game first."
-]);
+showNoSavePreview();
