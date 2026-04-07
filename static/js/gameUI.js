@@ -242,13 +242,13 @@ export function bootGameUI({
   const storyText = $("#story-text");
   let locked = false;
 
-  async function autoSave() {
+  async function saveAtCheckpoint() {
     engine.state.analytics.savesMade += 1;
 
     try {
       await saveGameToBackend(engine);
     } catch (error) {
-      console.error("Auto save failed:", error);
+      console.error("Checkpoint save failed:", error);
     }
   }
 
@@ -260,7 +260,6 @@ export function bootGameUI({
     renderStats(engine);
     renderChoiceBox(engine, handlePathChoice);
     updateActionAvailability(engine, locked);
-    await autoSave();
   }
 
   async function postLevelFlow() {
@@ -337,11 +336,13 @@ export function bootGameUI({
     if (savedState) {
       const resumeEvents = engine.resumeFromSave();
       await runAndRender(resumeEvents);
+      await saveAtCheckpoint();
       return;
     }
 
     const introEvents = engine.startLevel();
     await runAndRender(introEvents);
+    await saveAtCheckpoint();
   }
 
   const attackBtn = $("#attack-btn");
@@ -374,6 +375,7 @@ export function bootGameUI({
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
       try {
+        engine.state.analytics.savesMade += 1;
         const result = await saveGameToBackend(engine);
 
         if (result.ok) {
