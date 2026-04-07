@@ -1,4 +1,3 @@
-// gameUI.js
 import { createCombatEngine } from "./combat-engine.js";
 
 function $(selector) {
@@ -17,6 +16,13 @@ async function typeWriter(element, text, speed = 20) {
     element.textContent += text[i];
     await sleep(speed);
   }
+}
+
+function clearCombatLog() {
+  const logList = $("#combat-log-list");
+  if (!logList) return;
+
+  logList.innerHTML = "";
 }
 
 function appendCombatLog(text) {
@@ -143,9 +149,19 @@ function renderChoiceBox(engine, onChoose) {
   });
 }
 
-export function bootGameUI({ difficultyText = "EASY" } = {}) {
+function addClickListener(element, handler, cleanupFns) {
+  if (!element) return;
+
+  element.addEventListener("click", handler);
+  cleanupFns.push(() => {
+    element.removeEventListener("click", handler);
+  });
+}
+
+export function bootGameUI({ difficultyText = "EASY", saveData = null } = {}) {
   const engine = createCombatEngine({ difficulty: difficultyText });
   const storyText = $("#story-text");
+  const cleanupFns = [];
 
   let locked = false;
 
@@ -207,101 +223,88 @@ export function bootGameUI({ difficultyText = "EASY" } = {}) {
   }
 
   async function startGame() {
+    clearCombatLog();
     showMainActions();
     setActionButtonsDisabled(false);
 
-    const introEvents = engine.startLevel();
+    let introEvents;
+
+    if (saveData) {
+      introEvents = engine.loadFromSave(saveData);
+    } else {
+      introEvents = engine.startLevel();
+    }
+
     await runAndRender(introEvents);
   }
 
-  // Main actions
   const attackBtn = $("#attack-btn");
   const defendBtn = $("#defend-btn");
   const inventoryBtn = $("#inventory-btn");
 
-  if (attackBtn) {
-    attackBtn.addEventListener("click", () => {
-      if (locked || engine.state.progression.awaitingChoice) return;
-      showAttackActions();
-    });
-  }
+  addClickListener(attackBtn, () => {
+    if (locked || engine.state.progression.awaitingChoice) return;
+    showAttackActions();
+  }, cleanupFns);
 
-  if (defendBtn) {
-    defendBtn.addEventListener("click", async () => {
-      await handleAction("dodge");
-    });
-  }
+  addClickListener(defendBtn, async () => {
+    await handleAction("dodge");
+  }, cleanupFns);
 
-  if (inventoryBtn) {
-    inventoryBtn.addEventListener("click", () => {
-      if (locked || engine.state.progression.awaitingChoice) return;
-      showInventoryActions();
-    });
-  }
+  addClickListener(inventoryBtn, () => {
+    if (locked || engine.state.progression.awaitingChoice) return;
+    showInventoryActions();
+  }, cleanupFns);
 
-  // Attack submenu
   const pistolBtn = $("#pistol-btn");
   const knifeBtn = $("#knife-btn");
   const grenadeBtn = $("#grenade-btn");
   const attackBackBtn = $("#attack-back-btn");
 
-  if (pistolBtn) {
-    pistolBtn.addEventListener("click", async () => {
-      await handleAction("pistol");
-    });
-  }
+  addClickListener(pistolBtn, async () => {
+    await handleAction("pistol");
+  }, cleanupFns);
 
-  if (knifeBtn) {
-    knifeBtn.addEventListener("click", async () => {
-      await handleAction("knife");
-    });
-  }
+  addClickListener(knifeBtn, async () => {
+    await handleAction("knife");
+  }, cleanupFns);
 
-  if (grenadeBtn) {
-    grenadeBtn.addEventListener("click", async () => {
-      await handleAction("grenade");
-    });
-  }
+  addClickListener(grenadeBtn, async () => {
+    await handleAction("grenade");
+  }, cleanupFns);
 
-  if (attackBackBtn) {
-    attackBackBtn.addEventListener("click", () => {
-      if (locked) return;
-      showMainActions();
-    });
-  }
+  addClickListener(attackBackBtn, () => {
+    if (locked) return;
+    showMainActions();
+  }, cleanupFns);
 
-  // Inventory submenu
   const reloadBtn = $("#reload-btn");
   const medkitBtn = $("#medkit-btn");
   const shieldBtn = $("#shield-btn");
   const inventoryBackBtn = $("#inventory-back-btn");
 
-  if (reloadBtn) {
-    reloadBtn.addEventListener("click", async () => {
-      await handleAction("reloadPistol");
-    });
-  }
+  addClickListener(reloadBtn, async () => {
+    await handleAction("reloadPistol");
+  }, cleanupFns);
 
-  if (medkitBtn) {
-    medkitBtn.addEventListener("click", async () => {
-      await handleAction("heal");
-    });
-  }
+  addClickListener(medkitBtn, async () => {
+    await handleAction("heal");
+  }, cleanupFns);
 
-  if (shieldBtn) {
-    shieldBtn.addEventListener("click", async () => {
-      await handleAction("toggleShield");
-    });
-  }
+  addClickListener(shieldBtn, async () => {
+    await handleAction("toggleShield");
+  }, cleanupFns);
 
-  if (inventoryBackBtn) {
-    inventoryBackBtn.addEventListener("click", () => {
-      if (locked) return;
-      showMainActions();
-    });
-  }
+  addClickListener(inventoryBackBtn, () => {
+    if (locked) return;
+    showMainActions();
+  }, cleanupFns);
 
   startGame();
+
+  engine.destroy = () => {
+    cleanupFns.forEach((cleanup) => cleanup());
+  };
 
   return engine;
 }

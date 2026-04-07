@@ -134,6 +134,46 @@ export function createNewGameState({ difficulty = "EASY", seed } = {}) {
   return { state, rng };
 }
 
+function applySavedProgress(state, saveData) {
+  state.difficulty = String(saveData.difficulty || state.difficulty).toUpperCase();
+
+  if (saveData.health !== undefined) state.inventory.health = Number(saveData.health);
+  if (saveData.medkits !== undefined) state.inventory.medKits = Number(saveData.medkits);
+  if (saveData.grenades !== undefined) state.inventory.grenades = Number(saveData.grenades);
+
+  if (saveData.mag_capacity !== undefined) state.pistol.magCapacity = Number(saveData.mag_capacity);
+  if (saveData.ammo_in_gun !== undefined) state.pistol.ammoInGun = Number(saveData.ammo_in_gun);
+  if (saveData.ammo_in_bag !== undefined) state.pistol.ammoInBag = Number(saveData.ammo_in_bag);
+  if (saveData.has_laser !== undefined) state.pistol.hasLaser = saveData.has_laser;
+
+  if (saveData.has_shield !== undefined) state.shield.hasShield = saveData.has_shield;
+  if (saveData.shield_on !== undefined) state.shield.equipped = saveData.shield_on;
+
+  if (saveData.current_level_id) state.progression.currentLevelId = String(saveData.current_level_id);
+  if (saveData.enemies_remaining !== undefined) {
+    state.progression.enemiesRemaining = Number(saveData.enemies_remaining);
+  }
+  if (saveData.level_complete !== undefined) {
+    state.progression.levelComplete = saveData.level_complete;
+  }
+  if (saveData.awaiting_choice !== undefined) {
+    state.progression.awaitingChoice = saveData.awaiting_choice;
+  }
+  if (saveData.game_won !== undefined) {
+    state.progression.gameWon = saveData.game_won;
+  }
+
+  state.combat.inCombat = false;
+  state.combat.enemy = null;
+  state.combat.pendingDodge = false;
+
+  if (!state.shield.hasShield) {
+    state.shield.equipped = false;
+  }
+
+  clampHealth(state);
+}
+
 // ---------- Helpers ----------
 function clampHealth(state) {
   if (state.inventory.health > 100) state.inventory.health = 100;
@@ -495,6 +535,49 @@ export function createCombatEngine({ difficulty = "EASY", seed } = {}) {
           events.push("You died. Game over.");
         }
       }
+
+      return events;
+    },
+
+    loadFromSave(saveData) {
+      const events = [];
+
+      applySavedProgress(state, saveData);
+
+      const level = getCurrentLevelData(state);
+
+      if (!level) {
+        state.progression.gameWon = true;
+        events.push("Saved progress loaded.");
+        events.push("No further level data found.");
+        return events;
+      }
+
+      events.push(`Saved progress loaded. Difficulty: ${state.difficulty}.`);
+      events.push(`LEVEL ${level.id}: ${level.title}`);
+
+      if (state.progression.gameWon) {
+        events.push("This run is already complete.");
+        return events;
+      }
+
+      if (state.progression.awaitingChoice) {
+        events.push(level.completeText);
+        events.push("Choose your next route.");
+        return events;
+      }
+
+      if (state.progression.levelComplete) {
+        events.push("Continuing to the next area...");
+        return events.concat(engine.advanceToNextLevel());
+      }
+
+      if (state.progression.enemiesRemaining <= 0) {
+        state.progression.enemiesRemaining = level.enemyCount;
+      }
+
+      const enemy = spawnEnemyForLevel(state, rng, level);
+      events.push(`A ${enemy.name} appears! HP: ${enemy.hp}`);
 
       return events;
     },
