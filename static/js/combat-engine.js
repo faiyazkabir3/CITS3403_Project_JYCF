@@ -1,5 +1,4 @@
 import { LEVELS } from "./levels.js";
-import { getUnlockedAchievements } from "./progression.js";
 
 function mulberry32(seed) {
   let t = seed >>> 0;
@@ -164,7 +163,7 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
     }
   };
 
-  state.analytics.achievementsUnlocked = getUnlockedAchievements(state);
+  state.analytics.achievementsUnlocked = [];
 
   return { state, rng };
 }
@@ -304,7 +303,7 @@ function applyEnemyDrops(state, enemy, rng, events) {
 }
 
 function refreshAchievements(state) {
-  state.analytics.achievementsUnlocked = getUnlockedAchievements(state);
+  state.analytics.achievementsUnlocked = [];
 }
 
 const ACTIONS = {
@@ -501,6 +500,58 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
 
     isGameOver() {
       return state.progression.gameOver || state.inventory.health <= 0;
+    },
+
+    resumeFromSave() {
+      const events = [];
+      const hero = state.player.characterName;
+      const level = getCurrentLevelData(state);
+
+      if (state.progression.gameOver || state.inventory.health <= 0) {
+        endGame(state);
+        events.push(`${hero} is dead. Start a new game to play again.`);
+        return events;
+      }
+
+      if (state.progression.gameWon) {
+        events.push(`${hero} has already completed this run.`);
+        events.push("Start a new game to play again.");
+        return events;
+      }
+
+      if (state.progression.awaitingChoice) {
+        events.push(`${hero} resumed the saved game.`);
+        events.push(`Current level: ${state.progression.currentLevelId}.`);
+        events.push(`${hero} must choose the next route.`);
+        refreshAchievements(state);
+        return events;
+      }
+
+      if (state.progression.levelComplete) {
+        state.progression.levelComplete = false;
+        return engine.advanceToNextLevel();
+      }
+
+      if (!level) {
+        state.progression.gameWon = true;
+        refreshAchievements(state);
+        events.push(`${hero} completed all available levels.`);
+        return events;
+      }
+
+      if (state.progression.enemiesRemaining <= 0) {
+        state.progression.enemiesRemaining = level.enemyCount;
+      }
+
+      const enemy = spawnEnemyForLevel(state, rng, level);
+
+      events.push(`${hero} resumed the saved game.`);
+      events.push(`LEVEL ${level.id}: ${level.title}`);
+      events.push(`Enemies left in this level: ${state.progression.enemiesRemaining}.`);
+      events.push(`A ${enemy.name} appeared. Enemy HP: ${enemy.hp}`);
+
+      refreshAchievements(state);
+      return events;
     },
 
     startLevel() {
