@@ -335,11 +335,7 @@ export function bootGameUI({
     updateActionAvailability(engine, false);
 
     if (savedState) {
-      const resumeEvents = [
-        `${engine.state.player.characterName} resumed the saved game.`,
-        `Current level: ${engine.state.progression.currentLevelId}.`,
-        `Perk: ${engine.state.player.perkName}`
-      ];
+      const resumeEvents = engine.resumeFromSave();
       await runAndRender(resumeEvents);
       return;
     }
