@@ -1,5 +1,3 @@
-import { getAchievementHtmlFromSavedData } from "./progression.js";
-
 const playGameBtn = document.getElementById("play-game-btn");
 const settingsBtn = document.getElementById("settings-btn");
 const achievementsBtn = document.getElementById("achievements-btn");
@@ -21,12 +19,21 @@ function setActiveButton(activeButton) {
   }
 }
 
-function showAchievements() {
+function showAchievementsPlaceholder() {
+  if (!leftPanelTitle || !leftPanelContent) return;
+
   leftPanelTitle.textContent = "ACHIEVEMENTS";
-  leftPanelContent.innerHTML = getAchievementHtmlFromSavedData();
+  leftPanelContent.innerHTML = `
+    <div class="achievement-card">
+      <div class="achievement-title">ACHIEVEMENTS MOVED</div>
+      <div class="achievement-desc">Achievements are being worked on separately.</div>
+    </div>
+  `;
 }
 
 function showSettings() {
+  if (!leftPanelTitle || !leftPanelContent) return;
+
   leftPanelTitle.textContent = "SETTINGS";
   leftPanelContent.innerHTML = `
     <div class="achievement-card">
@@ -53,7 +60,7 @@ if (settingsBtn) {
 if (achievementsBtn) {
   achievementsBtn.addEventListener("click", () => {
     setActiveButton(achievementsBtn);
-    showAchievements();
+    showAchievementsPlaceholder();
   });
 }
 
@@ -64,4 +71,4 @@ if (logoutBtn) {
   });
 }
 
-showAchievements();
+showAchievementsPlaceholder();

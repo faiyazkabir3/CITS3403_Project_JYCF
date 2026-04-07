@@ -1,5 +1,4 @@
 import { LEVELS } from "./levels.js";
-import { getUnlockedAchievements } from "./progression.js";
 
 function mulberry32(seed) {
   let t = seed >>> 0;
@@ -164,7 +163,7 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
     }
   };
 
-  state.analytics.achievementsUnlocked = getUnlockedAchievements(state);
+  state.analytics.achievementsUnlocked = [];
 
   return { state, rng };
 }
@@ -304,7 +303,7 @@ function applyEnemyDrops(state, enemy, rng, events) {
 }
 
 function refreshAchievements(state) {
-  state.analytics.achievementsUnlocked = getUnlockedAchievements(state);
+  state.analytics.achievementsUnlocked = [];
 }
 
 const ACTIONS = {
