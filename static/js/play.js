@@ -33,7 +33,7 @@ function showScreen(screenToShow) {
 
 function resetLoadMessage() {
   if (loadMessage) {
-    loadMessage.textContent = "Saved game loading will be added later.";
+    loadMessage.textContent = "Check for an existing saved game.";
   }
 
   if (loadStatusText) {
@@ -50,7 +50,45 @@ function destroyGameUI() {
   window.gameEngine = null;
 }
 
-function startNewGame(selectedDifficulty) {
+function buildSavePayload(engine) {
+  const state = engine.state;
+
+  return {
+    difficulty: state.difficulty,
+    health: state.inventory.health,
+    medkits: state.inventory.medKits,
+    grenades: state.inventory.grenades,
+    ammo_in_gun: state.pistol.ammoInGun,
+    ammo_in_bag: state.pistol.ammoInBag,
+    mag_capacity: state.pistol.magCapacity,
+    has_laser: state.pistol.hasLaser,
+    has_shield: state.shield.hasShield,
+    shield_on: state.shield.equipped,
+    current_level_id: state.progression.currentLevelId,
+    enemies_remaining: state.progression.enemiesRemaining,
+    level_complete: state.progression.levelComplete,
+    awaiting_choice: state.progression.awaitingChoice,
+    game_won: state.progression.gameWon
+  };
+}
+
+async function saveCurrentGame(engine) {
+  if (!engine) return;
+
+  try {
+    await fetch("/save-game", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(buildSavePayload(engine))
+    });
+  } catch (error) {
+    console.error("Could not save current game.", error);
+  }
+}
+
+async function startNewGame(selectedDifficulty) {
   resetLoadMessage();
   destroyGameUI();
 
@@ -62,6 +100,8 @@ function startNewGame(selectedDifficulty) {
   });
 
   window.gameEngine = gameEngine;
+
+  await saveCurrentGame(gameEngine);
 }
 
 async function loadSavedGame() {
@@ -84,11 +124,11 @@ async function loadSavedGame() {
 
     if (!response.ok || !data.ok || !data.save_data) {
       if (loadMessage) {
-        loadMessage.textContent = "Could not load your saved game.";
+        loadMessage.textContent = "No saved game found.";
       }
 
       if (loadStatusText) {
-        loadStatusText.textContent = "PLEASE TRY AGAIN.";
+        loadStatusText.textContent = "START A NEW GAME FIRST.";
       }
 
       return;
@@ -145,8 +185,8 @@ gameBackBtn.addEventListener("click", () => {
 });
 
 difficultyButtons.forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     const selectedDifficulty = button.dataset.difficulty.toUpperCase();
-    startNewGame(selectedDifficulty);
+    await startNewGame(selectedDifficulty);
   });
 });

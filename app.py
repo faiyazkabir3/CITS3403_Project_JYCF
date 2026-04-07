@@ -65,6 +65,7 @@ def get_bool(value):
 
 def save_to_dict(save_data):
     return {
+        "has_started_game": save_data.has_started_game,
         "difficulty": save_data.difficulty,
         "health": save_data.health,
         "medkits": save_data.medkits,
@@ -258,6 +259,8 @@ def save_game():
     if game_won is not None:
         save_data.game_won = game_won
 
+    save_data.has_started_game = True
+
     db.session.commit()
 
     return {"ok": True, "save_data": save_to_dict(save_data)}
@@ -268,7 +271,11 @@ def load_game():
     if "user_id" not in session or session.get("is_guest"):
         return {"ok": False, "error": "Login required."}, 401
 
-    save_data = get_or_create_save(session["user_id"])
+    save_data = get_user_save(session["user_id"])
+
+    if save_data is None or not save_data.has_started_game:
+        return {"ok": False, "error": "No save data found."}, 404
+
     return {"ok": True, "save_data": save_to_dict(save_data)}
 
 

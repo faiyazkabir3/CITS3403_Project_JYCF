@@ -15,6 +15,8 @@ class SaveData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
 
+    has_started_game = db.Column(db.Boolean, nullable=False, default=False)
+
     difficulty = db.Column(db.String(20), nullable=False, default="EASY")
 
     health = db.Column(db.Integer, nullable=False, default=100)
