@@ -45,14 +45,42 @@ def get_or_create_save(user_id):
     return save_data
 
 
+def get_bool(value):
+    if isinstance(value, bool):
+        return value
+
+    if value is None:
+        return None
+
+    text = str(value).strip().lower()
+
+    if text in ("true", "1", "yes", "on"):
+        return True
+
+    if text in ("false", "0", "no", "off"):
+        return False
+
+    return None
+
+
 def save_to_dict(save_data):
     return {
+        "difficulty": save_data.difficulty,
         "health": save_data.health,
-        "ammo": save_data.ammo,
-        "grenades": save_data.grenades,
         "medkits": save_data.medkits,
+        "grenades": save_data.grenades,
+        "ammo_in_gun": save_data.ammo_in_gun,
+        "ammo_in_bag": save_data.ammo_in_bag,
+        "mag_capacity": save_data.mag_capacity,
+        "has_laser": save_data.has_laser,
+        "has_shield": save_data.has_shield,
         "shield_on": save_data.shield_on,
-        "level_name": save_data.level_name
+        "current_level_id": save_data.current_level_id,
+        "enemies_remaining": save_data.enemies_remaining,
+        "level_complete": save_data.level_complete,
+        "awaiting_choice": save_data.awaiting_choice,
+        "game_won": save_data.game_won,
+        "updated_at": save_data.updated_at.isoformat()
     }
 
 
@@ -159,47 +187,89 @@ def show_play():
 @app.route("/save-game", methods=["POST"])
 def save_game():
     if "user_id" not in session or session.get("is_guest"):
-        return redirect(url_for("show_login"))
+        return {"ok": False, "error": "Login required."}, 401
 
     save_data = get_or_create_save(session["user_id"])
 
-    health = request.form.get("health")
-    ammo = request.form.get("ammo")
-    grenades = request.form.get("grenades")
-    medkits = request.form.get("medkits")
-    shield_on = request.form.get("shield_on")
-    level_name = request.form.get("level_name", "").strip()
+    data = request.get_json(silent=True)
+    if data is None:
+        data = request.form
+
+    difficulty = str(data.get("difficulty", "")).strip().upper()
+    current_level_id = str(data.get("current_level_id", "")).strip()
+
+    health = data.get("health")
+    medkits = data.get("medkits")
+    grenades = data.get("grenades")
+    ammo_in_gun = data.get("ammo_in_gun")
+    ammo_in_bag = data.get("ammo_in_bag")
+    mag_capacity = data.get("mag_capacity")
+    enemies_remaining = data.get("enemies_remaining")
+
+    has_laser = get_bool(data.get("has_laser"))
+    has_shield = get_bool(data.get("has_shield"))
+    shield_on = get_bool(data.get("shield_on"))
+    level_complete = get_bool(data.get("level_complete"))
+    awaiting_choice = get_bool(data.get("awaiting_choice"))
+    game_won = get_bool(data.get("game_won"))
+
+    if difficulty != "":
+        save_data.difficulty = difficulty
 
     if health not in (None, ""):
         save_data.health = int(health)
 
-    if ammo not in (None, ""):
-        save_data.ammo = int(ammo)
+    if medkits not in (None, ""):
+        save_data.medkits = int(medkits)
 
     if grenades not in (None, ""):
         save_data.grenades = int(grenades)
 
-    if medkits not in (None, ""):
-        save_data.medkits = int(medkits)
+    if ammo_in_gun not in (None, ""):
+        save_data.ammo_in_gun = int(ammo_in_gun)
 
-    if shield_on not in (None, ""):
-        save_data.shield_on = shield_on.lower() == "true"
+    if ammo_in_bag not in (None, ""):
+        save_data.ammo_in_bag = int(ammo_in_bag)
 
-    if level_name != "":
-        save_data.level_name = level_name
+    if mag_capacity not in (None, ""):
+        save_data.mag_capacity = int(mag_capacity)
+
+    if has_laser is not None:
+        save_data.has_laser = has_laser
+
+    if has_shield is not None:
+        save_data.has_shield = has_shield
+
+    if shield_on is not None:
+        save_data.shield_on = shield_on
+
+    if current_level_id != "":
+        save_data.current_level_id = current_level_id
+
+    if enemies_remaining not in (None, ""):
+        save_data.enemies_remaining = int(enemies_remaining)
+
+    if level_complete is not None:
+        save_data.level_complete = level_complete
+
+    if awaiting_choice is not None:
+        save_data.awaiting_choice = awaiting_choice
+
+    if game_won is not None:
+        save_data.game_won = game_won
 
     db.session.commit()
 
-    return redirect(url_for("show_play"))
+    return {"ok": True, "save_data": save_to_dict(save_data)}
 
 
 @app.route("/load-game")
 def load_game():
     if "user_id" not in session or session.get("is_guest"):
-        return redirect(url_for("show_login"))
+        return {"ok": False, "error": "Login required."}, 401
 
     save_data = get_or_create_save(session["user_id"])
-    return save_to_dict(save_data)
+    return {"ok": True, "save_data": save_to_dict(save_data)}
 
 
 @app.route("/achievements")
