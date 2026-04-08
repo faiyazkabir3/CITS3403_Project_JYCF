@@ -1,0 +1,21 @@
+<h2>Chat with {{ friend.username }}</h2>
+
+<div>
+  {% for msg in messages %}
+    <p>
+      <strong>
+        {% if msg.sender_id == session['user_id'] %}
+          You
+        {% else %}
+          {{ friend.username }}
+        {% endif %}
+      </strong>
+      : {{ msg.message }}
+    </p>
+  {% endfor %}
+</div>
+
+<form method="POST">
+  <input type="text" name="message" required>
+  <button type="submit">Send</button>
+</form>

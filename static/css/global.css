@@ -720,3 +720,54 @@ body::before {
     flex-direction: column;
   }
 }
+.friends-menu {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-family: 'Silkscreen', cursive;
+}
+
+.friends-btn {
+  background: black;
+  color: #00ffcc;
+  border: 2px solid #00ffcc;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.friends-btn:hover {
+  background: #00ffcc;
+  color: black;
+}
+
+.friends-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  background: black;
+  border: 2px solid #00ffcc;
+  min-width: 180px;
+  margin-top: 5px;
+}
+
+.friends-dropdown a {
+  display: block;
+  padding: 8px;
+  color: #00ffcc;
+  text-decoration: none;
+}
+
+.friends-dropdown a:hover {
+  background: #00ffcc;
+  color: black;
+}
+
+.no-friends {
+  display: block;
+  padding: 8px;
+  color: #777;
+}
+
+.friends-menu:hover .friends-dropdown {
+  display: block;
+}

@@ -14,6 +14,21 @@
 
   <div class="menu-container">
     <div class="top-bar">
+      <div class="friends-menu">
+  <button class="friends-btn">FRIENDS ▾</button>
+  
+  <div class="friends-dropdown">
+    {% if friends %}
+      {% for friend in friends %}
+        <a href="{{ url_for('chat', friend_id=friend.id) }}">
+          {{ friend.username }}
+        </a>
+      {% endfor %}
+    {% else %}
+      <span class="no-friends">No friends yet</span>
+    {% endif %}
+  </div>
+</div>
       <div class="operator-bar">
         <img src="{{ url_for('static', filename='images/Shadows.gif') }}" class="logo" alt="Game Logo">
         <span class="operator-name">Operator: {{ username }}</span>

@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, SaveData
+from models import db, User, SaveData, Friend, Message
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -20,6 +20,10 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+def get_friends(user_id):
+    friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
+    friend_ids = [f.friend_id for f in friendships]
+    return User.query.filter(User.id.in_(friend_ids)).all()
 
 def make_guest_name():
     num = random.randint(10000, 99999)
@@ -116,7 +120,7 @@ def show_login():
         session["username"] = user.username
         session["is_guest"] = False
 
-        return redirect(url_for("show_main_menu"))
+        return redirect(url_for("main_menu"))
 
     return render_template("login.html", error=None)
 
@@ -143,7 +147,7 @@ def show_register():
 
         new_user = User(
             username=username,
-            password_hash=generate_password_hash(password)
+            password_hash=generate_password_hash(password, method='pbkdf2:sha256')
         )
 
         db.session.add(new_user)
@@ -171,12 +175,21 @@ def logout():
     return redirect(url_for("show_login"))
 
 
-@app.route("/main-menu")
-def show_main_menu():
-    if "username" not in session:
+@app.route("/main_menu")
+def main_menu():
+    user_id = session.get("user_id")
+
+    if not user_id:
         return redirect(url_for("show_login"))
 
-    return render_template("main_menu.html", username=session.get("username", "Player"))
+    user = User.query.get(user_id)
+    friends = get_friends(user_id)
+
+    return render_template(
+        "main_menu.html",
+        username=user.username,
+        friends=friends
+    )
 
 
 @app.route("/play")
@@ -243,6 +256,66 @@ def load_game():
         "save_data": build_save_payload(save_data)
     })
 
+@app.route("/add_friend/<int:user_id>")
+def add_friend(user_id):
+    current_user = session.get("user_id")
+
+    if not current_user or current_user == user_id:
+        return redirect(url_for("main_menu"))
+
+    existing = Friend.query.filter_by(user_id=current_user, friend_id=user_id).first()
+
+    if not existing:
+        db.session.add(Friend(user_id=current_user, friend_id=user_id))
+        db.session.commit()
+
+    return redirect(url_for("main_menu"))
+
+@app.route("/accept_friend/<int:user_id>")
+def accept_friend(user_id):
+    current_user = session.get("user_id")
+
+    friend = Friend.query.filter_by(user_id=user_id, friend_id=current_user).first()
+
+    if friend:
+        friend.status = "accepted"
+
+        db.session.add(Friend(
+            user_id=current_user,
+            friend_id=user_id,
+            status="accepted"
+        ))
+
+        db.session.commit()
+
+    return redirect(url_for("main_menu"))
+
+@app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
+def chat(friend_id):
+    current_user = session.get("user_id")
+
+    if not current_user:
+        return redirect(url_for("show_login"))
+
+    if request.method == "POST":
+        msg = request.form.get("message")
+
+        if msg:
+            db.session.add(Message(
+                sender_id=current_user,
+                receiver_id=friend_id,
+                message=msg
+            ))
+            db.session.commit()
+
+    messages = Message.query.filter(
+        ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
+        ((Message.sender_id == friend_id) & (Message.receiver_id == current_user))
+    ).order_by(Message.timestamp).all()
+
+    friend = User.query.get(friend_id)
+
+    return render_template("chat.html", messages=messages, friend=friend)
 
 if __name__ == "__main__":
     app.run(debug=True)
