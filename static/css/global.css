@@ -720,54 +720,102 @@ body::before {
     flex-direction: column;
   }
 }
+
+/* Top Bar */
+.top-bar {
+    width: 100%;
+    height: 60px;
+    position: relative;
+    background-color: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* centers operator-bar */
+    padding: 0 20px;
+}
+
+/* Friends button top-right */
 .friends-menu {
-  position: absolute;
-  top: 15px;
-  right: 20px;
-  font-family: 'Silkscreen', cursive;
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    font-family: 'Silkscreen', cursive;
+    z-index: 100;
 }
 
 .friends-btn {
-  background: black;
-  color: #00ffcc;
-  border: 2px solid #00ffcc;
-  padding: 8px 12px;
-  cursor: pointer;
+    background: black;
+    color: #00ffcc;
+    border: 2px solid #00ffcc;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: bold;
 }
 
 .friends-btn:hover {
-  background: #00ffcc;
-  color: black;
+    background: #00ffcc;
+    color: black;
 }
 
+/* Dropdown for friends */
 .friends-dropdown {
-  display: none;
-  position: absolute;
-  right: 0;
-  background: black;
-  border: 2px solid #00ffcc;
-  min-width: 180px;
-  margin-top: 5px;
+    display: none;
+    position: absolute;
+    top: 110%;
+    right: 0;
+    background: black;
+    border: 2px solid #00ffcc;
+    min-width: 180px;
+    margin-top: 5px;
+    z-index: 101;
 }
 
 .friends-dropdown a {
-  display: block;
-  padding: 8px;
-  color: #00ffcc;
-  text-decoration: none;
+    display: block;
+    padding: 8px;
+    color: #00ffcc;
+    text-decoration: none;
 }
 
 .friends-dropdown a:hover {
-  background: #00ffcc;
-  color: black;
+    background: #00ffcc;
+    color: black;
 }
 
 .no-friends {
-  display: block;
-  padding: 8px;
-  color: #777;
+    display: block;
+    padding: 8px;
+    color: #777;
 }
 
 .friends-menu:hover .friends-dropdown {
-  display: block;
+    display: block;
+}
+
+/* Operator info */
+.operator-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.operator-bar .logo {
+    height: 40px;
+}
+
+.operator-name {
+    color: #00ffcc;
+    font-family: 'Silkscreen', cursive;
+    font-weight: bold;
+}
+
+/* Version text */
+.version {
+    position: absolute;
+    bottom: 5px;
+    right: 20px;
+    color: #00ffcc;
+    font-family: 'Silkscreen', cursive;
+    font-size: 12px;
 }

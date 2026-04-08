@@ -166,7 +166,7 @@ def guest_login():
     session["username"] = name
     session["is_guest"] = True
 
-    return redirect(url_for("show_main_menu"))
+    return redirect(url_for("main_menu"))
 
 
 @app.route("/logout")
@@ -316,6 +316,45 @@ def chat(friend_id):
     friend = User.query.get(friend_id)
 
     return render_template("chat.html", messages=messages, friend=friend)
+
+@app.route("/friends", methods=["GET", "POST"])
+def show_friends():
+    current_user_id = session.get("user_id")
+    if not current_user_id:
+        return redirect(url_for("show_login"))
+
+    # Handle adding a friend by username
+    if request.method == "POST":
+        username_to_add = request.form.get("friend_username", "").strip().lower()
+        user_to_add = User.query.filter_by(username=username_to_add).first()
+
+        if user_to_add and user_to_add.id != current_user_id:
+            # Check if friendship already exists
+            existing = Friend.query.filter(
+                ((Friend.user_id == current_user_id) & (Friend.friend_id == user_to_add.id)) |
+                ((Friend.user_id == user_to_add.id) & (Friend.friend_id == current_user_id))
+            ).first()
+
+            if not existing:
+                # Send friend request
+                db.session.add(Friend(user_id=current_user_id, friend_id=user_to_add.id, status=None))
+                db.session.commit()
+
+    # Get accepted friends
+    friends = get_friends(current_user_id)
+
+    # Get incoming friend requests
+    incoming_requests = Friend.query.filter_by(friend_id=current_user_id, status=None).all()
+
+    # Get current user
+    user = User.query.get(current_user_id)
+
+    return render_template(
+        "friends.html",
+        username=user.username,
+        friends=friends,
+        incoming_requests=incoming_requests
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

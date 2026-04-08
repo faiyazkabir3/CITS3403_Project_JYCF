@@ -13,30 +13,36 @@
 <body class="menu-page">
 
   <div class="menu-container">
+
+    <!-- Top Bar -->
     <div class="top-bar">
+      <!-- Friends button top-right -->
       <div class="friends-menu">
-  <button class="friends-btn">FRIENDS ▾</button>
-  
-  <div class="friends-dropdown">
-    {% if friends %}
-      {% for friend in friends %}
-        <a href="{{ url_for('chat', friend_id=friend.id) }}">
-          {{ friend.username }}
-        </a>
-      {% endfor %}
-    {% else %}
-      <span class="no-friends">No friends yet</span>
-    {% endif %}
-  </div>
-</div>
+        <a href="{{ url_for('show_friends') }}" class="friends-btn">FRIENDS ▾</a>
+        <div class="friends-dropdown">
+          {% if friends %}
+            {% for friend in friends %}
+              <a href="{{ url_for('chat', friend_id=friend.id) }}">{{ friend.username }}</a>
+            {% endfor %}
+          {% else %}
+            <span class="no-friends">No friends yet</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Operator info centered -->
       <div class="operator-bar">
         <img src="{{ url_for('static', filename='images/Shadows.gif') }}" class="logo" alt="Game Logo">
         <span class="operator-name">Operator: {{ username }}</span>
       </div>
+
+      <!-- Version -->
       <div class="version">v0.1</div>
     </div>
 
+    <!-- Main Menu Content -->
     <div class="menu-content">
+      <!-- Leaderboard -->
       <div class="leaderboard">
         <h2>LEADERBOARD</h2>
         <ul>
@@ -48,12 +54,13 @@
         </ul>
       </div>
 
+      <!-- Main Buttons -->
       <div class="menu-buttons">
-  <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
-  <button type="button">SETTINGS</button>
-  <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
-  <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
-</div>
+        <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
+        <button type="button">SETTINGS</button>
+        <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
+        <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
+      </div>
     </div>
   </div>
 
