@@ -2,10 +2,10 @@ import os
 import random
 from datetime import datetime
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from models import db, User, SaveData, Friend, Message
+from models import db, User, SaveData, Friend, Message, FriendRequest
 
 app = Flask(__name__, instance_relative_config=True)
 
@@ -271,24 +271,88 @@ def add_friend(user_id):
 
     return redirect(url_for("main_menu"))
 
-@app.route("/accept_friend/<int:user_id>")
-def accept_friend(user_id):
-    current_user = session.get("user_id")
 
-    friend = Friend.query.filter_by(user_id=user_id, friend_id=current_user).first()
+@app.route('/friends', methods=['GET', 'POST'])
+def show_friends():
+    current_user = User.query.get(session.get('user_id'))
+    if current_user is None:
+        return redirect(url_for('show_login'))
+    
+    if request.method == 'POST':
+        from_user_id = session.get('user_id')
+        friend_username = request.form['friend_username'].strip().lower()
+        
+        # Look up the friend
+        friend = User.query.filter_by(username=friend_username).first()
+        if friend:
+            # Prevent sending request to self
+            if friend.id == from_user_id:
+                flash("You can't send a friend request to yourself.")
+            else:
+                # Make sure no duplicate pending request
+                existing = FriendRequest.query.filter_by(
+                    from_user_id=from_user_id, 
+                    to_user_id=friend.id, 
+                    status='pending'
+                ).first()
+                
+                if not existing:
+                    new_request = FriendRequest(
+                        from_user_id=from_user_id,
+                        to_user_id=friend.id,
+                        status='pending'
+                    )
+                    db.session.add(new_request)
+                    db.session.commit()
+                else:
+                    flash("Friend request already sent.")
+        else:
+            flash('User not found.')
+        
+        return redirect(url_for('show_friends'))
+    
+    # Get pending requests for current user
+    incoming_requests = FriendRequest.query.filter_by(
+        to_user_id=current_user.id, status='pending'
+    ).all()
+    
+    # Get friends (accepted requests)
+    friends = get_friends(current_user.id)
+    
+    return render_template(
+        'friends.html',
+        username=current_user.username,
+        current_user=current_user,
+        incoming_requests=incoming_requests,
+        friends=friends
+    )
 
-    if friend:
-        friend.status = "accepted"
 
+@app.route("/accept_friend/<int:request_id>")
+def accept_friend(request_id):
+    current_user = session.get('user_id')
+    if not current_user:
+        return redirect(url_for("show_login"))
+
+    friend_request = FriendRequest.query.get(request_id)
+    if friend_request and friend_request.to_user_id == current_user:
+        friend_request.status = "accepted"
+
+        # Add mutual friendship entries
         db.session.add(Friend(
-            user_id=current_user,
-            friend_id=user_id,
+            user_id=friend_request.from_user_id,
+            friend_id=friend_request.to_user_id,
+            status="accepted"
+        ))
+        db.session.add(Friend(
+            user_id=friend_request.to_user_id,
+            friend_id=friend_request.from_user_id,
             status="accepted"
         ))
 
         db.session.commit()
 
-    return redirect(url_for("main_menu"))
+    return redirect(url_for("show_friends"))
 
 @app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
 def chat(friend_id):
@@ -316,45 +380,6 @@ def chat(friend_id):
     friend = User.query.get(friend_id)
 
     return render_template("chat.html", messages=messages, friend=friend)
-
-@app.route("/friends", methods=["GET", "POST"])
-def show_friends():
-    current_user_id = session.get("user_id")
-    if not current_user_id:
-        return redirect(url_for("show_login"))
-
-    # Handle adding a friend by username
-    if request.method == "POST":
-        username_to_add = request.form.get("friend_username", "").strip().lower()
-        user_to_add = User.query.filter_by(username=username_to_add).first()
-
-        if user_to_add and user_to_add.id != current_user_id:
-            # Check if friendship already exists
-            existing = Friend.query.filter(
-                ((Friend.user_id == current_user_id) & (Friend.friend_id == user_to_add.id)) |
-                ((Friend.user_id == user_to_add.id) & (Friend.friend_id == current_user_id))
-            ).first()
-
-            if not existing:
-                # Send friend request
-                db.session.add(Friend(user_id=current_user_id, friend_id=user_to_add.id, status=None))
-                db.session.commit()
-
-    # Get accepted friends
-    friends = get_friends(current_user_id)
-
-    # Get incoming friend requests
-    incoming_requests = Friend.query.filter_by(friend_id=current_user_id, status=None).all()
-
-    # Get current user
-    user = User.query.get(current_user_id)
-
-    return render_template(
-        "friends.html",
-        username=user.username,
-        friends=friends,
-        incoming_requests=incoming_requests
-    )
 
 if __name__ == "__main__":
     app.run(debug=True)

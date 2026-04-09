@@ -47,6 +47,14 @@ class Friend(db.Model):
     friend_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     status = db.Column(db.String(20), default="pending")
 
+class FriendRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
+
+    from_user = db.relationship('User', foreign_keys=[from_user_id])
+    to_user = db.relationship('User', foreign_keys=[to_user_id])
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
