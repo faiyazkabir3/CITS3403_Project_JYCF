@@ -177,18 +177,34 @@ def logout():
 
 @app.route("/main_menu")
 def main_menu():
+    username = session.get("username")
+    is_guest = bool(session.get("is_guest"))
     user_id = session.get("user_id")
 
-    if not user_id:
+    if not username:
         return redirect(url_for("show_login"))
 
-    user = User.query.get(user_id)
-    friends = get_friends(user_id)
+    friends = []
+
+    if not is_guest:
+        if user_id is None:
+            session.clear()
+            return redirect(url_for("show_login"))
+
+        user = User.query.get(user_id)
+
+        if user is None:
+            session.clear()
+            return redirect(url_for("show_login"))
+
+        username = user.username
+        friends = get_friends(user_id)
 
     return render_template(
-        "main_menu.html",
-        username=user.username,
-        friends=friends
+        "main_menu_view.html",
+        username=username,
+        friends=friends,
+        is_guest=is_guest
     )
 
 
@@ -274,6 +290,9 @@ def add_friend(user_id):
 
 @app.route('/friends', methods=['GET', 'POST'])
 def show_friends():
+    if session.get("is_guest"):
+        return redirect(url_for("main_menu"))
+
     current_user = User.query.get(session.get('user_id'))
     if current_user is None:
         return redirect(url_for('show_login'))
@@ -320,7 +339,7 @@ def show_friends():
     friends = get_friends(current_user.id)
     
     return render_template(
-        'friends.html',
+        'friends_view.html',
         username=current_user.username,
         current_user=current_user,
         incoming_requests=incoming_requests,

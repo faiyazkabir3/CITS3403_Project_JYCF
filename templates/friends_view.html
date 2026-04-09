@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ username }}'s Friends</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
+</head>
+<body class="play-page friends-page">
+  <div class="screen-wrap">
+    <section class="panel active">
+      <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
+
+      <h1>{{ username }}'s Friends</h1>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flash-stack" data-flash-stack>
+            {% for message in messages %}
+              <p class="flash-message" data-flash-message>{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <section class="selected-character-box">
+        <h2>Friend Requests</h2>
+        <ul>
+          {% for req in incoming_requests %}
+            <li>{{ req.from_user.username }}
+              <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}">Accept</a>
+              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}">Reject</a>
+            </li>
+          {% else %}
+            <li>No pending requests</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="selected-character-box">
+        <h2>Your Friends</h2>
+        <ul>
+          {% for f in friends %}
+            <li>{{ f.username }}
+              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
+            </li>
+          {% else %}
+            <li>No friends yet</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="selected-character-box">
+        <h2>Add a Friend</h2>
+        <form method="POST" class="button-stack" data-friend-form>
+          <input
+            type="text"
+            name="friend_username"
+            placeholder="Enter username"
+            required
+            class="input-text"
+            data-friend-username
+          >
+
+          <button type="submit" class="primary-btn">Send Request</button>
+        </form>
+      </section>
+    </section>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/friends-page.js') }}" defer></script>
+</body>
+</html>

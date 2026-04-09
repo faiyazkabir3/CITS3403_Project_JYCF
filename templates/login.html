@@ -21,7 +21,7 @@
       <p class="subtitle">{{ error }}</p>
     {% endif %}
 
-    <form method="POST" action="/login">
+    <form id="login-form" method="POST" action="/login">
       <label for="username">Username</label>
       <input type="text" id="username" name="username" />
 
@@ -36,11 +36,12 @@
         New User Sign Up
       </button>
 
-      <form method="POST" action="/guest-login">
+      <form method="POST" action="/guest-login" class="guest-form">
         <button type="submit" class="guest-btn">Guest Login</button>
       </form>
     </div>
   </div>
 
+  <script src="{{ url_for('static', filename='js/register.js') }}" defer></script>
 </body>
 </html>

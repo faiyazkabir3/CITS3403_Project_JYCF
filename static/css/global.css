@@ -753,6 +753,7 @@ body::before {
     cursor: pointer;
     text-decoration: none;
     font-weight: bold;
+    font-family: var(--font-display);
 }
 
 .friends-btn:hover {
@@ -760,16 +761,20 @@ body::before {
     color: black;
 }
 
+.friends-btn[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 /* Dropdown for friends */
 .friends-dropdown {
     display: none;
     position: absolute;
-    top: 110%;
+    top: calc(100% - 2px);
     right: 0;
     background: black;
     border: 2px solid #00ffcc;
     min-width: 180px;
-    margin-top: 5px;
     z-index: 101;
 }
 
@@ -795,6 +800,15 @@ body::before {
     display: block;
 }
 
+.friends-menu.is-open .friends-dropdown {
+    display: block;
+}
+
+.friends-hub-link {
+    border-bottom: 1px solid rgba(0, 255, 204, 0.3);
+    font-weight: bold;
+}
+
 /* Operator info */
 .operator-bar {
     display: flex;
@@ -810,6 +824,15 @@ body::before {
     color: #00ffcc;
     font-family: 'Silkscreen', cursive;
     font-weight: bold;
+}
+
+.mode-chip {
+    padding: 4px 8px;
+    border: 1px solid #00ffcc;
+    border-radius: 999px;
+    color: #00ffcc;
+    font-size: 0.6rem;
+    letter-spacing: 0.8px;
 }
 
 /* Version text */
@@ -868,6 +891,7 @@ body::before {
 
 .friends-page .button-stack {
   display: flex;
+  flex-direction: column;
   gap: 10px;
   justify-content: center;
 }
@@ -887,6 +911,29 @@ body::before {
 .friends-page .primary-btn:hover {
   background: #000000;
   color: #ffffff;
+}
+
+.flash-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.flash-message {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.flash-message.is-hidden {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 /* Chat Page Styling */
