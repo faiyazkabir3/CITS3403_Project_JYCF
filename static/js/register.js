@@ -1,19 +1,36 @@
-const guestBtn = document.getElementById("guest-login-btn");
+const authForms = document.querySelectorAll("#login-form, #register-form");
+const guestForms = document.querySelectorAll(".guest-form");
 
-function makeGuestName() {
-  const num = Math.floor(10000 + Math.random() * 90000);
-  return "Operator" + num;
+function normalizeUsernameInput(form) {
+  const usernameInput = form.querySelector('input[name="username"]');
+
+  if (!usernameInput) {
+    return;
+  }
+
+  usernameInput.value = usernameInput.value.trim();
 }
 
-function guestLogin() {
-  const name = makeGuestName();
+function setBusyButton(form, buttonText) {
+  const submitButton = form.querySelector('button[type="submit"]');
 
-  localStorage.setItem("playerName", name);
-  alert("Your guest operator ID is: " + name);
+  if (!submitButton) {
+    return;
+  }
 
-  window.location.href = "/main-menu";
+  submitButton.disabled = true;
+  submitButton.textContent = buttonText;
 }
 
-if (guestBtn) {
-  guestBtn.addEventListener("click", guestLogin);
-}
+authForms.forEach((form) => {
+  form.addEventListener("submit", () => {
+    normalizeUsernameInput(form);
+  });
+});
+
+guestForms.forEach((form) => {
+  form.addEventListener("submit", () => {
+    localStorage.removeItem("playerName");
+    setBusyButton(form, "ENTERING...");
+  });
+});

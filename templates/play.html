@@ -15,9 +15,9 @@
   <div class="screen-wrap">
 
     <section id="start-screen" class="panel active">
-      <button type="button" id="back-to-main-btn" class="back-arrow" aria-label="Back to main menu">
+      <a href="{{ url_for('main_menu') }}" id="back-to-main-btn" class="back-arrow" aria-label="Back to main menu">
         ←
-      </button>
+      </a>
 
       <h1>PLAY GAME</h1>
       <p class="subtitle">Choose how you want to begin.</p>
@@ -97,9 +97,9 @@
     </section>
 
     <section id="game-screen" class="panel game-panel">
-      <button type="button" id="game-back-btn" class="back-arrow" aria-label="Back">
+      <a href="{{ url_for('main_menu') }}" id="game-back-btn" class="back-arrow" aria-label="Back">
         ←
-      </button>
+      </a>
 
       <div class="game-topbar">
         <div class="top-left">LEVEL 1</div>
