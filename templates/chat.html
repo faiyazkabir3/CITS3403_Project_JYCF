@@ -1,21 +1,45 @@
-<h2>Chat with {{ friend.username }}</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat with {{ friend.username }}</title>
 
-<div>
-  {% for msg in messages %}
-    <p>
-      <strong>
-        {% if msg.sender_id == session['user_id'] %}
-          You
-        {% else %}
-          {{ friend.username }}
-        {% endif %}
-      </strong>
-      : {{ msg.message }}
-    </p>
-  {% endfor %}
-</div>
+  <!-- Google font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
 
-<form method="POST">
-  <input type="text" name="message" required>
-  <button type="submit">Send</button>
-</form>
+  <!-- Global CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
+</head>
+<body class="play-page">
+  <div class="screen-wrap">
+    <section class="panel active">
+      <!-- Top back arrow -->
+      <a href="{{ url_for('show_friends') }}" class="back-arrow">←</a>
+
+      <h1 class="chat-header">Chat with {{ friend.username }}</h1>
+
+      <!-- Chat Messages -->
+      <div class="chat-container">
+        <div class="chat-messages">
+          {% for msg in messages %}
+            {% if msg.sender_id == current_user %}
+              <div class="chat-message outgoing">{{ msg.message }}</div>
+            {% else %}
+              <div class="chat-message incoming">{{ msg.message }}</div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <!-- Chat Input -->
+        <form method="POST" class="chat-form">
+          <input type="text" name="message" placeholder="Type a message..." required class="input-text">
+          <button type="submit" class="primary-btn">Send</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

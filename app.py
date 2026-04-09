@@ -379,11 +379,13 @@ def chat(friend_id):
 
         if msg:
             db.session.add(Message(
-                sender_id=current_user,
+                sender_id=session["user_id"],
                 receiver_id=friend_id,
-                message=msg
+                message=msg,
+                timestamp=datetime.utcnow()
             ))
             db.session.commit()
+            return redirect(url_for("chat", friend_id=friend_id))
 
     messages = Message.query.filter(
         ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
@@ -392,7 +394,12 @@ def chat(friend_id):
 
     friend = User.query.get(friend_id)
 
-    return render_template("chat.html", messages=messages, friend=friend)
+    return render_template(
+        "chat.html",
+        messages=messages,
+        friend=friend,
+        current_user=session["user_id"]
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)
