@@ -354,6 +354,19 @@ def accept_friend(request_id):
 
     return redirect(url_for("show_friends"))
 
+@app.route("/reject_friend/<int:request_id>")
+def reject_friend(request_id):
+    current_user = session.get('user_id')
+    if not current_user:
+        return redirect(url_for("show_login"))
+
+    friend_request = FriendRequest.query.get(request_id)
+    if friend_request and friend_request.to_user_id == current_user:
+        db.session.delete(friend_request)
+        db.session.commit()
+
+    return redirect(url_for("show_friends"))
+
 @app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
 def chat(friend_id):
     current_user = session.get("user_id")

@@ -28,6 +28,7 @@
           {% for req in incoming_requests %}
             <li>{{ req.from_user.username }}
               <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}">Accept</a>
+              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}">Reject</a>
             </li>
           {% else %}
             <li>No pending requests</li>
