@@ -120,9 +120,40 @@
           </div>
         </div>
 
+        <div id="emergency-box" class="path-choice-box emergency-box" style="display: none;">
+          <h2 id="emergency-title">EMERGENCY EVENT</h2>
+          <p id="emergency-prompt" class="emergency-prompt"></p>
+          <div class="emergency-meta">
+            <span>KEY: <strong id="emergency-key">X</strong></span>
+            <span>TIME LEFT: <strong id="emergency-timer">0.0s</strong></span>
+            <span>PROGRESS: <strong id="emergency-progress">0/0</strong></span>
+          </div>
+          <div class="button-stack emergency-stack">
+            <button type="button" id="emergency-action-btn" class="primary-btn">MASH KEY / CLICK</button>
+            <button type="button" id="emergency-fail-btn" class="secondary-btn">ABORT EVENT</button>
+          </div>
+        </div>
+
         <div id="path-choice-box" class="path-choice-box" style="display: none;">
           <h2>CHOOSE YOUR PATH</h2>
           <div id="path-choice-buttons" class="choice-buttons"></div>
+        </div>
+
+        <div id="shop-box" class="path-choice-box shop-box" style="display: none;">
+          <div class="shop-header">
+            <h2>SHOP TERMINAL</h2>
+            <button type="button" id="shop-continue-btn" class="secondary-btn">CONTINUE</button>
+          </div>
+          <div class="shop-grid">
+            <div>
+              <h3>BUY</h3>
+              <div id="shop-buy-buttons" class="choice-buttons"></div>
+            </div>
+            <div>
+              <h3>SELL</h3>
+              <div id="shop-sell-buttons" class="choice-buttons"></div>
+            </div>
+          </div>
         </div>
 
         <div class="game-bottom">
@@ -138,13 +169,15 @@
 
             <div class="todo-buttons" id="attack-actions" style="display: none;">
               <button type="button" class="action-btn" id="pistol-btn">PISTOL</button>
+              <button type="button" class="action-btn" id="rifle-btn" style="display: none;">RIFLE</button>
               <button type="button" class="action-btn" id="knife-btn">KNIFE</button>
               <button type="button" class="action-btn" id="grenade-btn">GRENADE</button>
               <button type="button" class="action-btn" id="attack-back-btn">BACK</button>
             </div>
 
             <div class="todo-buttons" id="inventory-actions" style="display: none;">
-              <button type="button" class="action-btn" id="reload-btn">RELOAD</button>
+              <button type="button" class="action-btn" id="reload-btn">RELOAD PISTOL</button>
+              <button type="button" class="action-btn" id="reload-rifle-btn" style="display: none;">RELOAD RIFLE</button>
               <button type="button" class="action-btn" id="medkit-btn">USE MEDKIT</button>
               <button type="button" class="action-btn" id="shield-btn">TOGGLE SHIELD</button>
               <button type="button" class="action-btn" id="inventory-back-btn">BACK</button>
@@ -157,14 +190,16 @@
               <li>CHARACTER: LEON</li>
               <li>PERK: TACTICAL SPECIALIST</li>
               <li>HP: 100</li>
+              <li>COINS: 0</li>
               <li>MED: 2</li>
               <li>GREN: 2</li>
               <li>PISTOL: 8/8</li>
-              <li>BAG AMMO: 20</li>
-              <li>SHIELD: ON</li>
+              <li>PISTOL BAG: 16</li>
+              <li>SHIELD: ON (100)</li>
+              <li>AGI / COUR: 20 / 50</li>
               <li>LEVEL: 1</li>
               <li>ENEMIES LEFT: 1</li>
-              <li>ENEMY HP: 50</li>
+              <li>ENEMY HP: 39</li>
               <li>STATUS: ALIVE</li>
             </ul>
           </div>

@@ -31,7 +31,7 @@ body {
   background-repeat: no-repeat;
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 300;
 }
 
 body::before {
@@ -584,6 +584,10 @@ body::before {
   background: rgba(0, 0, 0, 0.82);
 }
 
+.play-page .emergency-box {
+  background: rgba(109, 24, 24, 0.88);
+}
+
 .play-page .combat-log-box {
   min-height: 220px;
 }
@@ -595,6 +599,13 @@ body::before {
   margin-top: 0;
   margin-bottom: 12px;
   font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.play-page .path-choice-box h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
   font-weight: 400;
 }
 
@@ -641,6 +652,33 @@ body::before {
 .play-page .choice-desc {
   font-size: 0.68rem;
   opacity: 0.8;
+}
+
+.play-page .shop-header,
+.play-page .emergency-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.play-page .shop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.play-page .emergency-prompt {
+  margin-top: 8px;
+  margin-bottom: 14px;
+  font-size: 0.72rem;
+  line-height: 1.8;
+}
+
+.play-page .emergency-stack {
+  max-width: none;
+  margin-top: 14px;
 }
 
 .play-page .game-bottom {
@@ -705,6 +743,10 @@ body::before {
   }
 
   .play-page .game-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .play-page .shop-grid {
     grid-template-columns: 1fr;
   }
 }

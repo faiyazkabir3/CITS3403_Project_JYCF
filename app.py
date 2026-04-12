@@ -1,8 +1,10 @@
 import os
 import random
+import json
 from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, SaveData, Friend, Message, FriendRequest
@@ -17,8 +19,18 @@ os.makedirs(app.instance_path, exist_ok=True)
 
 db.init_app(app)
 
+def ensure_save_data_schema():
+    inspector = inspect(db.engine)
+    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+
+    if "run_state_json" not in existing_columns:
+        db.session.execute(text("ALTER TABLE save_data ADD COLUMN run_state_json TEXT"))
+        db.session.commit()
+
+
 with app.app_context():
     db.create_all()
+    ensure_save_data_schema()
 
 def get_friends(user_id):
     friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
@@ -67,12 +79,21 @@ def update_save_data(save_data, data):
     save_data.level_complete = bool(data.get("level_complete", save_data.level_complete))
     save_data.awaiting_choice = bool(data.get("awaiting_choice", save_data.awaiting_choice))
     save_data.game_won = bool(data.get("game_won", save_data.game_won))
+    save_data.run_state_json = json.dumps(data.get("run_state")) if data.get("run_state") is not None else save_data.run_state_json
 
     save_data.has_started_game = True
     save_data.updated_at = datetime.utcnow()
 
 
 def build_save_payload(save_data):
+    run_state = None
+
+    if save_data.run_state_json:
+        try:
+            run_state = json.loads(save_data.run_state_json)
+        except json.JSONDecodeError:
+            run_state = None
+
     return {
         "difficulty": save_data.difficulty,
         "character_id": save_data.character_id,
@@ -91,6 +112,7 @@ def build_save_payload(save_data):
         "awaiting_choice": save_data.awaiting_choice,
         "game_won": save_data.game_won,
         "has_started_game": save_data.has_started_game,
+        "run_state": run_state,
         "updated_at": save_data.updated_at.isoformat() if save_data.updated_at else None
     }
 
