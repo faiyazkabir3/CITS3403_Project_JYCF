@@ -4,3 +4,4 @@ A collaborative full-stack web application built using Flask, SQLAlchemy, and Bo
 ## Documentation
 
 - [Level Design](LEVEL_DESIGN.md)
+- [Level Design](LEVEL_DESIGN.md)
