@@ -39,6 +39,7 @@ class SaveData(db.Model):
     game_won = db.Column(db.Boolean, nullable=False, default=False)
 
     has_started_game = db.Column(db.Boolean, nullable=False, default=False)
+    run_state_json = db.Column(db.Text, nullable=True)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 class Friend(db.Model):

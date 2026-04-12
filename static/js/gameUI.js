@@ -8,7 +8,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function typeWriter(element, text, speed = 18) {
+async function typeWriter(element, text, speed = 24) {
   if (!element) return;
 
   element.textContent = "";
@@ -25,7 +25,6 @@ function appendCombatLog(text) {
   const entry = document.createElement("div");
   entry.className = "combat-log-entry";
   entry.textContent = text;
-
   logList.prepend(entry);
 
   while (logList.children.length > 12) {
@@ -33,8 +32,8 @@ function appendCombatLog(text) {
   }
 }
 
-async function playEventSequence(element, events, speed = 18, pause = 360) {
-  if (!element || !events || events.length === 0) return;
+async function playEventSequence(element, events, speed = 24, pause = 460) {
+  if (!events || events.length === 0) return;
 
   for (const eventText of events) {
     await typeWriter(element, eventText, speed);
@@ -47,148 +46,182 @@ function isGameOver(engine) {
   return engine.state.progression.gameOver || engine.state.inventory.health <= 0;
 }
 
-function showMainActions() {
-  const mainActions = $("#main-actions");
-  const attackActions = $("#attack-actions");
-  const inventoryActions = $("#inventory-actions");
+function showActionGroup(groupId) {
+  ["main-actions", "attack-actions", "inventory-actions"].forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.style.display = id === groupId ? "flex" : "none";
+    }
+  });
+}
 
-  if (mainActions) mainActions.style.display = "flex";
-  if (attackActions) attackActions.style.display = "none";
-  if (inventoryActions) inventoryActions.style.display = "none";
+function showMainActions() {
+  showActionGroup("main-actions");
 }
 
 function showAttackActions() {
-  const mainActions = $("#main-actions");
-  const attackActions = $("#attack-actions");
-  const inventoryActions = $("#inventory-actions");
-
-  if (mainActions) mainActions.style.display = "none";
-  if (attackActions) attackActions.style.display = "flex";
-  if (inventoryActions) inventoryActions.style.display = "none";
+  showActionGroup("attack-actions");
 }
 
 function showInventoryActions() {
-  const mainActions = $("#main-actions");
-  const attackActions = $("#attack-actions");
-  const inventoryActions = $("#inventory-actions");
-
-  if (mainActions) mainActions.style.display = "none";
-  if (attackActions) attackActions.style.display = "none";
-  if (inventoryActions) inventoryActions.style.display = "flex";
+  showActionGroup("inventory-actions");
 }
 
-function updateActionAvailability(engine, locked = false) {
-  const dead = isGameOver(engine);
-  const waitingForChoice = engine.state.progression.awaitingChoice;
-  const inCombat = engine.state.combat.inCombat;
-
-  const attackBtn = $("#attack-btn");
-  const defendBtn = $("#defend-btn");
-  const inventoryBtn = $("#inventory-btn");
-  const saveBtn = $("#save-btn");
-
-  const pistolBtn = $("#pistol-btn");
-  const knifeBtn = $("#knife-btn");
-  const grenadeBtn = $("#grenade-btn");
-  const attackBackBtn = $("#attack-back-btn");
-
-  const reloadBtn = $("#reload-btn");
-  const medkitBtn = $("#medkit-btn");
-  const shieldBtn = $("#shield-btn");
-  const inventoryBackBtn = $("#inventory-back-btn");
-
-  const choiceButtons = document.querySelectorAll("#path-choice-buttons button");
-
-  if (attackBtn) attackBtn.disabled = dead || waitingForChoice || locked || !inCombat;
-  if (defendBtn) defendBtn.disabled = dead || waitingForChoice || locked || !inCombat;
-  if (inventoryBtn) inventoryBtn.disabled = dead || waitingForChoice || locked;
-  if (saveBtn) saveBtn.disabled = locked;
-
-  if (pistolBtn) pistolBtn.disabled = dead || locked || !inCombat;
-  if (knifeBtn) knifeBtn.disabled = dead || locked || !inCombat;
-  if (grenadeBtn) grenadeBtn.disabled = dead || locked || !inCombat;
-  if (attackBackBtn) attackBackBtn.disabled = dead || locked;
-
-  if (reloadBtn) reloadBtn.disabled = dead || locked;
-  if (medkitBtn) medkitBtn.disabled = dead || locked;
-  if (shieldBtn) shieldBtn.disabled = dead || locked;
-  if (inventoryBackBtn) inventoryBackBtn.disabled = dead || locked;
-
-  choiceButtons.forEach((button) => {
-    button.disabled = dead || locked || !waitingForChoice;
-  });
-
-  if (dead) {
-    showMainActions();
-  }
+function formatPercent(value) {
+  return `${Math.round(value * 100)}%`;
 }
 
 function renderStats(engine) {
   const state = engine.state;
+  const derived = engine.getDerivedStats();
   const currentLevel = engine.getCurrentLevel();
   const enemy = state.combat.enemy;
 
   const topLeft = $(".top-left");
   if (topLeft && currentLevel) {
-    topLeft.textContent = `LEVEL ${currentLevel.id}`;
+    topLeft.textContent = `LEVEL ${currentLevel.id} - ${currentLevel.title}`;
   }
+
+  const shieldText = state.shield.hasShield
+    ? `${state.shield.equipped ? "ON" : "OFF"} (${state.shield.durability})`
+    : "NONE";
+  const statusText = [
+    state.status.poisonTurns > 0 ? `POISON ${state.status.poisonTurns}` : null,
+    state.status.corrosionTurns > 0 ? `CORROSION ${state.status.corrosionTurns}` : null
+  ]
+    .filter(Boolean)
+    .join(" / ") || "CLEAR";
+  const enemyLabel = enemy ? `${enemy.name} (${Math.max(enemy.hp, 0)} HP)` : "-";
 
   const statsUl = $("#player-stats-list");
   if (statsUl) {
-    statsUl.innerHTML = `
-      <li>CHARACTER: ${state.player.characterName}</li>
-      <li>PERK: ${state.player.perkName}</li>
-      <li>HP: ${state.inventory.health}</li>
-      <li>MED: ${state.inventory.medKits}</li>
-      <li>GREN: ${state.inventory.grenades}</li>
-      <li>PISTOL: ${state.pistol.ammoInGun}/${state.pistol.magCapacity}</li>
-      <li>BAG AMMO: ${state.pistol.ammoInBag}</li>
-      <li>SHIELD: ${state.shield.equipped ? "ON" : "OFF"}</li>
-      <li>LEVEL: ${state.progression.currentLevelId}</li>
-      <li>ENEMIES LEFT: ${state.progression.enemiesRemaining}</li>
-      <li>ENEMY HP: ${enemy ? Math.max(enemy.hp, 0) : "-"}</li>
-      <li>STATUS: ${isGameOver(engine) ? "DEAD" : "ALIVE"}</li>
-    `;
+    const lines = [
+      `CHARACTER: ${state.player.characterName}`,
+      `PERK: ${state.player.perkName}`,
+      `HP: ${state.inventory.health}/${state.inventory.maxHealth}`,
+      `COINS: ${state.inventory.coins}`,
+      `MED: ${state.inventory.medKits}`,
+      `GREN: ${state.inventory.grenades}`,
+      `PISTOL: ${state.pistol.ammoInGun}/${state.pistol.magCapacity}`,
+      `PISTOL BAG: ${state.pistol.ammoInBag}`
+    ];
+
+    if (state.rifle.owned) {
+      lines.push(`RIFLE: ${state.rifle.ammoInGun}/${state.rifle.magCapacity} | BAG ${state.rifle.ammoInBag}`);
+    }
+
+    lines.push(
+      `SHIELD: ${shieldText}`,
+      `AGI / COUR: ${state.stats.agility} / ${state.stats.courage}`,
+      `DODGE / CRIT: ${formatPercent(derived.dodgeChance)} / ${formatPercent(derived.critChance)}`,
+      `ARMOUR CUT: ${formatPercent(derived.armourReduction)}`,
+      `LEVEL: ${state.progression.currentLevelId}`,
+      `ENEMIES LEFT: ${state.progression.enemiesRemaining}`,
+      `ENEMY: ${enemyLabel}`,
+      `STATUS: ${isGameOver(engine) ? "DEAD" : statusText}`
+    );
+
+    statsUl.innerHTML = lines.map((line) => `<li>${line}</li>`).join("");
   }
 }
 
-function renderChoiceBox(engine, onChoose) {
+function renderWeaponVisibility(engine) {
+  const rifleOwned = engine.state.rifle.owned;
+  const rifleBtn = $("#rifle-btn");
+  const reloadRifleBtn = $("#reload-rifle-btn");
+
+  if (rifleBtn) {
+    rifleBtn.style.display = rifleOwned ? "" : "none";
+  }
+
+  if (reloadRifleBtn) {
+    reloadRifleBtn.style.display = rifleOwned ? "" : "none";
+  }
+}
+
+function renderChoiceBox(engine, onChoose, locked) {
   const choiceBox = $("#path-choice-box");
   const choiceButtons = $("#path-choice-buttons");
-
   if (!choiceBox || !choiceButtons) return;
 
-  if (isGameOver(engine)) {
+  if (!engine.hasChoices() || isGameOver(engine)) {
     choiceBox.style.display = "none";
     choiceButtons.innerHTML = "";
     return;
   }
 
-  if (!engine.hasChoices()) {
-    choiceBox.style.display = "none";
-    choiceButtons.innerHTML = "";
-    return;
-  }
-
-  const choices = engine.getAvailableChoices();
-  choiceButtons.innerHTML = "";
   choiceBox.style.display = "block";
+  choiceButtons.innerHTML = "";
 
-  choices.forEach((choice) => {
+  engine.getAvailableChoices().forEach((choice) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "choice-btn";
+    button.disabled = locked;
     button.innerHTML = `
       <span class="choice-title">${choice.label}</span>
       <span class="choice-desc">${choice.description}</span>
     `;
-
-    button.addEventListener("click", () => {
-      onChoose(choice.id);
-    });
-
+    button.addEventListener("click", () => onChoose(choice.id));
     choiceButtons.appendChild(button);
   });
+}
+
+function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
+  const shopBox = $("#shop-box");
+  const buyButtons = $("#shop-buy-buttons");
+  const sellButtons = $("#shop-sell-buttons");
+  const continueBtn = $("#shop-continue-btn");
+  if (!shopBox || !buyButtons || !sellButtons || !continueBtn) return;
+
+  if (!engine.isShopOpen() || isGameOver(engine)) {
+    shopBox.style.display = "none";
+    buyButtons.innerHTML = "";
+    sellButtons.innerHTML = "";
+    return;
+  }
+
+  const coins = engine.state.inventory.coins;
+  shopBox.style.display = "block";
+  buyButtons.innerHTML = "";
+  sellButtons.innerHTML = "";
+
+  engine.getShopInventory().forEach((item) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "choice-btn";
+    button.disabled = locked || item.disabled || coins < item.cost;
+    button.innerHTML = `
+      <span class="choice-title">${item.label} - ${item.cost}C</span>
+      <span class="choice-desc">${item.description}</span>
+    `;
+    button.addEventListener("click", () => onBuy(item.id));
+    buyButtons.appendChild(button);
+  });
+
+  const sellItems = engine.getSellInventory();
+  if (sellItems.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "combat-log-entry";
+    empty.textContent = "Nothing to sell yet.";
+    sellButtons.appendChild(empty);
+  } else {
+    sellItems.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "choice-btn";
+      button.disabled = locked;
+      button.innerHTML = `
+        <span class="choice-title">${item.label} - +${item.value}C</span>
+        <span class="choice-desc">${item.description}</span>
+      `;
+      button.addEventListener("click", () => onSell(item.id));
+      sellButtons.appendChild(button);
+    });
+  }
+
+  continueBtn.disabled = locked;
+  continueBtn.onclick = onContinue;
 }
 
 function buildSavePayload(engine) {
@@ -210,13 +243,13 @@ function buildSavePayload(engine) {
     enemies_remaining: state.progression.enemiesRemaining,
     level_complete: state.progression.levelComplete,
     awaiting_choice: state.progression.awaitingChoice,
-    game_won: state.progression.gameWon
+    game_won: state.progression.gameWon,
+    run_state: structuredClone(state)
   };
 }
 
 async function saveGameToBackend(engine) {
   const payload = buildSavePayload(engine);
-
   const response = await fetch("/save-game", {
     method: "POST",
     headers: {
@@ -240,7 +273,40 @@ export function bootGameUI({
   });
 
   const storyText = $("#story-text");
+  const emergencyBox = $("#emergency-box");
+  const emergencyTitle = $("#emergency-title");
+  const emergencyPrompt = $("#emergency-prompt");
+  const emergencyKey = $("#emergency-key");
+  const emergencyTimer = $("#emergency-timer");
+  const emergencyProgress = $("#emergency-progress");
+  const emergencyActionBtn = $("#emergency-action-btn");
+  const emergencyFailBtn = $("#emergency-fail-btn");
+
   let locked = false;
+  let isAnimatingEvents = false;
+  const emergencySession = {
+    active: false,
+    signature: null,
+    deadline: 0,
+    progress: 0,
+    required: 0,
+    key: "X",
+    timerId: null
+  };
+
+  function clearEmergencySession() {
+    if (emergencySession.timerId) {
+      window.clearInterval(emergencySession.timerId);
+    }
+
+    emergencySession.active = false;
+    emergencySession.signature = null;
+    emergencySession.deadline = 0;
+    emergencySession.progress = 0;
+    emergencySession.required = 0;
+    emergencySession.key = "X";
+    emergencySession.timerId = null;
+  }
 
   async function saveAtCheckpoint() {
     engine.state.analytics.savesMade += 1;
@@ -252,86 +318,339 @@ export function bootGameUI({
     }
   }
 
+  function updateActionAvailability() {
+    const dead = isGameOver(engine);
+    const inCombat = engine.state.combat.inCombat;
+    const waitingForChoice = engine.hasChoices();
+    const shopOpen = engine.isShopOpen();
+    const emergencyActive = engine.hasEmergency();
+    const lockedOut = dead || locked || emergencyActive || shopOpen || waitingForChoice;
+
+    const buttonStates = [
+      ["attack-btn", dead || lockedOut || !inCombat],
+      ["defend-btn", dead || lockedOut || !inCombat],
+      ["inventory-btn", dead || lockedOut],
+      ["save-btn", locked || emergencyActive],
+      ["pistol-btn", dead || locked || !inCombat],
+      ["rifle-btn", dead || locked || !inCombat || !engine.state.rifle.owned],
+      ["knife-btn", dead || locked || !inCombat],
+      ["grenade-btn", dead || locked || !inCombat],
+      ["attack-back-btn", dead || locked || emergencyActive],
+      ["reload-btn", dead || locked || emergencyActive],
+      ["reload-rifle-btn", dead || locked || emergencyActive || !engine.state.rifle.owned],
+      ["medkit-btn", dead || locked || emergencyActive],
+      ["shield-btn", dead || locked || emergencyActive || !engine.state.shield.hasShield],
+      ["inventory-back-btn", dead || locked || emergencyActive]
+    ];
+
+    buttonStates.forEach(([id, disabled]) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.disabled = disabled;
+      }
+    });
+
+    if (dead) {
+      showMainActions();
+    }
+  }
+
+  async function handleEmergencyResolution(success) {
+    if (locked || !engine.hasEmergency()) return;
+
+    locked = true;
+    const progress = emergencySession.progress;
+    clearEmergencySession();
+    renderAll();
+    const events = engine.resolveEmergency(success, progress);
+    await runAndRender(events);
+    await postLevelFlow();
+    locked = false;
+    renderAll();
+  }
+
+  function renderEmergencyBox() {
+    if (!emergencyBox || !emergencyTitle || !emergencyPrompt) return;
+
+    if (!engine.hasEmergency() || isGameOver(engine)) {
+      emergencyBox.style.display = "none";
+      clearEmergencySession();
+      return;
+    }
+
+    const emergency = engine.getEmergency();
+    const signature = `${engine.state.progression.currentLevelId}:${emergency.title}:${emergency.prompt}`;
+    if (emergencySession.signature !== signature) {
+      clearEmergencySession();
+      emergencySession.signature = signature;
+      emergencySession.progress = 0;
+      emergencySession.required = emergency.required;
+      emergencySession.key = String(emergency.key || "X").toUpperCase();
+      emergencySession.deadline = 0;
+    }
+
+    if (!isAnimatingEvents && !emergencySession.active) {
+      emergencySession.active = true;
+      emergencySession.deadline = Date.now() + emergency.timeLimitMs;
+      emergencySession.timerId = window.setInterval(() => {
+        if (!engine.hasEmergency()) {
+          clearEmergencySession();
+          return;
+        }
+
+        const remaining = emergencySession.deadline - Date.now();
+        if (remaining <= 0 && !locked) {
+          handleEmergencyResolution(false);
+          return;
+        }
+
+        renderEmergencyBox();
+      }, 100);
+    }
+
+    const remainingMs = emergencySession.active
+      ? Math.max(emergencySession.deadline - Date.now(), 0)
+      : emergency.timeLimitMs;
+    emergencyBox.style.display = "block";
+    emergencyTitle.textContent = emergency.title;
+    emergencyPrompt.textContent = emergency.prompt;
+    emergencyKey.textContent = emergencySession.key;
+    emergencyTimer.textContent = `${(remainingMs / 1000).toFixed(1)}s`;
+    emergencyProgress.textContent = `${emergencySession.progress}/${emergencySession.required}`;
+
+    if (emergencyActionBtn) {
+      emergencyActionBtn.disabled = locked || !emergencySession.active;
+    }
+
+    if (emergencyFailBtn) {
+      emergencyFailBtn.disabled = locked || !emergencySession.active;
+    }
+  }
+
+  function renderAll() {
+    renderStats(engine);
+    renderWeaponVisibility(engine);
+    renderChoiceBox(engine, handlePathChoice, locked);
+    renderShopBox(engine, locked, handleShopBuy, handleShopSell, handleShopContinue);
+    renderEmergencyBox();
+    updateActionAvailability();
+  }
+
   async function runAndRender(events) {
-    renderStats(engine);
-    renderChoiceBox(engine, handlePathChoice);
-    updateActionAvailability(engine, locked);
+    isAnimatingEvents = true;
+    renderAll();
     await playEventSequence(storyText, events);
-    renderStats(engine);
-    renderChoiceBox(engine, handlePathChoice);
-    updateActionAvailability(engine, locked);
+    isAnimatingEvents = false;
+    renderAll();
   }
 
   async function postLevelFlow() {
     if (isGameOver(engine)) {
-      updateActionAvailability(engine, false);
       showMainActions();
+      renderAll();
       return;
     }
 
-    if (engine.state.progression.awaitingChoice) {
-      updateActionAvailability(engine, false);
-      renderChoiceBox(engine, handlePathChoice);
+    if (engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) {
+      showMainActions();
+      renderAll();
       return;
     }
 
-    if (
-      engine.state.progression.levelComplete &&
-      !engine.state.progression.gameWon
-    ) {
-      await sleep(800);
+    if (engine.state.progression.levelComplete && !engine.state.progression.gameWon) {
+      await sleep(700);
       const nextLevelEvents = engine.advanceToNextLevel();
       await runAndRender(nextLevelEvents);
     }
+
+    showMainActions();
+    renderAll();
   }
 
   async function handleAction(actionKey) {
-    if (locked || isGameOver(engine)) {
-      updateActionAvailability(engine, locked);
-      return;
-    }
+    if (locked || isGameOver(engine) || engine.hasEmergency()) return;
 
     locked = true;
-    updateActionAvailability(engine, locked);
-
+    renderAll();
     const events = engine.dispatch(actionKey);
     await runAndRender(events);
     await postLevelFlow();
-
     locked = false;
-    updateActionAvailability(engine, locked);
-
-    if (isGameOver(engine)) {
-      showMainActions();
-    }
+    renderAll();
   }
 
   async function handlePathChoice(choiceId) {
-    if (locked || isGameOver(engine)) {
-      updateActionAvailability(engine, locked);
-      return;
-    }
+    if (locked || isGameOver(engine) || engine.hasEmergency()) return;
 
     locked = true;
-    updateActionAvailability(engine, locked);
-
-    const choiceBox = $("#path-choice-box");
-    if (choiceBox) choiceBox.style.display = "none";
-
+    renderAll();
     const events = engine.choosePath(choiceId);
     await runAndRender(events);
+    await postLevelFlow();
+    locked = false;
+    renderAll();
+  }
+
+  async function handleShopBuy(itemId) {
+    if (locked || isGameOver(engine)) return;
+
+    locked = true;
+    renderAll();
+    const events = engine.buy(itemId);
+    await runAndRender(events);
+    locked = false;
+    renderAll();
+  }
+
+  async function handleShopSell(itemId) {
+    if (locked || isGameOver(engine)) return;
+
+    locked = true;
+    renderAll();
+    const events = engine.sell(itemId);
+    await runAndRender(events);
+    locked = false;
+    renderAll();
+  }
+
+  async function handleShopContinue() {
+    if (locked || isGameOver(engine)) return;
+
+    locked = true;
+    renderAll();
+    const closeEvents = engine.closeShop();
+    await runAndRender(closeEvents);
+
+    if (!engine.hasChoices() && engine.state.progression.levelComplete && !engine.state.progression.gameWon) {
+      const nextLevelEvents = engine.advanceToNextLevel();
+      await runAndRender(nextLevelEvents);
+    }
 
     locked = false;
-    updateActionAvailability(engine, locked);
+    await postLevelFlow();
+  }
 
-    if (!isGameOver(engine)) {
-      showMainActions();
+  function registerEmergencyPress() {
+    if (locked || !engine.hasEmergency() || !emergencySession.active) return;
+
+    emergencySession.progress += 1;
+    renderEmergencyBox();
+
+    if (emergencySession.progress >= emergencySession.required) {
+      handleEmergencyResolution(true);
     }
   }
 
+  function handleEmergencyKeydown(event) {
+    if (!engine.hasEmergency() || !emergencySession.active) return;
+    if (event.key.toUpperCase() !== emergencySession.key) return;
+
+    event.preventDefault();
+    registerEmergencyPress();
+  }
+
+  const attackBtn = $("#attack-btn");
+  const defendBtn = $("#defend-btn");
+  const inventoryBtn = $("#inventory-btn");
+  const saveBtn = $("#save-btn");
+  const pistolBtn = $("#pistol-btn");
+  const rifleBtn = $("#rifle-btn");
+  const knifeBtn = $("#knife-btn");
+  const grenadeBtn = $("#grenade-btn");
+  const attackBackBtn = $("#attack-back-btn");
+  const reloadBtn = $("#reload-btn");
+  const reloadRifleBtn = $("#reload-rifle-btn");
+  const medkitBtn = $("#medkit-btn");
+  const shieldBtn = $("#shield-btn");
+  const inventoryBackBtn = $("#inventory-back-btn");
+
+  if (attackBtn) {
+    attackBtn.addEventListener("click", () => {
+      if (locked || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      showAttackActions();
+      renderAll();
+    });
+  }
+
+  if (defendBtn) {
+    defendBtn.addEventListener("click", async () => {
+      await handleAction("dodge");
+    });
+  }
+
+  if (inventoryBtn) {
+    inventoryBtn.addEventListener("click", () => {
+      if (locked || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      showInventoryActions();
+      renderAll();
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      if (locked || engine.hasEmergency()) return;
+
+      try {
+        engine.state.analytics.savesMade += 1;
+        const result = await saveGameToBackend(engine);
+        const message = result.ok ? "Game saved successfully." : result.message || "Save failed.";
+        appendCombatLog(message);
+        if (storyText) {
+          storyText.textContent = message;
+        }
+      } catch (error) {
+        console.error("Save failed:", error);
+        appendCombatLog("Save failed.");
+        if (storyText) {
+          storyText.textContent = "Save failed.";
+        }
+      }
+    });
+  }
+
+  if (pistolBtn) pistolBtn.addEventListener("click", async () => handleAction("pistol"));
+  if (rifleBtn) rifleBtn.addEventListener("click", async () => handleAction("rifle"));
+  if (knifeBtn) knifeBtn.addEventListener("click", async () => handleAction("knife"));
+  if (grenadeBtn) grenadeBtn.addEventListener("click", async () => handleAction("grenade"));
+
+  if (attackBackBtn) {
+    attackBackBtn.addEventListener("click", () => {
+      if (locked || engine.hasEmergency()) return;
+      showMainActions();
+      renderAll();
+    });
+  }
+
+  if (reloadBtn) reloadBtn.addEventListener("click", async () => handleAction("reloadPistol"));
+  if (reloadRifleBtn) reloadRifleBtn.addEventListener("click", async () => handleAction("reloadRifle"));
+  if (medkitBtn) medkitBtn.addEventListener("click", async () => handleAction("heal"));
+  if (shieldBtn) shieldBtn.addEventListener("click", async () => handleAction("toggleShield"));
+
+  if (inventoryBackBtn) {
+    inventoryBackBtn.addEventListener("click", () => {
+      if (locked || engine.hasEmergency()) return;
+      showMainActions();
+      renderAll();
+    });
+  }
+
+  if (emergencyActionBtn) {
+    emergencyActionBtn.addEventListener("click", () => {
+      registerEmergencyPress();
+    });
+  }
+
+  if (emergencyFailBtn) {
+    emergencyFailBtn.addEventListener("click", async () => {
+      await handleEmergencyResolution(false);
+    });
+  }
+
+  window.addEventListener("keydown", handleEmergencyKeydown);
+
   async function startGame() {
     showMainActions();
-    updateActionAvailability(engine, false);
+    renderAll();
 
     if (savedState) {
       const resumeEvents = engine.resumeFromSave();
@@ -345,123 +664,6 @@ export function bootGameUI({
     await saveAtCheckpoint();
   }
 
-  const attackBtn = $("#attack-btn");
-  const defendBtn = $("#defend-btn");
-  const inventoryBtn = $("#inventory-btn");
-  const saveBtn = $("#save-btn");
-
-  if (attackBtn) {
-    attackBtn.addEventListener("click", () => {
-      if (locked || isGameOver(engine) || engine.state.progression.awaitingChoice) return;
-      showAttackActions();
-      updateActionAvailability(engine, locked);
-    });
-  }
-
-  if (defendBtn) {
-    defendBtn.addEventListener("click", async () => {
-      await handleAction("dodge");
-    });
-  }
-
-  if (inventoryBtn) {
-    inventoryBtn.addEventListener("click", () => {
-      if (locked || isGameOver(engine) || engine.state.progression.awaitingChoice) return;
-      showInventoryActions();
-      updateActionAvailability(engine, locked);
-    });
-  }
-
-  if (saveBtn) {
-    saveBtn.addEventListener("click", async () => {
-      try {
-        engine.state.analytics.savesMade += 1;
-        const result = await saveGameToBackend(engine);
-
-        if (result.ok) {
-          appendCombatLog("Game saved successfully.");
-          if (storyText) {
-            storyText.textContent = "Game saved successfully.";
-          }
-        } else {
-          appendCombatLog(result.message || "Save failed.");
-          if (storyText) {
-            storyText.textContent = result.message || "Save failed.";
-          }
-        }
-      } catch (error) {
-        console.error("Save failed:", error);
-        appendCombatLog("Save failed.");
-        if (storyText) {
-          storyText.textContent = "Save failed.";
-        }
-      }
-    });
-  }
-
-  const pistolBtn = $("#pistol-btn");
-  const knifeBtn = $("#knife-btn");
-  const grenadeBtn = $("#grenade-btn");
-  const attackBackBtn = $("#attack-back-btn");
-
-  if (pistolBtn) {
-    pistolBtn.addEventListener("click", async () => {
-      await handleAction("pistol");
-    });
-  }
-
-  if (knifeBtn) {
-    knifeBtn.addEventListener("click", async () => {
-      await handleAction("knife");
-    });
-  }
-
-  if (grenadeBtn) {
-    grenadeBtn.addEventListener("click", async () => {
-      await handleAction("grenade");
-    });
-  }
-
-  if (attackBackBtn) {
-    attackBackBtn.addEventListener("click", () => {
-      if (locked || isGameOver(engine)) return;
-      showMainActions();
-      updateActionAvailability(engine, locked);
-    });
-  }
-
-  const reloadBtn = $("#reload-btn");
-  const medkitBtn = $("#medkit-btn");
-  const shieldBtn = $("#shield-btn");
-  const inventoryBackBtn = $("#inventory-back-btn");
-
-  if (reloadBtn) {
-    reloadBtn.addEventListener("click", async () => {
-      await handleAction("reloadPistol");
-    });
-  }
-
-  if (medkitBtn) {
-    medkitBtn.addEventListener("click", async () => {
-      await handleAction("heal");
-    });
-  }
-
-  if (shieldBtn) {
-    shieldBtn.addEventListener("click", async () => {
-      await handleAction("toggleShield");
-    });
-  }
-
-  if (inventoryBackBtn) {
-    inventoryBackBtn.addEventListener("click", () => {
-      if (locked || isGameOver(engine)) return;
-      showMainActions();
-      updateActionAvailability(engine, locked);
-    });
-  }
-
   startGame();
-
   return engine;
 }

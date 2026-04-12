@@ -1,205 +1,281 @@
-// levels.js
 export const LEVELS = {
   "1": {
     id: "1",
-    title: "Shadows of the Metro",
-    description: "A desolate metro station stretches before you.",
-    introText: "A muffled growl echoes from a nearby staff room.",
-    enemyPool: ["regular"],
+    title: "First Cut",
+    description: "A fast infected darts between abandoned carriages and tests your reflexes.",
+    introText: "Tutorial 1: fast targets hate close pressure. Knife strikes land cleanly while grenades feel clumsy.",
+    enemySequence: ["fast"],
     enemyCount: 1,
-    rewards: [],
-    completeText: "You clear the area and move deeper into the station.",
+    shopAfterClear: true,
+    completeText: "You steady your breathing and find the first survivor cache.",
     next: "2"
   },
 
   "2": {
     id: "2",
-    title: "Horde on the Stairs",
-    description: "A staircase is choked with the undead.",
-    introText: "The way forward is blocked by multiple zombies.",
-    enemyPool: ["regular", "fast"],
+    title: "Armour Lesson",
+    description: "One plated brute blocks the hall while a ranged mutant spits from the backline.",
+    introText: "Tutorial 2: heavy targets shrug off knives, and spitters punish careless close combat.",
+    enemySequence: ["heavy", "spitter"],
     enemyCount: 2,
-    rewards: [],
-    completeText: "You survive the staircase ambush.",
+    shopAfterClear: true,
+    completeText: "The corridor opens into a supply bay with just enough time to regroup.",
     next: "3"
   },
 
   "3": {
     id: "3",
-    title: "Key Among Corpses",
-    description: "A reinforced door blocks your progress.",
-    introText: "You hear snarling behind the guard area.",
-    enemyPool: ["regular", "fast", "heavy"],
-    enemyCount: 3,
-    rewards: [
-      {
-        type: "pistolMagUpgrade",
-        value: 12,
-        text: "You found an extended pistol magazine. Capacity increased to 12."
-      }
-    ],
-    completeText: "A split in the ruined floor ahead forces you to choose your route.",
+    title: "Skill Check",
+    description: "A charger lines up its rush while a screamer prepares to call the whole station down on you.",
+    introText: "Tutorial 3: dodging matters. The charger rewards patience, and the screamer must be removed quickly.",
+    enemySequence: ["charger", "screamer"],
+    enemyCount: 2,
+    shopAfterClear: true,
+    completeText: "Three route beacons flicker to life. Your next decision shapes the build for the run.",
     choices: [
       {
         id: "4A",
-        label: "4A - BLOODLUST",
-        description: "More zombies, more resources."
-      },
-      {
-        id: "4B",
-        label: "4B - GREED",
-        description: "A route that may contain explosive supplies."
+        label: "4A - AGILE PATH",
+        description: "Emergency events, evasive fights, and larger agility gains."
       },
       {
         id: "4C",
-        label: "4C - COWARDICE",
-        description: "Fewer zombies and a safer path out."
+        label: "4C - COURAGE PATH",
+        description: "Longer fights, heavier enemies, and more coins for the shop."
       }
     ]
   },
 
   "4A": {
     id: "4A",
-    title: "Blood Corridor",
-    description: "You choose the loud route through the infested blood corridor.",
-    introText: "Shapes crawl in the dark. This path will cost bullets.",
-    enemyPool: ["regular", "fast", "heavy"],
-    enemyCount: 4,
+    title: "Emergency Tunnel",
+    description: "Sirens flash over a cracked maintenance tunnel while fast infected keep pouring through.",
+    introText: "Agile route: emergency events can appear here. Spam the shown key fast enough to gain extra agility.",
+    enemySequence: ["fast", "charger", "spitter"],
+    enemyCount: 3,
+    shopAfterClear: true,
     rewards: [
       {
-        type: "medKits",
-        value: 1,
-        text: "You scavenge a med kit from the aftermath."
+        type: "stats",
+        agility: 3,
+        courage: 0,
+        text: "The frantic escape sharpens your timing. Agility +3."
+      }
+    ],
+    emergency: {
+      chance: 1,
+      title: "Emergency Event",
+      prompt: "A side gate jams shut. Press X or click the button before the horde reaches you.",
+      key: "X",
+      required: 8,
+      timeLimitMs: 11000,
+      successText: "You force the gate shut and buy yourself a clean angle on the next wave.",
+      failText: "The gate gives late. You survive, but the horde clips you on the way through.",
+      reward: {
+        agility: 2,
+        coins: 2
+      },
+      failReward: {
+        agility: 1
+      },
+      failDamage: 8
+    },
+    completeText: "You outrun the surge and reach a narrow refuge with a battered service terminal.",
+    choiceCount: 2,
+    choicePool: [
+      {
+        id: "5A",
+        label: "5A - AGILE PUSH",
+        description: "Stay fast and risky with another mobility-heavy route."
       },
       {
-        type: "pistolAmmo",
-        value: 8,
-        text: "You collect extra pistol ammo from fallen gear."
-      }
-    ],
-    completeText: "You survive the swarm and push toward the next chamber.",
-    next: "5A"
-  },
-
-  "4B": {
-    id: "4B",
-    title: "Grenade Cache",
-    description: "You head toward a damaged military cache room.",
-    introText: "You spot warning paint and shattered crates ahead.",
-    enemyPool: ["regular", "fast"],
-    enemyCount: 2,
-    rewards: [
+        id: "5B",
+        label: "5B - MIDLINE SHIFT",
+        description: "Take the balanced route and split your gains."
+      },
       {
-        type: "grenades",
-        value: 2,
-        text: "You find a grenade stash inside the broken cache."
+        id: "5C",
+        label: "5C - COURAGE SWING",
+        description: "Turn into the tougher route for more pressure and economy."
       }
-    ],
-    completeText: "You secure the cache and force the next door open.",
-    next: "5B"
-  },
-
-  "4C": {
-    id: "4C",
-    title: "Coward's Passage",
-    description: "You slip into a narrow side route to avoid the worst of the horde.",
-    introText: "It is quieter here, but the air feels suffocating.",
-    enemyPool: ["regular"],
-    enemyCount: 1,
-    rewards: [
-      {
-        type: "medKits",
-        value: 1,
-        text: "You find a small emergency med pouch tucked into the wall."
-      }
-    ],
-    completeText: "You take the safer route and advance without drawing a large horde.",
-    next: "5C"
+    ]
   },
 
   "5A": {
     id: "5A",
-    title: "Furnace Hall",
-    description: "Heat and smoke choke the corridor as tougher infected close in.",
-    introText: "You hear armored footsteps and panicked breathing in the vents.",
-    enemyPool: ["fast", "heavy", "spitter"],
+    title: "Quickstep Trial",
+    description: "The route narrows into a blur of rushing threats and unstable fuel drums.",
+    introText: "Agile route: quick, accurate turns matter more than raw durability here.",
+    enemySequence: ["fast", "charger", "exploder", "spitter"],
     enemyCount: 4,
+    shopAfterClear: true,
     rewards: [
       {
-        type: "grenades",
-        value: 1,
-        text: "You recover a grenade from a ruined tactical bag."
+        type: "stats",
+        agility: 5,
+        courage: 0,
+        text: "Clearing the tunnel at full speed unlocks a burst of confidence. Agility +5."
       }
     ],
-    completeText: "The furnace hall falls silent after a brutal exchange.",
+    emergency: {
+      chance: 0.7,
+      title: "Emergency Event",
+      prompt: "The floor collapses behind you. Press X or click to scramble clear in time.",
+      key: "X",
+      required: 9,
+      timeLimitMs: 12000,
+      successText: "You clear the collapse and turn the momentum into a faster first shot.",
+      failText: "You climb out late and hit the next fight already rattled.",
+      reward: {
+        agility: 2
+      },
+      failReward: {
+        agility: 1
+      },
+      failDamage: 10
+    },
+    completeText: "You escape the cave-in and find the final stairwell above the platform fire.",
     next: "6A"
-  },
-
-  "5B": {
-    id: "5B",
-    title: "Blast Junction",
-    description: "A junction full of ruptured tanks and unstable debris blocks the way.",
-    introText: "A thin laser attachment glints under a dead soldier's arm.",
-    enemyPool: ["fast", "spitter"],
-    enemyCount: 3,
-    rewards: [
-      {
-        type: "pistolLaser",
-        text: "You attach a laser sight to your pistol. Damage is improved."
-      }
-    ],
-    completeText: "You cross the junction with improved firepower.",
-    next: "6B"
-  },
-
-  "5C": {
-    id: "5C",
-    title: "Service Crawlspace",
-    description: "The path narrows into a maintenance crawlspace with only a few threats.",
-    introText: "The scraping above you never really stops.",
-    enemyPool: ["regular", "fast"],
-    enemyCount: 2,
-    rewards: [
-      {
-        type: "pistolAmmo",
-        value: 6,
-        text: "You recover loose pistol rounds from a maintenance locker."
-      }
-    ],
-    completeText: "You squeeze out of the crawlspace and see the exit route ahead.",
-    next: "6C"
   },
 
   "6A": {
     id: "6A",
-    title: "Last Stand Platform",
-    description: "The platform ahead floods with infected from every direction.",
-    introText: "This is the price of taking the violent route.",
-    enemyPool: ["heavy", "spitter", "regular"],
-    enemyCount: 5,
-    rewards: [],
-    completeText: "You hold your ground and survive the final wave of this route."
+    title: "Swift Finale",
+    description: "The last agile route chamber throws relentless motion at you with almost no room to rest.",
+    introText: "Everything here is built to punish hesitation.",
+    enemySequence: ["fast", "charger", "berserker"],
+    enemyCount: 3,
+    completeText: "You survive the agile route and leave the station quicker than anything hunting you."
+  },
+
+  "4B": {
+    id: "4B",
+    title: "Middle Track",
+    description: "A supply platform offers cleaner sight lines but mixes every threat type together.",
+    introText: "Balanced route: no gimmick saves you here. Adapt weapon choice to each enemy.",
+    enemySequence: ["heavy", "spitter", "exploder"],
+    enemyCount: 3,
+    shopAfterClear: true,
+    rewards: [
+      {
+        type: "pistolLaser",
+        text: "You salvage a laser sight from an emergency locker. Pistol damage is improved."
+      },
+      {
+        type: "stats",
+        agility: 2,
+        courage: 2,
+        text: "You keep both discipline and speed under pressure. Agility +2, Courage +2."
+      }
+    ],
+    completeText: "The center route stays brutal, but your toolkit grows more reliable.",
+    next: "5B"
+  },
+
+  "5B": {
+    id: "5B",
+    title: "Crossfire Junction",
+    description: "A ruined command node forces you to answer ranged threats and charging attacks at the same time.",
+    introText: "Balanced route: keep enough coins for the shop, because attrition matters now.",
+    enemySequence: ["charger", "spitter", "heavy", "screamer"],
+    enemyCount: 4,
+    shopAfterClear: true,
+    rewards: [
+      {
+        type: "stats",
+        agility: 2,
+        courage: 2,
+        text: "A controlled clear hardens both instincts. Agility +2, Courage +2."
+      }
+    ],
+    completeText: "You cut power to the junction and push into the final station block.",
+    next: "6B"
   },
 
   "6B": {
     id: "6B",
-    title: "Demolition Exit",
-    description: "You force your way through a demolition access lane toward the upper floor.",
-    introText: "The walls tremble as unstable explosives crack nearby.",
-    enemyPool: ["heavy", "spitter"],
+    title: "Split Verdict",
+    description: "The balanced route ends with every lesson layered into one prolonged fight.",
+    introText: "No single weapon solves this room for you.",
+    enemySequence: ["heavy", "exploder", "berserker", "charger"],
     enemyCount: 4,
-    rewards: [],
-    completeText: "You blast your way through and secure the exit to the next sector."
+    completeText: "You survive the balanced route with a build that can flex both ways."
+  },
+
+  "4C": {
+    id: "4C",
+    title: "Fortified Line",
+    description: "The courage route is slower, louder, and full of targets worth more coins.",
+    introText: "Courage route: expect more zombies, more punishment, and more shop money if you endure it.",
+    enemySequence: ["heavy", "exploder", "heavy", "fast"],
+    enemyCount: 4,
+    shopAfterClear: true,
+    rewards: [
+      {
+        type: "coins",
+        value: 4,
+        text: "The barricade stash yields extra antique coins."
+      },
+      {
+        type: "stats",
+        agility: 0,
+        courage: 3,
+        text: "Holding the line builds resolve. Courage +3."
+      }
+    ],
+    completeText: "The heavy route hurts, but the haul is real.",
+    choiceCount: 2,
+    choicePool: [
+      {
+        id: "5A",
+        label: "5A - AGILE PUSH",
+        description: "Swing hard into the faster route and chase agility."
+      },
+      {
+        id: "5B",
+        label: "5B - MIDLINE SHIFT",
+        description: "Take the balanced route and smooth out your build."
+      },
+      {
+        id: "5C",
+        label: "5C - COURAGE SWING",
+        description: "Stay on the endurance line for more pressure and coins."
+      }
+    ]
+  },
+
+  "5C": {
+    id: "5C",
+    title: "Stand Firm",
+    description: "A reinforced platform becomes a war of endurance against the toughest infected in the station.",
+    introText: "Courage route: this fight is built for shield durability, crit chains, and coin farming.",
+    enemySequence: ["heavy", "berserker", "exploder", "charger", "spitter"],
+    enemyCount: 5,
+    shopAfterClear: true,
+    rewards: [
+      {
+        type: "coins",
+        value: 6,
+        text: "A crashed convoy adds more antique coins to your pack."
+      },
+      {
+        type: "stats",
+        agility: 0,
+        courage: 5,
+        text: "You refuse to break under pressure. Courage +5."
+      }
+    ],
+    completeText: "The roar finally dies down and leaves only the ringing in your shield arm.",
+    next: "6C"
   },
 
   "6C": {
     id: "6C",
-    title: "Quiet Escape",
-    description: "The final corridor is mostly empty, but the silence feels wrong.",
-    introText: "Only a few infected remain between you and the next floor.",
-    enemyPool: ["regular", "fast"],
-    enemyCount: 2,
-    rewards: [],
-    completeText: "You slip past the last threats and reach the next sector alive."
+    title: "Iron Exit",
+    description: "The final courage route chamber dumps the station's hardest bodies into one last brawl.",
+    introText: "Tank too much and you fold. Spend your economy well and you outlast the swarm.",
+    enemySequence: ["heavy", "exploder", "berserker", "screamer", "charger"],
+    enemyCount: 5,
+    completeText: "You survive the courage route and leave richer, scarred, and impossible to shake."
   }
 };

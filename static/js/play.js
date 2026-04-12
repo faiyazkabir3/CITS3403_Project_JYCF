@@ -84,16 +84,26 @@ function showNoSavePreview(message = "Start a new game first.") {
 }
 
 function showSavePreview(saveData) {
+  const runState = saveData.run_state;
+  const coins = runState?.inventory?.coins;
+  const stats = runState?.stats;
+
   setSavePreview([
     `CHARACTER: ${CHARACTER_LABELS[(saveData.character_id || "leon").toLowerCase()] || "LEON"}`,
     `DIFFICULTY: ${(saveData.difficulty || "EASY").toUpperCase()}`,
     `LEVEL: ${saveData.current_level_id || "1"}`,
     `HP: ${saveData.health ?? 100}`,
+    `COINS: ${coins ?? 0}`,
+    `AGI/COUR: ${stats?.agility ?? "-"} / ${stats?.courage ?? "-"}`,
     `SAVED: ${formatSavedTime(saveData.updated_at)}`
   ]);
 }
 
 function buildSavedState(saveData) {
+  if (saveData.run_state) {
+    return saveData.run_state;
+  }
+
   const characterId = (saveData.character_id || "leon").toLowerCase();
 
   return {
