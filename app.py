@@ -243,7 +243,22 @@ def show_achievements():
     if "username" not in session:
         return redirect(url_for("show_login"))
 
-    return render_template("achievements.html", username=session.get("username", "Player"))
+    save_data = get_user_save()
+
+    return render_template(
+        "achievements.html",
+        username=session.get("username", "Player"),
+        achievements=[],
+        stats={
+            "kills": getattr(save_data, "kills", 0) if save_data else 0,
+            "damage_dealt": getattr(save_data, "damage_dealt", 0) if save_data else 0,
+            "damage_taken": getattr(save_data, "damage_taken", 0) if save_data else 0,
+            "pistol_shots": getattr(save_data, "pistol_shots", 0) if save_data else 0,
+            "grenades": getattr(save_data, "grenades", 0) if save_data else 0,
+            "medkits": getattr(save_data, "medkits", 0) if save_data else 0,
+            "reloads": getattr(save_data, "reloads", 0) if save_data else 0
+        }
+    )
 
 
 @app.route("/save-game", methods=["POST"])
