@@ -9,6 +9,47 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
+  <style>
+    .friend-row,
+    .request-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .friend-name,
+    .request-name {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .friend-actions,
+    .request-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .selected-character-box ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .selected-character-box li {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .selected-character-box li:last-child {
+      border-bottom: none;
+    }
+  </style>
 </head>
 <body class="play-page friends-page">
   <div class="screen-wrap">
@@ -31,9 +72,14 @@
         <h2>Friend Requests</h2>
         <ul>
           {% for req in incoming_requests %}
-            <li>{{ req.from_user.username }}
-              <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}">Accept</a>
-              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}">Reject</a>
+            <li>
+              <div class="request-row">
+                <span class="request-name">{{ req.from_user.username }}</span>
+                <div class="request-actions">
+                  <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}">Accept</a>
+                  <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}">Reject</a>
+                </div>
+              </div>
             </li>
           {% else %}
             <li>No pending requests</li>
@@ -45,11 +91,13 @@
         <h2>Your Friends</h2>
         <ul>
           {% for f in friends %}
-            <li style="display:flex; justify-content:space-between; align-items:center;">
-              <span>{{ f.username }}</span>
-              <div style="display:flex; gap:10px;">
-                <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
-                <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+            <li>
+              <div class="friend-row">
+                <span class="friend-name">{{ f.username }}</span>
+                <div class="friend-actions">
+                  <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
+                  <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+                </div>
               </div>
             </li>
           {% else %}
