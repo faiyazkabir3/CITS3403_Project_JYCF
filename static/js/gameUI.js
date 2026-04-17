@@ -244,6 +244,13 @@ function buildSavePayload(engine) {
     level_complete: state.progression.levelComplete,
     awaiting_choice: state.progression.awaitingChoice,
     game_won: state.progression.gameWon,
+    kills: state.analytics.enemiesKilled,
+    damage_dealt: state.analytics.damageDealt,
+    damage_taken: state.analytics.damageTaken,
+    pistol_shots: state.analytics.pistolShotsFired,
+    grenades_used: state.analytics.grenadesUsed,
+    medkits_used: state.analytics.medKitsUsed,
+    reloads: state.analytics.reloads,
     run_state: structuredClone(state)
   };
 }

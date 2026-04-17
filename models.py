@@ -27,6 +27,8 @@ class SaveData(db.Model):
     damage_dealt = db.Column(db.Integer, nullable=False, default=0)
     damage_taken = db.Column(db.Integer, nullable=False, default=0)
     pistol_shots = db.Column(db.Integer, nullable=False, default=0)
+    grenades_used = db.Column(db.Integer, nullable=False, default=0)
+    medkits_used = db.Column(db.Integer, nullable=False, default=0)
     reloads = db.Column(db.Integer, nullable=False, default=0)
     knife_uses = db.Column(db.Integer, nullable=False, default=0)
 

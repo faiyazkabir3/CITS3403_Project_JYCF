@@ -21,11 +21,23 @@ db.init_app(app)
 
 def ensure_save_data_schema():
     inspector = inspect(db.engine)
-    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+    table_names = set(inspector.get_table_names())
 
-    if "run_state_json" not in existing_columns:
-        db.session.execute(text("ALTER TABLE save_data ADD COLUMN run_state_json TEXT"))
-        db.session.commit()
+    if "save_data" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+    required_columns = {
+        "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
+        "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
+        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0"
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
 
 
 with app.app_context():
@@ -79,6 +91,13 @@ def update_save_data(save_data, data):
     save_data.level_complete = bool(data.get("level_complete", save_data.level_complete))
     save_data.awaiting_choice = bool(data.get("awaiting_choice", save_data.awaiting_choice))
     save_data.game_won = bool(data.get("game_won", save_data.game_won))
+    save_data.kills = int(data.get("kills", save_data.kills))
+    save_data.damage_dealt = int(data.get("damage_dealt", save_data.damage_dealt))
+    save_data.damage_taken = int(data.get("damage_taken", save_data.damage_taken))
+    save_data.pistol_shots = int(data.get("pistol_shots", save_data.pistol_shots))
+    save_data.grenades_used = int(data.get("grenades_used", save_data.grenades_used))
+    save_data.medkits_used = int(data.get("medkits_used", save_data.medkits_used))
+    save_data.reloads = int(data.get("reloads", save_data.reloads))
     save_data.run_state_json = json.dumps(data.get("run_state")) if data.get("run_state") is not None else save_data.run_state_json
 
     save_data.has_started_game = True
@@ -112,6 +131,13 @@ def build_save_payload(save_data):
         "awaiting_choice": save_data.awaiting_choice,
         "game_won": save_data.game_won,
         "has_started_game": save_data.has_started_game,
+        "kills": save_data.kills,
+        "damage_dealt": save_data.damage_dealt,
+        "damage_taken": save_data.damage_taken,
+        "pistol_shots": save_data.pistol_shots,
+        "grenades_used": save_data.grenades_used,
+        "medkits_used": save_data.medkits_used,
+        "reloads": save_data.reloads,
         "run_state": run_state,
         "updated_at": save_data.updated_at.isoformat() if save_data.updated_at else None
     }
@@ -254,8 +280,8 @@ def show_achievements():
             "damage_dealt": getattr(save_data, "damage_dealt", 0) if save_data else 0,
             "damage_taken": getattr(save_data, "damage_taken", 0) if save_data else 0,
             "pistol_shots": getattr(save_data, "pistol_shots", 0) if save_data else 0,
-            "grenades": getattr(save_data, "grenades", 0) if save_data else 0,
-            "medkits": getattr(save_data, "medkits", 0) if save_data else 0,
+            "grenades": getattr(save_data, "grenades_used", 0) if save_data else 0,
+            "medkits": getattr(save_data, "medkits_used", 0) if save_data else 0,
             "reloads": getattr(save_data, "reloads", 0) if save_data else 0
         }
     )
