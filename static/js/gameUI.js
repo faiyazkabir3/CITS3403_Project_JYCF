@@ -8,11 +8,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function typeWriter(element, text, speed = 24) {
+async function typeWriter(element, text, speed = 24, isStale = () => false) {
   if (!element) return;
 
   element.textContent = "";
   for (let i = 0; i < text.length; i += 1) {
+    if (isStale()) return;
     element.textContent += text[i];
     await sleep(speed);
   }
@@ -32,11 +33,13 @@ function appendCombatLog(text) {
   }
 }
 
-async function playEventSequence(element, events, speed = 24, pause = 460) {
+async function playEventSequence(element, events, speed = 24, pause = 460, isStale = () => false) {
   if (!events || events.length === 0) return;
 
   for (const eventText of events) {
-    await typeWriter(element, eventText, speed);
+    if (isStale()) return;
+    await typeWriter(element, eventText, speed, isStale);
+    if (isStale()) return;
     appendCombatLog(eventText);
     await sleep(pause);
   }
@@ -284,6 +287,7 @@ export function bootGameUI({
 
   let locked = false;
   let isAnimatingEvents = false;
+  let storyRenderId = 0;
   const emergencySession = {
     active: false,
     signature: null,
@@ -318,29 +322,34 @@ export function bootGameUI({
     }
   }
 
+  function isInteractionLocked() {
+    return locked || isAnimatingEvents;
+  }
+
   function updateActionAvailability() {
     const dead = isGameOver(engine);
     const inCombat = engine.state.combat.inCombat;
     const waitingForChoice = engine.hasChoices();
     const shopOpen = engine.isShopOpen();
     const emergencyActive = engine.hasEmergency();
-    const lockedOut = dead || locked || emergencyActive || shopOpen || waitingForChoice;
+    const interactionLocked = isInteractionLocked();
+    const lockedOut = dead || interactionLocked || emergencyActive || shopOpen || waitingForChoice;
 
     const buttonStates = [
       ["attack-btn", dead || lockedOut || !inCombat],
       ["defend-btn", dead || lockedOut || !inCombat],
       ["inventory-btn", dead || lockedOut],
-      ["save-btn", locked || emergencyActive],
-      ["pistol-btn", dead || locked || !inCombat],
-      ["rifle-btn", dead || locked || !inCombat || !engine.state.rifle.owned],
-      ["knife-btn", dead || locked || !inCombat],
-      ["grenade-btn", dead || locked || !inCombat],
-      ["attack-back-btn", dead || locked || emergencyActive],
-      ["reload-btn", dead || locked || emergencyActive],
-      ["reload-rifle-btn", dead || locked || emergencyActive || !engine.state.rifle.owned],
-      ["medkit-btn", dead || locked || emergencyActive],
-      ["shield-btn", dead || locked || emergencyActive || !engine.state.shield.hasShield],
-      ["inventory-back-btn", dead || locked || emergencyActive]
+      ["save-btn", interactionLocked || emergencyActive],
+      ["pistol-btn", dead || interactionLocked || !inCombat],
+      ["rifle-btn", dead || interactionLocked || !inCombat || !engine.state.rifle.owned],
+      ["knife-btn", dead || interactionLocked || !inCombat],
+      ["grenade-btn", dead || interactionLocked || !inCombat],
+      ["attack-back-btn", dead || interactionLocked || emergencyActive],
+      ["reload-btn", dead || interactionLocked || emergencyActive],
+      ["reload-rifle-btn", dead || interactionLocked || emergencyActive || !engine.state.rifle.owned],
+      ["medkit-btn", dead || interactionLocked || emergencyActive],
+      ["shield-btn", dead || interactionLocked || emergencyActive || !engine.state.shield.hasShield],
+      ["inventory-back-btn", dead || interactionLocked || emergencyActive]
     ];
 
     buttonStates.forEach(([id, disabled]) => {
@@ -356,7 +365,7 @@ export function bootGameUI({
   }
 
   async function handleEmergencyResolution(success) {
-    if (locked || !engine.hasEmergency()) return;
+    if (isInteractionLocked() || !engine.hasEmergency()) return;
 
     locked = true;
     const progress = emergencySession.progress;
@@ -428,18 +437,25 @@ export function bootGameUI({
   }
 
   function renderAll() {
+    const interactionLocked = isInteractionLocked();
     renderStats(engine);
     renderWeaponVisibility(engine);
-    renderChoiceBox(engine, handlePathChoice, locked);
-    renderShopBox(engine, locked, handleShopBuy, handleShopSell, handleShopContinue);
+    renderChoiceBox(engine, handlePathChoice, interactionLocked);
+    renderShopBox(engine, interactionLocked, handleShopBuy, handleShopSell, handleShopContinue);
     renderEmergencyBox();
     updateActionAvailability();
   }
 
   async function runAndRender(events) {
+    const renderId = ++storyRenderId;
     isAnimatingEvents = true;
     renderAll();
-    await playEventSequence(storyText, events);
+    await playEventSequence(storyText, events, 24, 460, () => renderId !== storyRenderId);
+
+    if (renderId !== storyRenderId) {
+      return;
+    }
+
     isAnimatingEvents = false;
     renderAll();
   }
@@ -468,7 +484,7 @@ export function bootGameUI({
   }
 
   async function handleAction(actionKey) {
-    if (locked || isGameOver(engine) || engine.hasEmergency()) return;
+    if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency()) return;
 
     locked = true;
     renderAll();
@@ -480,7 +496,7 @@ export function bootGameUI({
   }
 
   async function handlePathChoice(choiceId) {
-    if (locked || isGameOver(engine) || engine.hasEmergency()) return;
+    if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency()) return;
 
     locked = true;
     renderAll();
@@ -492,7 +508,7 @@ export function bootGameUI({
   }
 
   async function handleShopBuy(itemId) {
-    if (locked || isGameOver(engine)) return;
+    if (isInteractionLocked() || isGameOver(engine)) return;
 
     locked = true;
     renderAll();
@@ -503,7 +519,7 @@ export function bootGameUI({
   }
 
   async function handleShopSell(itemId) {
-    if (locked || isGameOver(engine)) return;
+    if (isInteractionLocked() || isGameOver(engine)) return;
 
     locked = true;
     renderAll();
@@ -514,7 +530,7 @@ export function bootGameUI({
   }
 
   async function handleShopContinue() {
-    if (locked || isGameOver(engine)) return;
+    if (isInteractionLocked() || isGameOver(engine)) return;
 
     locked = true;
     renderAll();
@@ -531,7 +547,7 @@ export function bootGameUI({
   }
 
   function registerEmergencyPress() {
-    if (locked || !engine.hasEmergency() || !emergencySession.active) return;
+    if (isInteractionLocked() || !engine.hasEmergency() || !emergencySession.active) return;
 
     emergencySession.progress += 1;
     renderEmergencyBox();
@@ -566,7 +582,7 @@ export function bootGameUI({
 
   if (attackBtn) {
     attackBtn.addEventListener("click", () => {
-      if (locked || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
       showAttackActions();
       renderAll();
     });
@@ -580,7 +596,7 @@ export function bootGameUI({
 
   if (inventoryBtn) {
     inventoryBtn.addEventListener("click", () => {
-      if (locked || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
       showInventoryActions();
       renderAll();
     });
@@ -588,7 +604,7 @@ export function bootGameUI({
 
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      if (locked || engine.hasEmergency()) return;
+      if (isInteractionLocked() || engine.hasEmergency()) return;
 
       try {
         engine.state.analytics.savesMade += 1;
@@ -615,7 +631,7 @@ export function bootGameUI({
 
   if (attackBackBtn) {
     attackBackBtn.addEventListener("click", () => {
-      if (locked || engine.hasEmergency()) return;
+      if (isInteractionLocked() || engine.hasEmergency()) return;
       showMainActions();
       renderAll();
     });
@@ -628,7 +644,7 @@ export function bootGameUI({
 
   if (inventoryBackBtn) {
     inventoryBackBtn.addEventListener("click", () => {
-      if (locked || engine.hasEmergency()) return;
+      if (isInteractionLocked() || engine.hasEmergency()) return;
       showMainActions();
       renderAll();
     });
