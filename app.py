@@ -3,19 +3,26 @@ import random
 import json
 from datetime import datetime
 
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, SaveData, Friend, Message, FriendRequest
 
+load_dotenv()
+
 app = Flask(__name__, instance_relative_config=True)
 
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-fallback-key")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 os.makedirs(app.instance_path, exist_ok=True)
+
+secret_key = os.environ.get("SECRET_KEY")
+if not secret_key:
+    raise RuntimeError("SECRET_KEY is missing. Add it to your .env file.")
+
+app.config["SECRET_KEY"] = secret_key
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///project.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 
