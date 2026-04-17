@@ -54,16 +54,27 @@ def make_guest_name():
     return "Operator" + str(num)
 
 
-def get_user_save(create=False):
+def get_user_save(character_id=None, create=False):
     user_id = session.get("user_id")
 
     if user_id is None:
         return None
 
-    save_data = SaveData.query.filter_by(user_id=user_id).first()
+    if character_id is None:
+        character_id = session.get("selected_character", "leon")
+
+    character_id = str(character_id).lower()
+
+    save_data = SaveData.query.filter_by(
+        user_id=user_id,
+        character_id=character_id
+    ).first()
 
     if save_data is None and create:
-        save_data = SaveData(user_id=user_id)
+        save_data = SaveData(
+            user_id=user_id,
+            character_id=character_id
+        )
         db.session.add(save_data)
 
     return save_data
@@ -98,6 +109,7 @@ def update_save_data(save_data, data):
     save_data.grenades_used = int(data.get("grenades_used", save_data.grenades_used))
     save_data.medkits_used = int(data.get("medkits_used", save_data.medkits_used))
     save_data.reloads = int(data.get("reloads", save_data.reloads))
+    save_data.knife_uses = int(data.get("knife_uses", save_data.knife_uses))
     save_data.run_state_json = json.dumps(data.get("run_state")) if data.get("run_state") is not None else save_data.run_state_json
 
     save_data.has_started_game = True
@@ -138,6 +150,7 @@ def build_save_payload(save_data):
         "grenades_used": save_data.grenades_used,
         "medkits_used": save_data.medkits_used,
         "reloads": save_data.reloads,
+        "knife_uses": save_data.knife_uses,
         "run_state": run_state,
         "updated_at": save_data.updated_at.isoformat() if save_data.updated_at else None
     }
@@ -269,20 +282,26 @@ def show_achievements():
     if "username" not in session:
         return redirect(url_for("show_login"))
 
-    save_data = get_user_save()
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return redirect(url_for("show_login"))
+
+    all_saves = SaveData.query.filter_by(user_id=user_id).all()
 
     return render_template(
         "achievements.html",
         username=session.get("username", "Player"),
         achievements=[],
         stats={
-            "kills": getattr(save_data, "kills", 0) if save_data else 0,
-            "damage_dealt": getattr(save_data, "damage_dealt", 0) if save_data else 0,
-            "damage_taken": getattr(save_data, "damage_taken", 0) if save_data else 0,
-            "pistol_shots": getattr(save_data, "pistol_shots", 0) if save_data else 0,
-            "grenades": getattr(save_data, "grenades_used", 0) if save_data else 0,
-            "medkits": getattr(save_data, "medkits_used", 0) if save_data else 0,
-            "reloads": getattr(save_data, "reloads", 0) if save_data else 0
+            "kills": sum((save.kills or 0) for save in all_saves),
+            "damage_dealt": sum((save.damage_dealt or 0) for save in all_saves),
+            "damage_taken": sum((save.damage_taken or 0) for save in all_saves),
+            "pistol_shots": sum((save.pistol_shots or 0) for save in all_saves),
+            "grenades": sum((save.grenades_used or 0) for save in all_saves),
+            "medkits": sum((save.medkits_used or 0) for save in all_saves),
+            "reloads": sum((save.reloads or 0) for save in all_saves),
+            "knife_uses": sum((save.knife_uses or 0) for save in all_saves)
         }
     )
 
@@ -303,7 +322,10 @@ def save_game():
             "message": "No save data received."
         }), 400
 
-    save_data = get_user_save(create=True)
+    character_id = str(data.get("character_id", "leon")).lower()
+    session["selected_character"] = character_id
+
+    save_data = get_user_save(character_id=character_id, create=True)
     update_save_data(save_data, data)
     db.session.commit()
 
@@ -321,7 +343,10 @@ def load_game():
             "message": "Please log in to load your game."
         }), 401
 
-    save_data = get_user_save()
+    character_id = request.args.get("character_id", session.get("selected_character", "leon")).lower()
+    session["selected_character"] = character_id
+
+    save_data = get_user_save(character_id=character_id)
 
     if save_data is None or not save_data.has_started_game:
         return jsonify({

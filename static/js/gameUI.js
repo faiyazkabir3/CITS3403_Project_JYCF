@@ -251,6 +251,7 @@ function buildSavePayload(engine) {
     grenades_used: state.analytics.grenadesUsed,
     medkits_used: state.analytics.medKitsUsed,
     reloads: state.analytics.reloads,
+    knife_uses: state.analytics.knivesUsed,
     run_state: structuredClone(state)
   };
 }
