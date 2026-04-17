@@ -45,10 +45,12 @@
         <h2>Your Friends</h2>
         <ul>
           {% for f in friends %}
-            <li>
-              {{ f.username }}
-              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
-              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+            <li style="display:flex; justify-content:space-between; align-items:center;">
+              <span>{{ f.username }}</span>
+              <div style="display:flex; gap:10px;">
+                <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
+                <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+              </div>
             </li>
           {% else %}
             <li>No friends yet</li>
