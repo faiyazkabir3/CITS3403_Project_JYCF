@@ -49,6 +49,20 @@ def get_friends(user_id):
     friend_ids = [f.friend_id for f in friendships]
     return User.query.filter(User.id.in_(friend_ids)).all()
 
+def get_user_stats(user_id):
+    all_saves = SaveData.query.filter_by(user_id=user_id).all()
+
+    return {
+        "kills": sum((save.kills or 0) for save in all_saves),
+        "damage_dealt": sum((save.damage_dealt or 0) for save in all_saves),
+        "damage_taken": sum((save.damage_taken or 0) for save in all_saves),
+        "pistol_shots": sum((save.pistol_shots or 0) for save in all_saves),
+        "grenades": sum((save.grenades_used or 0) for save in all_saves),
+        "medkits": sum((save.medkits_used or 0) for save in all_saves),
+        "reloads": sum((save.reloads or 0) for save in all_saves),
+        "knife_uses": sum((save.knife_uses or 0) for save in all_saves),
+    }
+
 def make_guest_name():
     num = random.randint(10000, 99999)
     return "Operator" + str(num)
@@ -287,22 +301,13 @@ def show_achievements():
     if user_id is None:
         return redirect(url_for("show_login"))
 
-    all_saves = SaveData.query.filter_by(user_id=user_id).all()
+    stats = get_user_stats(session["user_id"])
 
     return render_template(
         "achievements.html",
         username=session.get("username", "Player"),
         achievements=[],
-        stats={
-            "kills": sum((save.kills or 0) for save in all_saves),
-            "damage_dealt": sum((save.damage_dealt or 0) for save in all_saves),
-            "damage_taken": sum((save.damage_taken or 0) for save in all_saves),
-            "pistol_shots": sum((save.pistol_shots or 0) for save in all_saves),
-            "grenades": sum((save.grenades_used or 0) for save in all_saves),
-            "medkits": sum((save.medkits_used or 0) for save in all_saves),
-            "reloads": sum((save.reloads or 0) for save in all_saves),
-            "knife_uses": sum((save.knife_uses or 0) for save in all_saves)
-        }
+        stats=stats
     )
 
 
@@ -506,6 +511,37 @@ def chat(friend_id):
         messages=messages,
         friend=friend,
         current_user=session["user_id"]
+    )
+
+@app.route("/friend-stats/<int:friend_id>")
+def friend_stats(friend_id):
+    current_user_id = session.get("user_id")
+
+    if current_user_id is None or session.get("is_guest"):
+        return redirect(url_for("show_login"))
+
+    friendship = Friend.query.filter_by(
+        user_id=current_user_id,
+        friend_id=friend_id,
+        status="accepted"
+    ).first()
+
+    if friendship is None:
+        flash("You can only view stats for users in your friends list.")
+        return redirect(url_for("show_friends"))
+
+    friend = User.query.get(friend_id)
+    if friend is None:
+        flash("Friend not found.")
+        return redirect(url_for("show_friends"))
+
+    stats = get_user_stats(friend_id)
+
+    return render_template(
+        "friend_stats.html",
+        username=session.get("username", "Player"),
+        friend=friend,
+        stats=stats
     )
 
 if __name__ == "__main__":

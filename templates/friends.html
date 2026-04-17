@@ -46,6 +46,7 @@
           <li>
             {{ f.username }}
             <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
+            <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
           </li>
         {% else %}
           <li>No friends yet</li>

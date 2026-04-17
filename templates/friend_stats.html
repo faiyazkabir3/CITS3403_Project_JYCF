@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friend Stats</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+  <style>
+    .stat-value {
+      font-size: 0.7rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.75);
+      text-align: right;
+      width: 100%;
+      margin-top: 6px;
+    }
+    .achievements-page .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .achievements-page .top-bar h1 {
+      font-size: 1rem;
+      font-weight: 400;
+      margin: 0;
+      text-align: right;
+      opacity: 0.85;
+    }
+    .achievements-page .back-arrow {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      z-index: 3;
+      width: 42px;
+      height: 42px;
+      border: var(--panel-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: 0.15s ease;
+    }
+
+    .achievements-page .back-arrow::before {
+      content: "\2190";
+      font-size: 1rem;
+    }
+
+    .achievements-page .back-arrow:hover {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .menu-container {
+      position: relative;
+    }
+
+    .achievement-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+    }
+
+    .achievement-title {
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
+
+    .stat-value {
+      font-size: 0.75rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.75);
+      text-align: right;
+    }
+  </style>
+</head>
+
+<body class="achievements-page">
+
+  <div class="menu-container">
+
+    <a href="{{ url_for('show_friends') }}" class="back-arrow"></a>
+
+    <div class="top-bar">
+      <h1>{{ friend.username }}'s Stats</h1>
+    </div>
+
+    <div class="menu-content">
+
+      <div class="achievement-box">
+        <div class="achievement-title">Total Kills</div>
+        <div class="stat-value">{{ stats.kills }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Damage Dealt</div>
+        <div class="stat-value">{{ stats.damage_dealt }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Damage Taken</div>
+        <div class="stat-value">{{ stats.damage_taken }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Pistol Shots</div>
+        <div class="stat-value">{{ stats.pistol_shots }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Grenades Used</div>
+        <div class="stat-value">{{ stats.grenades }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Knife Uses</div>
+        <div class="stat-value">{{ stats.knife_uses }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Medkits Used</div>
+        <div class="stat-value">{{ stats.medkits }}</div>
+      </div>
+
+      <div class="achievement-box">
+        <div class="achievement-title">Reload Count</div>
+        <div class="stat-value">{{ stats.reloads }}</div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
