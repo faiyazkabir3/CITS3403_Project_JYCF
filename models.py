@@ -9,12 +9,12 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    save_data = db.relationship("SaveData", backref="user", uselist=False)
+    save_data = db.relationship("SaveData", backref="user", lazy=True)
 
 
 class SaveData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
     difficulty = db.Column(db.String(20), nullable=False, default="EASY")
     character_id = db.Column(db.String(20), nullable=False, default="leon")
@@ -22,6 +22,15 @@ class SaveData(db.Model):
     health = db.Column(db.Integer, nullable=False, default=100)
     medkits = db.Column(db.Integer, nullable=False, default=0)
     grenades = db.Column(db.Integer, nullable=False, default=0)
+
+    kills = db.Column(db.Integer, nullable=False, default=0)
+    damage_dealt = db.Column(db.Integer, nullable=False, default=0)
+    damage_taken = db.Column(db.Integer, nullable=False, default=0)
+    pistol_shots = db.Column(db.Integer, nullable=False, default=0)
+    grenades_used = db.Column(db.Integer, nullable=False, default=0)
+    medkits_used = db.Column(db.Integer, nullable=False, default=0)
+    reloads = db.Column(db.Integer, nullable=False, default=0)
+    knife_uses = db.Column(db.Integer, nullable=False, default=0)
 
     ammo_in_gun = db.Column(db.Integer, nullable=False, default=0)
     ammo_in_bag = db.Column(db.Integer, nullable=False, default=0)

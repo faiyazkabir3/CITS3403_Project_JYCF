@@ -380,6 +380,7 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
       reloads: 0,
       knivesUsed: 0,
       enemiesKilled: 0,
+      damageDealt: 0,
       damageTaken: 0,
       dodgesPrepared: 0,
       emergencySuccesses: 0,
@@ -484,6 +485,7 @@ function normalizeStateShape(state) {
   state.analytics.reloads ??= 0;
   state.analytics.knivesUsed ??= 0;
   state.analytics.enemiesKilled ??= 0;
+  state.analytics.damageDealt ??= 0;
   state.analytics.damageTaken ??= 0;
   state.analytics.dodgesPrepared ??= 0;
   state.analytics.emergencySuccesses ??= 0;
@@ -776,6 +778,7 @@ function resolveWeaponHit(state, rng, weaponKey, baseDamage) {
 
   damage = Math.max(1, Math.floor(damage));
   enemy.hp -= damage;
+  state.analytics.damageDealt += damage;
 
   return {
     hit: true,

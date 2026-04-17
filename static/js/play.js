@@ -193,8 +193,8 @@ function bootLoadedRun(saveData) {
   window.gameEngine = gameEngine;
 }
 
-async function fetchCurrentSaveData() {
-  const response = await fetch("/load-game");
+async function fetchCurrentSaveData(characterId = selectedCharacter) {
+  const response = await fetch(`/load-game?character_id=${encodeURIComponent(characterId)}`);
   const result = await response.json();
 
   if (!result.ok || !result.save_data) {

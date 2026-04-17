@@ -28,11 +28,23 @@ db.init_app(app)
 
 def ensure_save_data_schema():
     inspector = inspect(db.engine)
-    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+    table_names = set(inspector.get_table_names())
 
-    if "run_state_json" not in existing_columns:
-        db.session.execute(text("ALTER TABLE save_data ADD COLUMN run_state_json TEXT"))
-        db.session.commit()
+    if "save_data" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+    required_columns = {
+        "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
+        "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
+        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0"
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
 
 
 with app.app_context():
@@ -44,21 +56,46 @@ def get_friends(user_id):
     friend_ids = [f.friend_id for f in friendships]
     return User.query.filter(User.id.in_(friend_ids)).all()
 
+def get_user_stats(user_id):
+    all_saves = SaveData.query.filter_by(user_id=user_id).all()
+
+    return {
+        "kills": sum((save.kills or 0) for save in all_saves),
+        "damage_dealt": sum((save.damage_dealt or 0) for save in all_saves),
+        "damage_taken": sum((save.damage_taken or 0) for save in all_saves),
+        "pistol_shots": sum((save.pistol_shots or 0) for save in all_saves),
+        "grenades": sum((save.grenades_used or 0) for save in all_saves),
+        "medkits": sum((save.medkits_used or 0) for save in all_saves),
+        "reloads": sum((save.reloads or 0) for save in all_saves),
+        "knife_uses": sum((save.knife_uses or 0) for save in all_saves),
+    }
+
 def make_guest_name():
     num = random.randint(10000, 99999)
     return "Operator" + str(num)
 
 
-def get_user_save(create=False):
+def get_user_save(character_id=None, create=False):
     user_id = session.get("user_id")
 
     if user_id is None:
         return None
 
-    save_data = SaveData.query.filter_by(user_id=user_id).first()
+    if character_id is None:
+        character_id = session.get("selected_character", "leon")
+
+    character_id = str(character_id).lower()
+
+    save_data = SaveData.query.filter_by(
+        user_id=user_id,
+        character_id=character_id
+    ).first()
 
     if save_data is None and create:
-        save_data = SaveData(user_id=user_id)
+        save_data = SaveData(
+            user_id=user_id,
+            character_id=character_id
+        )
         db.session.add(save_data)
 
     return save_data
@@ -86,6 +123,14 @@ def update_save_data(save_data, data):
     save_data.level_complete = bool(data.get("level_complete", save_data.level_complete))
     save_data.awaiting_choice = bool(data.get("awaiting_choice", save_data.awaiting_choice))
     save_data.game_won = bool(data.get("game_won", save_data.game_won))
+    save_data.kills = int(data.get("kills", save_data.kills))
+    save_data.damage_dealt = int(data.get("damage_dealt", save_data.damage_dealt))
+    save_data.damage_taken = int(data.get("damage_taken", save_data.damage_taken))
+    save_data.pistol_shots = int(data.get("pistol_shots", save_data.pistol_shots))
+    save_data.grenades_used = int(data.get("grenades_used", save_data.grenades_used))
+    save_data.medkits_used = int(data.get("medkits_used", save_data.medkits_used))
+    save_data.reloads = int(data.get("reloads", save_data.reloads))
+    save_data.knife_uses = int(data.get("knife_uses", save_data.knife_uses))
     save_data.run_state_json = json.dumps(data.get("run_state")) if data.get("run_state") is not None else save_data.run_state_json
 
     save_data.has_started_game = True
@@ -119,6 +164,14 @@ def build_save_payload(save_data):
         "awaiting_choice": save_data.awaiting_choice,
         "game_won": save_data.game_won,
         "has_started_game": save_data.has_started_game,
+        "kills": save_data.kills,
+        "damage_dealt": save_data.damage_dealt,
+        "damage_taken": save_data.damage_taken,
+        "pistol_shots": save_data.pistol_shots,
+        "grenades_used": save_data.grenades_used,
+        "medkits_used": save_data.medkits_used,
+        "reloads": save_data.reloads,
+        "knife_uses": save_data.knife_uses,
         "run_state": run_state,
         "updated_at": save_data.updated_at.isoformat() if save_data.updated_at else None
     }
@@ -250,7 +303,19 @@ def show_achievements():
     if "username" not in session:
         return redirect(url_for("show_login"))
 
-    return render_template("achievements.html", username=session.get("username", "Player"))
+    user_id = session.get("user_id")
+
+    if user_id is None:
+        return redirect(url_for("show_login"))
+
+    stats = get_user_stats(session["user_id"])
+
+    return render_template(
+        "achievements.html",
+        username=session.get("username", "Player"),
+        achievements=[],
+        stats=stats
+    )
 
 
 @app.route("/save-game", methods=["POST"])
@@ -269,7 +334,10 @@ def save_game():
             "message": "No save data received."
         }), 400
 
-    save_data = get_user_save(create=True)
+    character_id = str(data.get("character_id", "leon")).lower()
+    session["selected_character"] = character_id
+
+    save_data = get_user_save(character_id=character_id, create=True)
     update_save_data(save_data, data)
     db.session.commit()
 
@@ -287,7 +355,10 @@ def load_game():
             "message": "Please log in to load your game."
         }), 401
 
-    save_data = get_user_save()
+    character_id = request.args.get("character_id", session.get("selected_character", "leon")).lower()
+    session["selected_character"] = character_id
+
+    save_data = get_user_save(character_id=character_id)
 
     if save_data is None or not save_data.has_started_game:
         return jsonify({
@@ -447,6 +518,37 @@ def chat(friend_id):
         messages=messages,
         friend=friend,
         current_user=session["user_id"]
+    )
+
+@app.route("/friend-stats/<int:friend_id>")
+def friend_stats(friend_id):
+    current_user_id = session.get("user_id")
+
+    if current_user_id is None or session.get("is_guest"):
+        return redirect(url_for("show_login"))
+
+    friendship = Friend.query.filter_by(
+        user_id=current_user_id,
+        friend_id=friend_id,
+        status="accepted"
+    ).first()
+
+    if friendship is None:
+        flash("You can only view stats for users in your friends list.")
+        return redirect(url_for("show_friends"))
+
+    friend = User.query.get(friend_id)
+    if friend is None:
+        flash("Friend not found.")
+        return redirect(url_for("show_friends"))
+
+    stats = get_user_stats(friend_id)
+
+    return render_template(
+        "friend_stats.html",
+        username=session.get("username", "Player"),
+        friend=friend,
+        stats=stats
     )
 
 if __name__ == "__main__":

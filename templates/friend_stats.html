@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Achievements</title>
+  <title>Friend Stats</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,54 +31,56 @@
       text-align: right;
       opacity: 0.85;
     }
-.achievements-page .back-arrow {
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  z-index: 3;
-  width: 42px;
-  height: 42px;
-  border: var(--panel-border);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  text-decoration: none;
-  transition: 0.15s ease;
-}
+    .achievements-page .back-arrow {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      z-index: 3;
+      width: 42px;
+      height: 42px;
+      border: var(--panel-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: 0.15s ease;
+    }
 
-.achievements-page .back-arrow::before {
-  content: "\2190";
-  font-size: 1rem;
-}
+    .achievements-page .back-arrow::before {
+      content: "\2190";
+      font-size: 1rem;
+    }
 
-.achievements-page .back-arrow:hover {
-  background: #ffffff;
-  color: #000000;
-}
-.menu-container {
-  position: relative;
-}
-.achievement-box {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 14px;
-}
+    .achievements-page .back-arrow:hover {
+      background: #ffffff;
+      color: #000000;
+    }
 
-.achievement-title {
-  font-size: 0.8rem;
-  font-weight: 400;
-}
+    .menu-container {
+      position: relative;
+    }
 
-.stat-value {
-  font-size: 0.75rem;
-  font-weight: 300;
-  color: rgba(255, 255, 255, 0.75);
-  text-align: right;
-}
+    .achievement-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+    }
+
+    .achievement-title {
+      font-size: 0.8rem;
+      font-weight: 400;
+    }
+
+    .stat-value {
+      font-size: 0.75rem;
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.75);
+      text-align: right;
+    }
   </style>
 </head>
 
@@ -86,75 +88,57 @@
 
   <div class="menu-container">
 
-    <a href="{{ url_for('main_menu') }}" class="back-arrow"></a>
+    <a href="{{ url_for('show_friends') }}" class="back-arrow"></a>
 
     <div class="top-bar">
-      <h1>{{ username }}'s Stats</h1>
+      <h1>{{ friend.username }}'s Stats</h1>
     </div>
 
     <div class="menu-content">
 
       <div class="achievement-box">
         <div class="achievement-title">Total Kills</div>
-        <div id="kills" class="stat-value">
-          {{ stats.kills }}
-        </div>
+        <div class="stat-value">{{ stats.kills }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Damage Dealt</div>
-        <div id="damageDealt" class="stat-value">
-          {{ stats.damage_dealt }}
-        </div>
+        <div class="stat-value">{{ stats.damage_dealt }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Damage Taken</div>
-        <div id="damageTaken" class="stat-value">
-          {{ stats.damage_taken }}
-        </div>
+        <div class="stat-value">{{ stats.damage_taken }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Pistol Shots</div>
-        <div id="pistol" class="stat-value">
-          {{ stats.pistol_shots }}
-        </div>
+        <div class="stat-value">{{ stats.pistol_shots }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Grenades Used</div>
-        <div id="grenades" class="stat-value">
-          {{ stats.grenades }}
-        </div>
+        <div class="stat-value">{{ stats.grenades }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Knife Uses</div>
-        <div id="knifeUses" class="stat-value">
-          {{ stats.knife_uses }}
-        </div>
+        <div class="stat-value">{{ stats.knife_uses }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Medkits Used</div>
-        <div id="medkits" class="stat-value">
-          {{ stats.medkits }}
-        </div>
+        <div class="stat-value">{{ stats.medkits }}</div>
       </div>
 
       <div class="achievement-box">
         <div class="achievement-title">Reload Count</div>
-        <div id="reloads" class="stat-value">
-          {{ stats.reloads }}
-        </div>
+        <div class="stat-value">{{ stats.reloads }}</div>
       </div>
 
     </div>
 
-
   </div>
-
 
 </body>
 </html>
