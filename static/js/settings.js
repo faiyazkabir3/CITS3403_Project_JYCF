@@ -1,4 +1,5 @@
 const STORAGE_KEY = "shadows_audio_settings";
+const UI_BUTTON_SOUND = "/static/audio/sfx/ui/button_click.mp3";
 
 const defaultSettings = {
   musicVolume: 50,
@@ -50,6 +51,17 @@ const muteStatus = document.getElementById("mute-status");
 const menuThemeAudio = document.getElementById("menu-theme-audio");
 
 let settings = loadSettings();
+const uiButtonAudio = new Audio(UI_BUTTON_SOUND);
+uiButtonAudio.preload = "auto";
+
+function playUiButtonSound() {
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  uiButtonAudio.pause();
+  uiButtonAudio.currentTime = 0;
+  uiButtonAudio.volume = settings.sfxVolume / 100;
+  uiButtonAudio.play().catch(() => {});
+}
 
 function syncMenuAudio() {
   if (!menuThemeAudio) return;
@@ -97,18 +109,23 @@ function closeSettingsModal() {
 
 if (openSettingsBtn) {
   openSettingsBtn.addEventListener("click", () => {
+    playUiButtonSound();
     openSettingsModal();
     syncMenuAudio();
   });
 }
 
 if (closeSettingsBtn) {
-  closeSettingsBtn.addEventListener("click", closeSettingsModal);
+  closeSettingsBtn.addEventListener("click", () => {
+    playUiButtonSound();
+    closeSettingsModal();
+  });
 }
 
 if (settingsModal) {
   settingsModal.addEventListener("click", (event) => {
     if (event.target === settingsModal) {
+      playUiButtonSound();
       closeSettingsModal();
     }
   });
@@ -116,6 +133,7 @@ if (settingsModal) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && settingsModal && !settingsModal.hidden) {
+    playUiButtonSound();
     closeSettingsModal();
   }
 });
@@ -140,6 +158,20 @@ if (muteCheckbox) {
     persistSettings();
   });
 }
+
+document.querySelectorAll(".menu-buttons a").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    const href = link.getAttribute("href");
+    if (!href) return;
+
+    event.preventDefault();
+    playUiButtonSound();
+
+    window.setTimeout(() => {
+      window.location.href = href;
+    }, 500);
+  });
+});
 
 document.addEventListener(
   "click",
