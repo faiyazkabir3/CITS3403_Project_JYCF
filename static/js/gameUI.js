@@ -2,8 +2,11 @@ import { createCombatEngine } from "./combat-engine.js";
 
 const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
+const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
 const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
+const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 saveBeepAudio.preload = "auto";
+errorBeepAudio.preload = "auto";
 
 function loadAudioSettings() {
   const defaultSettings = {
@@ -36,6 +39,17 @@ function playSaveBeep() {
   saveBeepAudio.currentTime = 0;
   saveBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
   saveBeepAudio.play().catch(() => {});
+}
+
+function playErrorBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  errorBeepAudio.pause();
+  errorBeepAudio.currentTime = 0;
+  errorBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  errorBeepAudio.play().catch(() => {});
 }
 
 function $(selector) {
@@ -711,6 +725,8 @@ export function bootGameUI({
 
         if (result.ok) {
           playSaveBeep();
+        } else {
+          playErrorBeep();
         }
 
         appendCombatLog(message);
@@ -719,6 +735,7 @@ export function bootGameUI({
         }
       } catch (error) {
         console.error("Save failed:", error);
+        playErrorBeep();
         appendCombatLog("Save failed.");
         if (storyText) {
           storyText.textContent = "Save failed.";
