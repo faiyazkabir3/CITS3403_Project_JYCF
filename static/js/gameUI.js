@@ -6,16 +6,40 @@ const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
 const WARNING_BEEP_SOUND = "/static/audio/sfx/system/warning_beep.mp3";
 const SUCCESS_SOUND = "/static/audio/sfx/system/success.mp3";
 const FAIL_SOUND = "/static/audio/sfx/system/fail.mp3";
+const PISTOL_SHOT_SOUND = "/static/audio/sfx/combat/pistol_shot.mp3";
+const RIFLE_SHOT_SOUND = "/static/audio/sfx/combat/rifle_shot.mp3";
+const RELOAD_SOUND = "/static/audio/sfx/combat/reload.mp3";
+const GRENADE_SOUND = "/static/audio/sfx/combat/grenade_explode.mp3";
+const KNIFE_SLASH_SOUND = "/static/audio/sfx/combat/knife_slash.mp3";
+const KNIFE_STAB_SOUND = "/static/audio/sfx/combat/knife_stab.mp3";
+const MEDKIT_SOUND = "/static/audio/sfx/system/medkit.mp3";
+const HEAL_SOUND = "/static/audio/sfx/system/heal.mp3";
 const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
 const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 const warningBeepAudio = new Audio(WARNING_BEEP_SOUND);
 const successAudio = new Audio(SUCCESS_SOUND);
 const failAudio = new Audio(FAIL_SOUND);
+const pistolShotAudio = new Audio(PISTOL_SHOT_SOUND);
+const rifleShotAudio = new Audio(RIFLE_SHOT_SOUND);
+const reloadAudio = new Audio(RELOAD_SOUND);
+const grenadeAudio = new Audio(GRENADE_SOUND);
+const knifeSlashAudio = new Audio(KNIFE_SLASH_SOUND);
+const knifeStabAudio = new Audio(KNIFE_STAB_SOUND);
+const medkitAudio = new Audio(MEDKIT_SOUND);
+const healAudio = new Audio(HEAL_SOUND);
 saveBeepAudio.preload = "auto";
 errorBeepAudio.preload = "auto";
 warningBeepAudio.preload = "auto";
 successAudio.preload = "auto";
 failAudio.preload = "auto";
+pistolShotAudio.preload = "auto";
+rifleShotAudio.preload = "auto";
+reloadAudio.preload = "auto";
+grenadeAudio.preload = "auto";
+knifeSlashAudio.preload = "auto";
+knifeStabAudio.preload = "auto";
+medkitAudio.preload = "auto";
+healAudio.preload = "auto";
 
 function loadAudioSettings() {
   const defaultSettings = {
@@ -92,6 +116,62 @@ function playFailCue() {
   failAudio.currentTime = 0;
   failAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
   failAudio.play().catch(() => {});
+}
+
+function playSfxAudio(audio) {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  audio.play().catch(() => {});
+}
+
+function playCombatActionSfx(actionKey, events) {
+  if (!Array.isArray(events) || events.length === 0) return;
+
+  const text = events.join(" ").toLowerCase();
+
+  if (actionKey === "pistol" && text.includes("pistol shot")) {
+    playSfxAudio(pistolShotAudio);
+    return;
+  }
+
+  if (actionKey === "rifle" && text.includes("rifle shot")) {
+    playSfxAudio(rifleShotAudio);
+    return;
+  }
+
+  if ((actionKey === "reloadPistol" || actionKey === "reloadRifle") && text.includes("reloaded")) {
+    playSfxAudio(reloadAudio);
+    return;
+  }
+
+  if (actionKey === "grenade" && text.includes("threw a grenade")) {
+    playSfxAudio(grenadeAudio);
+    return;
+  }
+
+  if (actionKey === "knife") {
+    if (text.includes("attacked with the knife and dealt")) {
+      playSfxAudio(knifeStabAudio);
+      return;
+    }
+
+    if (text.includes("lunges with the knife")) {
+      playSfxAudio(knifeSlashAudio);
+      return;
+    }
+  }
+
+  if (actionKey === "heal" && text.includes("used a med kit")) {
+    playSfxAudio(medkitAudio);
+    window.setTimeout(() => {
+      playSfxAudio(healAudio);
+    }, 500);
+  }
 }
 
 function $(selector) {
@@ -639,6 +719,7 @@ export function bootGameUI({
     locked = true;
     renderAll();
     const events = engine.dispatch(actionKey);
+    playCombatActionSfx(actionKey, events);
     await runAndRender(events);
     await postLevelFlow();
     locked = false;
