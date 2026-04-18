@@ -227,6 +227,32 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   continueBtn.onclick = onContinue;
 }
 
+function canContinueToNextLevel(engine) {
+  return (
+    !isGameOver(engine) &&
+    engine.state.progression.levelComplete &&
+    !engine.state.progression.gameWon &&
+    !engine.hasEmergency() &&
+    !engine.isShopOpen() &&
+    !engine.hasChoices()
+  );
+}
+
+function renderContinueBox(engine, locked, onContinue) {
+  const continueBox = $("#continue-box");
+  const continueBtn = $("#continue-level-btn");
+  if (!continueBox || !continueBtn) return;
+
+  if (!canContinueToNextLevel(engine)) {
+    continueBox.style.display = "none";
+    return;
+  }
+
+  continueBox.style.display = "block";
+  continueBtn.disabled = locked;
+  continueBtn.onclick = onContinue;
+}
+
 function buildSavePayload(engine) {
   const state = engine.state;
 
@@ -269,7 +295,20 @@ async function saveGameToBackend(engine) {
     body: JSON.stringify(payload)
   });
 
-  return response.json();
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    return {
+      ok: response.ok,
+      message: response.ok ? "Game saved." : "Save failed."
+    };
+  }
+
+  const result = await response.json();
+  if (!response.ok && result.ok !== true) {
+    result.ok = false;
+  }
+
+  return result;
 }
 
 export function bootGameUI({
@@ -450,6 +489,7 @@ export function bootGameUI({
     renderWeaponVisibility(engine);
     renderChoiceBox(engine, handlePathChoice, interactionLocked);
     renderShopBox(engine, interactionLocked, handleShopBuy, handleShopSell, handleShopContinue);
+    renderContinueBox(engine, interactionLocked, handleContinueLevel);
     renderEmergencyBox();
     updateActionAvailability();
   }
@@ -552,6 +592,18 @@ export function bootGameUI({
 
     locked = false;
     await postLevelFlow();
+  }
+
+  async function handleContinueLevel() {
+    if (isInteractionLocked() || !canContinueToNextLevel(engine)) return;
+
+    locked = true;
+    renderAll();
+    const nextLevelEvents = engine.advanceToNextLevel();
+    await runAndRender(nextLevelEvents);
+    await postLevelFlow();
+    locked = false;
+    renderAll();
   }
 
   function registerEmergencyPress() {

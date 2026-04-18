@@ -21,6 +21,8 @@ const difficultyDisplay = document.getElementById("difficulty-display");
 const selectedCharacterDisplay = document.getElementById("selected-character-display");
 
 const loadLatestSaveBtn = document.getElementById("load-latest-save-btn");
+const loadLeonSaveBtn = document.getElementById("load-leon-save-btn");
+const loadQuiteSaveBtn = document.getElementById("load-quite-save-btn");
 const deleteSaveBtn = document.getElementById("delete-save-btn");
 const savePreview = document.getElementById("save-preview");
 
@@ -101,7 +103,7 @@ function showSavePreview(saveData) {
 
 function buildSavedState(saveData) {
   if (saveData.run_state) {
-    return saveData.run_state;
+    return structuredClone(saveData.run_state);
   }
 
   const characterId = (saveData.character_id || "leon").toLowerCase();
@@ -193,8 +195,9 @@ function bootLoadedRun(saveData) {
   window.gameEngine = gameEngine;
 }
 
-async function fetchCurrentSaveData(characterId = selectedCharacter) {
-  const response = await fetch(`/load-game?character_id=${encodeURIComponent(characterId)}`);
+async function fetchCurrentSaveData(characterId = null) {
+  const query = characterId ? `?character_id=${encodeURIComponent(characterId)}` : "";
+  const response = await fetch(`/load-game${query}`);
   const result = await response.json();
 
   if (!result.ok || !result.save_data) {
@@ -255,6 +258,26 @@ async function loadLatestSave() {
   }
 }
 
+async function loadCharacterSave(characterId) {
+  try {
+    const result = await fetchCurrentSaveData(characterId);
+
+    if (!result.ok || !result.saveData) {
+      showNoSavePreview(result.message);
+      return;
+    }
+
+    showSavePreview(result.saveData);
+    bootLoadedRun(result.saveData);
+  } catch (error) {
+    console.error(`Failed to load ${characterId} save data:`, error);
+    setSavePreview([
+      "LOAD FAILED",
+      "Please try again."
+    ]);
+  }
+}
+
 newGameBtn.addEventListener("click", () => {
   showScreen(characterScreen);
 });
@@ -265,7 +288,7 @@ loadGameBtn.addEventListener("click", async () => {
 });
 
 backToMainBtn.addEventListener("click", () => {
-  window.location.href = "/main-menu";
+  window.location.href = backToMainBtn.getAttribute("href") || "/main_menu";
 });
 
 characterBackBtn.addEventListener("click", () => {
@@ -281,7 +304,7 @@ loadBackBtn.addEventListener("click", () => {
 });
 
 gameBackBtn.addEventListener("click", () => {
-  showScreen(startScreen);
+  window.location.href = gameBackBtn.getAttribute("href") || "/main_menu";
 });
 
 characterButtons.forEach((button) => {
@@ -302,6 +325,18 @@ difficultyButtons.forEach((button) => {
 if (loadLatestSaveBtn) {
   loadLatestSaveBtn.addEventListener("click", async () => {
     await loadLatestSave();
+  });
+}
+
+if (loadLeonSaveBtn) {
+  loadLeonSaveBtn.addEventListener("click", async () => {
+    await loadCharacterSave("leon");
+  });
+}
+
+if (loadQuiteSaveBtn) {
+  loadQuiteSaveBtn.addEventListener("click", async () => {
+    await loadCharacterSave("quite");
   });
 }
 
