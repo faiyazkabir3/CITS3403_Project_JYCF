@@ -1,4 +1,5 @@
 const STORAGE_KEY = "shadows_audio_settings";
+const UI_BUTTON_SOUND = "/static/audio/sfx/ui/button_click.mp3";
 
 const defaultSettings = {
   musicVolume: 50,
@@ -51,6 +52,14 @@ const playThemeAudio = document.getElementById("play-theme-audio");
 const gameScreen = document.getElementById("game-screen");
 
 let settings = loadSettings();
+
+function playUiButtonSound() {
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  const sound = new Audio(UI_BUTTON_SOUND);
+  sound.volume = settings.sfxVolume / 100;
+  sound.play().catch(() => {});
+}
 
 function isGameScreenActive() {
   if (!gameScreen) return false;
@@ -113,18 +122,23 @@ function closeSettingsModal() {
 
 if (openSettingsBtn) {
   openSettingsBtn.addEventListener("click", () => {
+    playUiButtonSound();
     openSettingsModal();
     syncPlayMusic();
   });
 }
 
 if (closeSettingsBtn) {
-  closeSettingsBtn.addEventListener("click", closeSettingsModal);
+  closeSettingsBtn.addEventListener("click", () => {
+    playUiButtonSound();
+    closeSettingsModal();
+  });
 }
 
 if (settingsModal) {
   settingsModal.addEventListener("click", (event) => {
     if (event.target === settingsModal) {
+      playUiButtonSound();
       closeSettingsModal();
     }
   });
@@ -132,6 +146,7 @@ if (settingsModal) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && settingsModal && !settingsModal.hidden) {
+    playUiButtonSound();
     closeSettingsModal();
   }
 });
