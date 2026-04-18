@@ -47,7 +47,25 @@ const musicValue = document.getElementById("music-volume-value");
 const sfxValue = document.getElementById("sfx-volume-value");
 const muteStatus = document.getElementById("mute-status");
 
+const menuThemeAudio = document.getElementById("menu-theme-audio");
+
 let settings = loadSettings();
+
+function syncMenuAudio() {
+  if (!menuThemeAudio) return;
+
+  menuThemeAudio.volume = settings.musicVolume / 100;
+  menuThemeAudio.muted = settings.muted;
+
+  if (settings.muted) {
+    menuThemeAudio.pause();
+    return;
+  }
+
+  menuThemeAudio.play().catch((error) => {
+    console.error("Menu music could not start yet:", error);
+  });
+}
 
 function renderSettings() {
   if (musicSlider) musicSlider.value = settings.musicVolume;
@@ -59,9 +77,10 @@ function renderSettings() {
   if (muteStatus) muteStatus.textContent = settings.muted ? "ON" : "OFF";
 }
 
-function persistAndRender() {
+function persistSettings() {
   saveSettings(settings);
   renderSettings();
+  syncMenuAudio();
 }
 
 function openSettingsModal() {
@@ -77,7 +96,10 @@ function closeSettingsModal() {
 }
 
 if (openSettingsBtn) {
-  openSettingsBtn.addEventListener("click", openSettingsModal);
+  openSettingsBtn.addEventListener("click", () => {
+    openSettingsModal();
+    syncMenuAudio();
+  });
 }
 
 if (closeSettingsBtn) {
@@ -101,22 +123,39 @@ document.addEventListener("keydown", (event) => {
 if (musicSlider) {
   musicSlider.addEventListener("input", () => {
     settings.musicVolume = clampVolume(musicSlider.value);
-    persistAndRender();
+    persistSettings();
   });
 }
 
 if (sfxSlider) {
   sfxSlider.addEventListener("input", () => {
     settings.sfxVolume = clampVolume(sfxSlider.value);
-    persistAndRender();
+    persistSettings();
   });
 }
 
 if (muteCheckbox) {
   muteCheckbox.addEventListener("change", () => {
     settings.muted = muteCheckbox.checked;
-    persistAndRender();
+    persistSettings();
   });
 }
 
+document.addEventListener(
+  "click",
+  () => {
+    syncMenuAudio();
+  },
+  { once: true }
+);
+
+document.addEventListener(
+  "keydown",
+  () => {
+    syncMenuAudio();
+  },
+  { once: true }
+);
+
 renderSettings();
+syncMenuAudio();
