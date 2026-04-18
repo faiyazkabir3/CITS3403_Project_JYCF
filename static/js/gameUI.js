@@ -4,12 +4,18 @@ const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
 const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
 const WARNING_BEEP_SOUND = "/static/audio/sfx/system/warning_beep.mp3";
+const SUCCESS_SOUND = "/static/audio/sfx/system/success.mp3";
+const FAIL_SOUND = "/static/audio/sfx/system/fail.mp3";
 const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
 const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 const warningBeepAudio = new Audio(WARNING_BEEP_SOUND);
+const successAudio = new Audio(SUCCESS_SOUND);
+const failAudio = new Audio(FAIL_SOUND);
 saveBeepAudio.preload = "auto";
 errorBeepAudio.preload = "auto";
 warningBeepAudio.preload = "auto";
+successAudio.preload = "auto";
+failAudio.preload = "auto";
 
 function loadAudioSettings() {
   const defaultSettings = {
@@ -64,6 +70,28 @@ function playWarningBeep() {
   warningBeepAudio.currentTime = 0;
   warningBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
   warningBeepAudio.play().catch(() => {});
+}
+
+function playSuccessCue() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  successAudio.pause();
+  successAudio.currentTime = 0;
+  successAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  successAudio.play().catch(() => {});
+}
+
+function playFailCue() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  failAudio.pause();
+  failAudio.currentTime = 0;
+  failAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  failAudio.play().catch(() => {});
 }
 
 function $(selector) {
@@ -485,6 +513,13 @@ export function bootGameUI({
     clearEmergencySession();
     renderAll();
     const events = engine.resolveEmergency(success, progress);
+
+    if (success) {
+      playSuccessCue();
+    } else {
+      playFailCue();
+    }
+
     await runAndRender(events);
     await postLevelFlow();
     locked = false;
