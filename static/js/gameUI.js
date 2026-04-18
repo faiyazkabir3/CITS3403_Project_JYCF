@@ -1,5 +1,43 @@
 import { createCombatEngine } from "./combat-engine.js";
 
+const STORAGE_KEY = "shadows_audio_settings";
+const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
+const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
+saveBeepAudio.preload = "auto";
+
+function loadAudioSettings() {
+  const defaultSettings = {
+    musicVolume: 50,
+    sfxVolume: 50,
+    muted: false
+  };
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return defaultSettings;
+
+    const parsed = JSON.parse(saved);
+    return {
+      musicVolume: Number(parsed.musicVolume) || 50,
+      sfxVolume: Number(parsed.sfxVolume) || 50,
+      muted: Boolean(parsed.muted)
+    };
+  } catch (error) {
+    return defaultSettings;
+  }
+}
+
+function playSaveBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  saveBeepAudio.pause();
+  saveBeepAudio.currentTime = 0;
+  saveBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  saveBeepAudio.play().catch(() => {});
+}
+
 function $(selector) {
   return document.querySelector(selector);
 }
@@ -670,6 +708,11 @@ export function bootGameUI({
         engine.state.analytics.savesMade += 1;
         const result = await saveGameToBackend(engine);
         const message = result.ok ? "Game saved successfully." : result.message || "Save failed.";
+
+        if (result.ok) {
+          playSaveBeep();
+        }
+
         appendCombatLog(message);
         if (storyText) {
           storyText.textContent = message;
