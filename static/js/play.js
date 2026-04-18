@@ -2,8 +2,11 @@ import { bootGameUI } from "./gameUI.js";
 
 const STORAGE_KEY = "shadows_audio_settings";
 const UI_BUTTON_SOUND = "/static/audio/sfx/ui/button_click.mp3";
+const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
 const uiButtonAudio = new Audio(UI_BUTTON_SOUND);
+const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 uiButtonAudio.preload = "auto";
+errorBeepAudio.preload = "auto";
 
 function loadAudioSettings() {
   const defaultSettings = {
@@ -36,6 +39,17 @@ function playUiButtonSound() {
   uiButtonAudio.currentTime = 0;
   uiButtonAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
   uiButtonAudio.play().catch(() => {});
+}
+
+function playErrorBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  errorBeepAudio.pause();
+  errorBeepAudio.currentTime = 0;
+  errorBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  errorBeepAudio.play().catch(() => {});
 }
 
 const startScreen = document.getElementById("start-screen");
@@ -260,6 +274,7 @@ async function refreshSavePreviewFromBackend() {
     const result = await fetchCurrentSaveData();
 
     if (!result.ok || !result.saveData) {
+      playErrorBeep();
       showNoSavePreview(result.message);
       return null;
     }
@@ -268,6 +283,7 @@ async function refreshSavePreviewFromBackend() {
     return result.saveData;
   } catch (error) {
     console.error("Failed to load save preview:", error);
+    playErrorBeep();
     setSavePreview([
       "LOAD FAILED",
       "Please try again."
@@ -281,6 +297,7 @@ async function loadLatestSave() {
     const result = await fetchCurrentSaveData();
 
     if (!result.ok || !result.saveData) {
+      playErrorBeep();
       showNoSavePreview(result.message);
       return;
     }
@@ -289,6 +306,7 @@ async function loadLatestSave() {
     bootLoadedRun(result.saveData);
   } catch (error) {
     console.error("Failed to load save data:", error);
+    playErrorBeep();
     setSavePreview([
       "LOAD FAILED",
       "Please try again."
@@ -301,6 +319,7 @@ async function loadCharacterSave(characterId) {
     const result = await fetchCurrentSaveData(characterId);
 
     if (!result.ok || !result.saveData) {
+      playErrorBeep();
       showNoSavePreview(result.message);
       return;
     }
@@ -309,6 +328,7 @@ async function loadCharacterSave(characterId) {
     bootLoadedRun(result.saveData);
   } catch (error) {
     console.error(`Failed to load ${characterId} save data:`, error);
+    playErrorBeep();
     setSavePreview([
       "LOAD FAILED",
       "Please try again."
