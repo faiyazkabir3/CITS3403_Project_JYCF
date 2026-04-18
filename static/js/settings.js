@@ -169,7 +169,7 @@ document.querySelectorAll(".menu-buttons a").forEach((link) => {
 
     window.setTimeout(() => {
       window.location.href = href;
-    }, 500);
+    }, 350);
   });
 });
 

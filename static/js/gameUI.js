@@ -12,6 +12,8 @@ const RELOAD_SOUND = "/static/audio/sfx/combat/reload.mp3";
 const GRENADE_SOUND = "/static/audio/sfx/combat/grenade_explode.mp3";
 const KNIFE_SLASH_SOUND = "/static/audio/sfx/combat/knife_slash.mp3";
 const KNIFE_STAB_SOUND = "/static/audio/sfx/combat/knife_stab.mp3";
+const WHOOSH_SOUND = "/static/audio/sfx/combat/whoosh.mp3";
+const SHIELD_SOUND = "/static/audio/sfx/system/shield.mp3";
 const MEDKIT_SOUND = "/static/audio/sfx/system/medkit.mp3";
 const HEAL_SOUND = "/static/audio/sfx/system/heal.mp3";
 const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
@@ -25,6 +27,8 @@ const reloadAudio = new Audio(RELOAD_SOUND);
 const grenadeAudio = new Audio(GRENADE_SOUND);
 const knifeSlashAudio = new Audio(KNIFE_SLASH_SOUND);
 const knifeStabAudio = new Audio(KNIFE_STAB_SOUND);
+const whooshAudio = new Audio(WHOOSH_SOUND);
+const shieldAudio = new Audio(SHIELD_SOUND);
 const medkitAudio = new Audio(MEDKIT_SOUND);
 const healAudio = new Audio(HEAL_SOUND);
 saveBeepAudio.preload = "auto";
@@ -38,6 +42,8 @@ reloadAudio.preload = "auto";
 grenadeAudio.preload = "auto";
 knifeSlashAudio.preload = "auto";
 knifeStabAudio.preload = "auto";
+whooshAudio.preload = "auto";
+shieldAudio.preload = "auto";
 medkitAudio.preload = "auto";
 healAudio.preload = "auto";
 
@@ -164,6 +170,18 @@ function playCombatActionSfx(actionKey, events) {
       playSfxAudio(knifeSlashAudio);
       return;
     }
+  }
+
+  if (actionKey === "dodge") {
+    if (text.includes("prepared to dodge") || text.includes("dodged successfully") || text.includes("tried to dodge, but failed")) {
+      playSfxAudio(whooshAudio);
+      return;
+    }
+  }
+
+  if (actionKey === "toggleShield" && (text.includes("equipped the shield") || text.includes("unequipped the shield"))) {
+    playSfxAudio(shieldAudio);
+    return;
   }
 
   if (actionKey === "heal" && text.includes("used a med kit")) {
@@ -523,6 +541,9 @@ export function bootGameUI({
     if (emergencySession.timerId) {
       window.clearInterval(emergencySession.timerId);
     }
+
+    warningBeepAudio.pause();
+    warningBeepAudio.currentTime = 0;
 
     emergencySession.active = false;
     emergencySession.signature = null;
