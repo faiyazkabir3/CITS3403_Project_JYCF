@@ -106,7 +106,42 @@
       <div class="game-topbar">
         <div class="top-left">LEVEL 1</div>
         <div class="top-right">
-          DIFFICULTY: <span id="difficulty-display">EASY</span>
+          <span class="difficulty-label">DIFFICULTY: <span id="difficulty-display">EASY</span></span>
+          <button type="button" id="game-settings-btn" class="game-settings-btn" aria-label="Open settings">
+            <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="" aria-hidden="true">
+          </button>
+        </div>
+      </div>
+
+      <div id="game-settings-modal" class="settings-modal" hidden aria-hidden="true">
+        <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="game-settings-title">
+          <div class="settings-modal-header">
+            <h2 id="game-settings-title">SETTINGS</h2>
+            <button type="button" id="game-close-settings-btn" class="settings-close-btn" aria-label="Close settings">X</button>
+          </div>
+
+          <div class="settings-modal-body">
+            <div class="settings-row">
+              <label for="game-music-volume">MUSIC VOLUME</label>
+              <input type="range" id="game-music-volume" min="0" max="100" value="50">
+              <span id="game-music-volume-value">50</span>
+            </div>
+
+            <div class="settings-row">
+              <label for="game-sfx-volume">SFX VOLUME</label>
+              <input type="range" id="game-sfx-volume" min="0" max="100" value="50">
+              <span id="game-sfx-volume-value">50</span>
+            </div>
+
+            <div class="settings-row settings-checkbox-row">
+              <span>MUTE</span>
+              <label for="game-mute-audio" class="settings-checkbox-label">
+                <input type="checkbox" id="game-mute-audio">
+                <span>Mute all audio</span>
+              </label>
+              <span id="game-mute-status">OFF</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -217,6 +252,13 @@
     </section>
 
   </div>
+
+  
+  <audio id="play-theme-audio" preload="auto" loop>
+    <source src="{{ url_for('static', filename='audio/music/play_theme.mp3') }}" type="audio/mpeg">
+  </audio>
+
+  <script src="{{ url_for('static', filename='js/play-settings.js') }}" defer></script>
 
   <script type="module" src="{{ url_for('static', filename='js/play.js') }}"></script>
 </body>
