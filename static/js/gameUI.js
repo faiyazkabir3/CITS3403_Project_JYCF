@@ -140,12 +140,12 @@ function playCombatActionSfx(actionKey, events) {
 
   const text = events.join(" ").toLowerCase();
 
-  if (actionKey === "pistol" && text.includes("pistol shot")) {
+  if (actionKey === "pistol" && (text.includes("pistol shot") || text.includes("fired the pistol"))) {
     playSfxAudio(pistolShotAudio);
     return;
   }
 
-  if (actionKey === "rifle" && text.includes("rifle shot")) {
+  if (actionKey === "rifle" && (text.includes("rifle shot") || text.includes("fired the rifle"))) {
     playSfxAudio(rifleShotAudio);
     return;
   }
