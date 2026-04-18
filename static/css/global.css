@@ -1080,3 +1080,174 @@ body::before {
     background: #000000;
     color: #ffffff;
 }
+
+
+/* settings modal */
+.settings-modal[hidden] {
+  display: none;
+}
+
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.settings-modal-panel {
+  width: min(720px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px;
+  border: 3px solid #ffffff;
+  background: rgba(20, 20, 20, 0.96);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.45);
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 12px;
+}
+
+.settings-modal-header h2 {
+  margin: 0;
+}
+
+.settings-close-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border: 2px solid #ffffff;
+  background: #ffffff;
+  color: #000000;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-close-btn:hover {
+  background: #000000;
+  color: #ffffff;
+}
+
+.settings-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 60px;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-row input[type="range"] {
+  width: 100%;
+}
+
+.settings-checkbox-row {
+  grid-template-columns: 180px 1fr 60px;
+}
+
+.settings-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-preview-block {
+  margin-top: 8px;
+  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-preview-block p {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.settings-preview-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.settings-preview-buttons button {
+  flex: 1;
+}
+
+@media (max-width: 700px) {
+  .settings-row,
+  .settings-checkbox-row {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .settings-preview-buttons {
+    flex-direction: column;
+  }
+}
+
+/* stronger close button override */
+.settings-modal-header {
+  position: relative;
+  display: block;
+  padding-right: 48px;
+}
+
+.settings-modal-header h2 {
+  margin: 0;
+}
+
+.settings-modal-header .settings-close-btn {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 2px solid #ffffff !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: inherit !important;
+  font-size: 0.9rem !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+}
+
+.settings-modal-header .settings-close-btn:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* red close button override */
+.settings-modal-header .settings-close-btn {
+  background: #8b1e1e !important;
+  color: #ffffff !important;
+  border: 2px solid #b83a3a !important;
+}
+
+.settings-modal-header .settings-close-btn:hover {
+  background: #5f1111 !important;
+  color: #ffffff !important;
+  border-color: #d65a5a !important;
+}

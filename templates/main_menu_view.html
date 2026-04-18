@@ -68,7 +68,7 @@
 
       <div class="menu-buttons">
         <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
-        <button type="button">SETTINGS</button>
+        <button type="button" id="open-settings-btn">SETTINGS</button>
         <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
         <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
       </div>
@@ -76,5 +76,46 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/friends-menu.js') }}" defer></script>
+
+  <div id="settings-modal" class="settings-modal" hidden aria-hidden="true">
+    <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="settings-modal-header">
+        <h2 id="settings-title">SETTINGS</h2>
+        <button type="button" id="close-settings-btn" class="settings-close-btn" aria-label="Close settings">X</button>
+      </div>
+
+      <div class="settings-modal-body">
+        <div class="settings-row">
+          <label for="music-volume">MUSIC VOLUME</label>
+          <input type="range" id="music-volume" min="0" max="100" value="50">
+          <span id="music-volume-value">50</span>
+        </div>
+
+        <div class="settings-row">
+          <label for="sfx-volume">SFX VOLUME</label>
+          <input type="range" id="sfx-volume" min="0" max="100" value="50">
+          <span id="sfx-volume-value">50</span>
+        </div>
+
+        <div class="settings-row settings-checkbox-row">
+          <span>MUTE</span>
+          <label for="mute-audio" class="settings-checkbox-label">
+            <input type="checkbox" id="mute-audio">
+            <span>Mute all audio</span>
+          </label>
+          <span id="mute-status">OFF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
+
+
+  <audio id="menu-theme-audio" preload="auto" loop>
+    <source src="{{ url_for('static', filename='audio/music/menu_theme.mp3') }}" type="audio/mpeg">
+  </audio>
+
+
 </body>
 </html>
