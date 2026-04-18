@@ -436,6 +436,92 @@ function getCharacterPerk(state) {
   return CHARACTER_DEFS[state.player.characterId] || CHARACTER_DEFS.leon;
 }
 
+function levelHasChoices(level) {
+  return Boolean(
+    (Array.isArray(level?.choices) && level.choices.length > 0) ||
+    (Array.isArray(level?.choicePool) && level.choicePool.length > 0)
+  );
+}
+
+function repairProgressionState(state) {
+  const currentLevel = getCurrentLevelData(state);
+
+  if (!currentLevel) {
+    return;
+  }
+
+  const hasChoices = levelHasChoices(currentLevel);
+  const hasNextLevel = Boolean(currentLevel.next);
+
+  if (state.combat.inCombat && state.combat.enemy) {
+    state.progression.levelComplete = false;
+    state.progression.awaitingChoice = false;
+    state.progression.shopOpen = false;
+    state.progression.emergency = null;
+    state.progression.gameWon = false;
+  }
+
+  if (state.progression.emergency?.active) {
+    state.progression.levelComplete = false;
+    state.progression.awaitingChoice = false;
+    state.progression.shopOpen = false;
+    state.progression.gameWon = false;
+  }
+
+  if (hasChoices && state.progression.levelComplete && !state.progression.awaitingChoice) {
+    state.progression.awaitingChoice = true;
+  }
+
+  if (!hasChoices) {
+    state.progression.awaitingChoice = false;
+    state.progression.currentChoiceOptions = [];
+  }
+
+  if (state.progression.awaitingChoice) {
+    state.progression.levelComplete = true;
+    state.progression.gameWon = false;
+    state.combat.inCombat = false;
+    state.combat.enemy = null;
+
+    if (state.progression.currentChoiceOptions.length === 0) {
+      state.progression.currentChoiceOptions = pickChoiceOptions(currentLevel, createRng(state.rngSeed));
+    }
+  }
+
+  if (hasChoices || hasNextLevel) {
+    state.progression.gameWon = false;
+  }
+
+  if (state.progression.levelComplete) {
+    state.progression.enemiesRemaining = 0;
+  } else if (state.progression.encounterOrder.length > 0) {
+    state.progression.enemiesRemaining = Math.max(
+      state.progression.encounterOrder.length - state.progression.currentEncounterIndex,
+      state.combat.enemy ? 1 : 0
+    );
+  }
+
+  if (
+    !hasChoices &&
+    !hasNextLevel &&
+    state.progression.levelComplete &&
+    !state.progression.shopOpen &&
+    !state.progression.emergency?.active
+  ) {
+    state.progression.gameWon = true;
+  }
+
+  if (state.progression.gameWon) {
+    state.progression.levelComplete = true;
+    state.progression.awaitingChoice = false;
+    state.progression.shopOpen = false;
+    state.progression.emergency = null;
+    state.combat.inCombat = false;
+    state.combat.enemy = null;
+    state.progression.enemiesRemaining = 0;
+  }
+}
+
 function normalizeStateShape(state) {
   const perk = getCharacterPerk(state);
 
@@ -526,12 +612,7 @@ function normalizeStateShape(state) {
     state.shield.durability = 0;
   }
 
-  if (state.progression.awaitingChoice && state.progression.currentChoiceOptions.length === 0) {
-    const currentLevel = getCurrentLevelData(state);
-    if (currentLevel) {
-      state.progression.currentChoiceOptions = pickChoiceOptions(currentLevel, createRng(state.rngSeed));
-    }
-  }
+  repairProgressionState(state);
 
   clampHealth(state);
 }
@@ -1414,8 +1495,10 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
       events.push("A shop terminal is available before you move on.");
     }
 
-    if (choiceOptions.length > 0 && state.progression.shopOpen) {
-      events.push("You can shop before committing to the next route.");
+    if (choiceOptions.length > 0) {
+      if (state.progression.shopOpen) {
+        events.push("You can shop before committing to the next route.");
+      }
     } else if (!level.next) {
       state.progression.gameWon = true;
       events.push(`${hero} completed this branch of the mission.`);
@@ -1438,6 +1521,7 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     state.progression.awaitingChoice = false;
     state.progression.shopOpen = false;
     state.progression.emergency = null;
+    state.progression.gameWon = false;
     state.progression.currentChoiceOptions = [];
     state.progression.encounterOrder = createEncounterOrder(level, rng);
     state.progression.currentEncounterIndex = 0;
