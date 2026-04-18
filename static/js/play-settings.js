@@ -48,14 +48,37 @@ const sfxValue = document.getElementById("game-sfx-volume-value");
 const muteStatus = document.getElementById("game-mute-status");
 
 const playThemeAudio = document.getElementById("play-theme-audio");
+const gameScreen = document.getElementById("game-screen");
 
 let settings = loadSettings();
+
+function isGameScreenActive() {
+  if (!gameScreen) return false;
+  return gameScreen.classList.contains("active");
+}
 
 function applyAudioSettingsOnly() {
   if (!playThemeAudio) return;
 
   playThemeAudio.volume = settings.musicVolume / 100;
   playThemeAudio.muted = settings.muted;
+}
+
+async function syncPlayMusic() {
+  if (!playThemeAudio) return;
+
+  applyAudioSettingsOnly();
+
+  if (!isGameScreenActive() || settings.muted) {
+    playThemeAudio.pause();
+    return;
+  }
+
+  try {
+    await playThemeAudio.play();
+  } catch (error) {
+    console.error("Play theme could not start yet:", error);
+  }
 }
 
 function renderSettings() {
@@ -73,6 +96,7 @@ function renderSettings() {
 function persistAndRender() {
   saveSettings(settings);
   renderSettings();
+  syncPlayMusic();
 }
 
 function openSettingsModal() {
@@ -88,7 +112,10 @@ function closeSettingsModal() {
 }
 
 if (openSettingsBtn) {
-  openSettingsBtn.addEventListener("click", openSettingsModal);
+  openSettingsBtn.addEventListener("click", () => {
+    openSettingsModal();
+    syncPlayMusic();
+  });
 }
 
 if (closeSettingsBtn) {
@@ -130,4 +157,45 @@ if (muteCheckbox) {
   });
 }
 
+if (gameScreen) {
+  const observer = new MutationObserver(() => {
+    syncPlayMusic();
+  });
+
+  observer.observe(gameScreen, {
+    attributes: true,
+    attributeFilter: ["class"]
+  });
+}
+
+document.addEventListener(
+  "click",
+  () => {
+    syncPlayMusic();
+  },
+  { once: true }
+);
+
+document.addEventListener(
+  "keydown",
+  () => {
+    syncPlayMusic();
+  },
+  { once: true }
+);
+
+window.addEventListener("focus", () => {
+  syncPlayMusic();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && playThemeAudio) {
+    playThemeAudio.pause();
+    return;
+  }
+
+  syncPlayMusic();
+});
+
 renderSettings();
+syncPlayMusic();
