@@ -1,5 +1,57 @@
 import { bootGameUI } from "./gameUI.js";
 
+const STORAGE_KEY = "shadows_audio_settings";
+const UI_BUTTON_SOUND = "/static/audio/sfx/ui/button_click.mp3";
+const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
+const uiButtonAudio = new Audio(UI_BUTTON_SOUND);
+const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
+uiButtonAudio.preload = "auto";
+errorBeepAudio.preload = "auto";
+
+function loadAudioSettings() {
+  const defaultSettings = {
+    musicVolume: 50,
+    sfxVolume: 50,
+    muted: false
+  };
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return defaultSettings;
+
+    const parsed = JSON.parse(saved);
+    return {
+      musicVolume: Number(parsed.musicVolume) || 50,
+      sfxVolume: Number(parsed.sfxVolume) || 50,
+      muted: Boolean(parsed.muted)
+    };
+  } catch (error) {
+    return defaultSettings;
+  }
+}
+
+function playUiButtonSound() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  uiButtonAudio.pause();
+  uiButtonAudio.currentTime = 0;
+  uiButtonAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  uiButtonAudio.play().catch(() => {});
+}
+
+function playErrorBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  errorBeepAudio.pause();
+  errorBeepAudio.currentTime = 0;
+  errorBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  errorBeepAudio.play().catch(() => {});
+}
+
 const startScreen = document.getElementById("start-screen");
 const characterScreen = document.getElementById("character-screen");
 const difficultyScreen = document.getElementById("difficulty-screen");
@@ -222,6 +274,7 @@ async function refreshSavePreviewFromBackend() {
     const result = await fetchCurrentSaveData();
 
     if (!result.ok || !result.saveData) {
+      playErrorBeep();
       showNoSavePreview(result.message);
       return null;
     }
@@ -230,6 +283,7 @@ async function refreshSavePreviewFromBackend() {
     return result.saveData;
   } catch (error) {
     console.error("Failed to load save preview:", error);
+    playErrorBeep();
     setSavePreview([
       "LOAD FAILED",
       "Please try again."
@@ -243,6 +297,7 @@ async function loadLatestSave() {
     const result = await fetchCurrentSaveData();
 
     if (!result.ok || !result.saveData) {
+      playErrorBeep();
       showNoSavePreview(result.message);
       return;
     }
@@ -251,6 +306,7 @@ async function loadLatestSave() {
     bootLoadedRun(result.saveData);
   } catch (error) {
     console.error("Failed to load save data:", error);
+    playErrorBeep();
     setSavePreview([
       "LOAD FAILED",
       "Please try again."
@@ -263,6 +319,7 @@ async function loadCharacterSave(characterId) {
     const result = await fetchCurrentSaveData(characterId);
 
     if (!result.ok || !result.saveData) {
+      playErrorBeep();
       showNoSavePreview(result.message);
       return;
     }
@@ -271,6 +328,7 @@ async function loadCharacterSave(characterId) {
     bootLoadedRun(result.saveData);
   } catch (error) {
     console.error(`Failed to load ${characterId} save data:`, error);
+    playErrorBeep();
     setSavePreview([
       "LOAD FAILED",
       "Please try again."
@@ -279,36 +337,52 @@ async function loadCharacterSave(characterId) {
 }
 
 newGameBtn.addEventListener("click", () => {
+  playUiButtonSound();
   showScreen(characterScreen);
 });
 
 loadGameBtn.addEventListener("click", async () => {
+  playUiButtonSound();
   showScreen(loadScreen);
   await refreshSavePreviewFromBackend();
 });
 
-backToMainBtn.addEventListener("click", () => {
-  window.location.href = backToMainBtn.getAttribute("href") || "/main_menu";
+backToMainBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  playUiButtonSound();
+
+  window.setTimeout(() => {
+    window.location.href = backToMainBtn.getAttribute("href") || "/main_menu";
+  }, 500);
 });
 
 characterBackBtn.addEventListener("click", () => {
+  playUiButtonSound();
   showScreen(startScreen);
 });
 
 difficultyBackBtn.addEventListener("click", () => {
+  playUiButtonSound();
   showScreen(characterScreen);
 });
 
 loadBackBtn.addEventListener("click", () => {
+  playUiButtonSound();
   showScreen(startScreen);
 });
 
-gameBackBtn.addEventListener("click", () => {
-  window.location.href = gameBackBtn.getAttribute("href") || "/main_menu";
+gameBackBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  playUiButtonSound();
+
+  window.setTimeout(() => {
+    window.location.href = gameBackBtn.getAttribute("href") || "/main_menu";
+  }, 500);
 });
 
 characterButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    playUiButtonSound();
     selectedCharacter = button.dataset.character || "leon";
     updateSelectedCharacterText();
     showScreen(difficultyScreen);
@@ -317,6 +391,7 @@ characterButtons.forEach((button) => {
 
 difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    playUiButtonSound();
     const selectedDifficulty = button.dataset.difficulty.toUpperCase();
     bootNewRun(selectedDifficulty);
   });
@@ -324,18 +399,21 @@ difficultyButtons.forEach((button) => {
 
 if (loadLatestSaveBtn) {
   loadLatestSaveBtn.addEventListener("click", async () => {
+    playUiButtonSound();
     await loadLatestSave();
   });
 }
 
 if (loadLeonSaveBtn) {
   loadLeonSaveBtn.addEventListener("click", async () => {
+    playUiButtonSound();
     await loadCharacterSave("leon");
   });
 }
 
 if (loadQuiteSaveBtn) {
   loadQuiteSaveBtn.addEventListener("click", async () => {
+    playUiButtonSound();
     await loadCharacterSave("quite");
   });
 }

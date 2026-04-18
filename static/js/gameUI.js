@@ -1,5 +1,197 @@
 import { createCombatEngine } from "./combat-engine.js";
 
+const STORAGE_KEY = "shadows_audio_settings";
+const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
+const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
+const WARNING_BEEP_SOUND = "/static/audio/sfx/system/warning_beep.mp3";
+const SUCCESS_SOUND = "/static/audio/sfx/system/success.mp3";
+const FAIL_SOUND = "/static/audio/sfx/system/fail.mp3";
+const PISTOL_SHOT_SOUND = "/static/audio/sfx/combat/pistol_shot.mp3";
+const RIFLE_SHOT_SOUND = "/static/audio/sfx/combat/rifle_shot.mp3";
+const RELOAD_SOUND = "/static/audio/sfx/combat/reload.mp3";
+const GRENADE_SOUND = "/static/audio/sfx/combat/grenade_explode.mp3";
+const KNIFE_SLASH_SOUND = "/static/audio/sfx/combat/knife_slash.mp3";
+const KNIFE_STAB_SOUND = "/static/audio/sfx/combat/knife_stab.mp3";
+const WHOOSH_SOUND = "/static/audio/sfx/combat/whoosh.mp3";
+const SHIELD_SOUND = "/static/audio/sfx/system/shield.mp3";
+const MEDKIT_SOUND = "/static/audio/sfx/system/medkit.mp3";
+const HEAL_SOUND = "/static/audio/sfx/system/heal.mp3";
+const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
+const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
+const warningBeepAudio = new Audio(WARNING_BEEP_SOUND);
+const successAudio = new Audio(SUCCESS_SOUND);
+const failAudio = new Audio(FAIL_SOUND);
+const pistolShotAudio = new Audio(PISTOL_SHOT_SOUND);
+const rifleShotAudio = new Audio(RIFLE_SHOT_SOUND);
+const reloadAudio = new Audio(RELOAD_SOUND);
+const grenadeAudio = new Audio(GRENADE_SOUND);
+const knifeSlashAudio = new Audio(KNIFE_SLASH_SOUND);
+const knifeStabAudio = new Audio(KNIFE_STAB_SOUND);
+const whooshAudio = new Audio(WHOOSH_SOUND);
+const shieldAudio = new Audio(SHIELD_SOUND);
+const medkitAudio = new Audio(MEDKIT_SOUND);
+const healAudio = new Audio(HEAL_SOUND);
+saveBeepAudio.preload = "auto";
+errorBeepAudio.preload = "auto";
+warningBeepAudio.preload = "auto";
+successAudio.preload = "auto";
+failAudio.preload = "auto";
+pistolShotAudio.preload = "auto";
+rifleShotAudio.preload = "auto";
+reloadAudio.preload = "auto";
+grenadeAudio.preload = "auto";
+knifeSlashAudio.preload = "auto";
+knifeStabAudio.preload = "auto";
+whooshAudio.preload = "auto";
+shieldAudio.preload = "auto";
+medkitAudio.preload = "auto";
+healAudio.preload = "auto";
+
+function loadAudioSettings() {
+  const defaultSettings = {
+    musicVolume: 50,
+    sfxVolume: 50,
+    muted: false
+  };
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return defaultSettings;
+
+    const parsed = JSON.parse(saved);
+    return {
+      musicVolume: Number(parsed.musicVolume) || 50,
+      sfxVolume: Number(parsed.sfxVolume) || 50,
+      muted: Boolean(parsed.muted)
+    };
+  } catch (error) {
+    return defaultSettings;
+  }
+}
+
+function playSaveBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  saveBeepAudio.pause();
+  saveBeepAudio.currentTime = 0;
+  saveBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  saveBeepAudio.play().catch(() => {});
+}
+
+function playErrorBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  errorBeepAudio.pause();
+  errorBeepAudio.currentTime = 0;
+  errorBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  errorBeepAudio.play().catch(() => {});
+}
+
+function playWarningBeep() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  warningBeepAudio.pause();
+  warningBeepAudio.currentTime = 0;
+  warningBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  warningBeepAudio.play().catch(() => {});
+}
+
+function playSuccessCue() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  successAudio.pause();
+  successAudio.currentTime = 0;
+  successAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  successAudio.play().catch(() => {});
+}
+
+function playFailCue() {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  failAudio.pause();
+  failAudio.currentTime = 0;
+  failAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  failAudio.play().catch(() => {});
+}
+
+function playSfxAudio(audio) {
+  const settings = loadAudioSettings();
+
+  if (settings.muted || settings.sfxVolume <= 0) return;
+
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
+  audio.play().catch(() => {});
+}
+
+function playCombatActionSfx(actionKey, events) {
+  if (!Array.isArray(events) || events.length === 0) return;
+
+  const text = events.join(" ").toLowerCase();
+
+  if (actionKey === "pistol" && text.includes("pistol shot")) {
+    playSfxAudio(pistolShotAudio);
+    return;
+  }
+
+  if (actionKey === "rifle" && text.includes("rifle shot")) {
+    playSfxAudio(rifleShotAudio);
+    return;
+  }
+
+  if ((actionKey === "reloadPistol" || actionKey === "reloadRifle") && text.includes("reloaded")) {
+    playSfxAudio(reloadAudio);
+    return;
+  }
+
+  if (actionKey === "grenade" && text.includes("threw a grenade")) {
+    playSfxAudio(grenadeAudio);
+    return;
+  }
+
+  if (actionKey === "knife") {
+    if (text.includes("attacked with the knife and dealt")) {
+      playSfxAudio(knifeStabAudio);
+      return;
+    }
+
+    if (text.includes("lunges with the knife")) {
+      playSfxAudio(knifeSlashAudio);
+      return;
+    }
+  }
+
+  if (actionKey === "dodge") {
+    if (text.includes("prepared to dodge") || text.includes("dodged successfully") || text.includes("tried to dodge, but failed")) {
+      playSfxAudio(whooshAudio);
+      return;
+    }
+  }
+
+  if (actionKey === "toggleShield" && (text.includes("equipped the shield") || text.includes("unequipped the shield"))) {
+    playSfxAudio(shieldAudio);
+    return;
+  }
+
+  if (actionKey === "heal" && text.includes("used a med kit")) {
+    playSfxAudio(medkitAudio);
+    window.setTimeout(() => {
+      playSfxAudio(healAudio);
+    }, 500);
+  }
+}
+
 function $(selector) {
   return document.querySelector(selector);
 }
@@ -350,6 +542,9 @@ export function bootGameUI({
       window.clearInterval(emergencySession.timerId);
     }
 
+    warningBeepAudio.pause();
+    warningBeepAudio.currentTime = 0;
+
     emergencySession.active = false;
     emergencySession.signature = null;
     emergencySession.deadline = 0;
@@ -419,6 +614,13 @@ export function bootGameUI({
     clearEmergencySession();
     renderAll();
     const events = engine.resolveEmergency(success, progress);
+
+    if (success) {
+      playSuccessCue();
+    } else {
+      playFailCue();
+    }
+
     await runAndRender(events);
     await postLevelFlow();
     locked = false;
@@ -443,6 +645,7 @@ export function bootGameUI({
       emergencySession.required = emergency.required;
       emergencySession.key = String(emergency.key || "X").toUpperCase();
       emergencySession.deadline = 0;
+      playWarningBeep();
     }
 
     if (!isAnimatingEvents && !emergencySession.active) {
@@ -537,6 +740,7 @@ export function bootGameUI({
     locked = true;
     renderAll();
     const events = engine.dispatch(actionKey);
+    playCombatActionSfx(actionKey, events);
     await runAndRender(events);
     await postLevelFlow();
     locked = false;
@@ -670,12 +874,20 @@ export function bootGameUI({
         engine.state.analytics.savesMade += 1;
         const result = await saveGameToBackend(engine);
         const message = result.ok ? "Game saved successfully." : result.message || "Save failed.";
+
+        if (result.ok) {
+          playSaveBeep();
+        } else {
+          playErrorBeep();
+        }
+
         appendCombatLog(message);
         if (storyText) {
           storyText.textContent = message;
         }
       } catch (error) {
         console.error("Save failed:", error);
+        playErrorBeep();
         appendCombatLog("Save failed.");
         if (storyText) {
           storyText.textContent = "Save failed.";
