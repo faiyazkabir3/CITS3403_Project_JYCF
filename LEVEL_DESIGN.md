@@ -1,6 +1,6 @@
 # Level Design and Combat Documentation
 
-Updated: 12 April 2026
+Updated: 19 April 2026
 
 This document reflects the current implemented build in this repository. If this file and the game code ever disagree, the JavaScript and Flask code are the source of truth.
 
@@ -299,26 +299,27 @@ Important current rule:
 
 ### 7.2 Level 4 Branches
 
-#### 4A - Emergency Tunnel
+#### 4A - Signal Sprint
 
-- Enemy sequence: `Fast, Charger, Spitter`
-- Base reward: `Agility +3`
+- Enemy sequence: `Screamer, Fast, Charger`
+- Base rewards: laser pistol unlock plus `Agility +4`
 - Emergency chance: always triggers
 - Emergency input: `X` key or click
-- Emergency requirement: `8` inputs in `11` seconds
+- Emergency requirement: `8` inputs in `10` seconds
 - Emergency success: `Agility +2`, `2 coins`
 - Emergency fail: `Agility +1`, `8 damage`
+- Route identity: early pressure, cleaner pistol tempo, and a reachable agility payoff for Quite
 
-#### 4C - Fortified Line
+#### 4C - Breach Wall
 
-- Enemy sequence: `Heavy, Exploder, Heavy, Fast`
-- Base reward: `4 coins`, `Courage +3`
-- Route identity: slower, heavier, more economy-focused
+- Enemy sequence: `Heavy, Exploder, Heavy, Screamer`
+- Base reward: `6 coins`, `Courage +4`
+- Route identity: early shop economy and endurance pressure
 
 #### 4B - Reserve Route
 
 - Enemy sequence: `Heavy, Spitter, Exploder`
-- Rewards include laser pistol unlock plus `Agility +2` and `Courage +2`
+- Base reward: `Agility +2`, `Courage +2`
 - This content still exists in the project but is not currently surfaced from Level 3
 
 ### 7.3 Randomized Level 5 Choice Rule
@@ -339,14 +340,16 @@ This is the current implemented route-choice behavior.
 
 ### 7.4 Level 5 Branches
 
-#### 5A - Quickstep Trial
+#### 5A - Glass Catwalk
 
-- Enemy sequence: `Fast, Charger, Exploder, Spitter`
-- Base reward: `Agility +5`
-- Emergency chance: `70%`
-- Emergency requirement: `9` inputs in `12` seconds
-- Emergency success: `Agility +2`
+- Enemy sequence: `Charger, Spitter, Exploder, Fast`
+- Base reward: `Agility +6`
+- Emergency chance: always triggers
+- Emergency input: `C` key or click
+- Emergency requirement: `9` inputs in `11` seconds
+- Emergency success: `Agility +3`
 - Emergency fail: `Agility +1`, `10 damage`
+- Route identity: exposed movement, target priority, and momentum-based play
 
 #### 5B - Crossfire Junction
 
@@ -354,19 +357,23 @@ This is the current implemented route-choice behavior.
 - Base reward: `Agility +2`, `Courage +2`
 - Route identity: balanced attrition route
 
-#### 5C - Stand Firm
+#### 5C - Furnace Hold
 
-- Enemy sequence: `Heavy, Berserker, Exploder, Charger, Spitter`
-- Base reward: `6 coins`, `Courage +5`
-- Route identity: endurance and economy route
+- Enemy sequence: `Heavy, Berserker, Charger, Exploder, Heavy`
+- Base reward: `Courage +6`
+- Route identity: shield durability, armour value, and late-branch power for the finale
 
 ### 7.5 Final Branch Levels
 
 | Level | Title | Enemies |
 | --- | --- | --- |
-| 6A | Swift Finale | Fast, Charger, Berserker |
+| 6A | Blackout Relay | Fast, Screamer, Charger, Berserker |
 | 6B | Split Verdict | Heavy, Exploder, Berserker, Charger |
-| 6C | Iron Exit | Heavy, Exploder, Berserker, Screamer, Charger |
+| 6C | Last Bastion | Heavy, Screamer, Berserker, Heavy, Charger |
+
+Additional finale note:
+
+- `6A` now includes a guaranteed pre-combat emergency, `Prime the Override`, with `10` inputs in `10` seconds, rewarding `Agility +5` on success or `Agility +2` on failure with `12` damage taken
 
 ## 8. Emergency Event Rules
 
@@ -436,5 +443,6 @@ Important notes:
 
 - `4B` is present in data and can still be reused later
 - Level 3 currently branches only to `4A` and `4C`
+- The surfaced Agile route now carries the laser pistol unlock instead of leaving it trapped on hidden `4B`
 - Level 5 route presentation is randomized as a pair, not shown as all three options
 - The shared Markdown in this repository should now be treated as the maintainable design record instead of temporary Word copies
