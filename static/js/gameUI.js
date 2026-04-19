@@ -67,7 +67,7 @@ function loadAudioSettings() {
       sfxVolume: Number(parsed.sfxVolume) || 50,
       muted: Boolean(parsed.muted)
     };
-  } catch (error) {
+  } catch {
     return defaultSettings;
   }
 }

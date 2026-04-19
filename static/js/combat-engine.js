@@ -2057,7 +2057,6 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
 
     startLevel() {
       const events = [];
-      const level = getCurrentLevelData(state);
 
       if (state.progression.gameOver) {
         events.push(`${state.player.characterName} is dead. Start a new game to play again.`);
@@ -2172,7 +2171,6 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
         return events;
       }
 
-      const currentLevel = getCurrentLevelData(state);
       const validChoices = (state.progression.currentChoiceOptions || []).map((choice) => choice.id);
 
       if (!validChoices.includes(nextLevelId)) {

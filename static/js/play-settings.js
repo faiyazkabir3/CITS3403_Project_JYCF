@@ -27,7 +27,7 @@ function loadSettings() {
       sfxVolume: clampVolume(parsed.sfxVolume),
       muted: Boolean(parsed.muted)
     };
-  } catch (error) {
+  } catch {
     return { ...defaultSettings };
   }
 }

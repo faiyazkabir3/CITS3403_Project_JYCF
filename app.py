@@ -4,7 +4,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    def load_dotenv(*_args, **_kwargs):
+        return False
+
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -489,6 +494,11 @@ def main_menu():
         friends=friends,
         is_guest=is_guest
     )
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return app.send_static_file("images/icons/settings.svg")
 
 
 @app.route("/play")

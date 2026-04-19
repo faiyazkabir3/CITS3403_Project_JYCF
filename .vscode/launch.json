@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: app.py",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "Edge: /play",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://127.0.0.1:5000/play",
+      "webRoot": "${workspaceFolder}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Flask + Edge /play",
+      "configurations": [
+        "Python: app.py",
+        "Edge: /play"
+      ],
+      "stopAll": true
+    }
+  ]
+}
