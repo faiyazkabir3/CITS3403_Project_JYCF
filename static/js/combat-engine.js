@@ -32,9 +32,14 @@ const RULES = {
   dodgeSpecialistBonus: 0.37,
   pistolDamageNoLaser: [27, 33],
   pistolDamageLaser: [33, 41],
+  quiteSidearmDamage: [28, 34],
   rifleDamage: [33, 39],
   knifePercentOfBaseHp: 0.34,
   knifeSelfDamage: 3,
+  leonAxeTriggerChance: 0.33,
+  leonAxeSelfDamage: 4,
+  leonAxeDamage: [15, 22],
+  leonAxeSharpenedDamage: [23, 30],
   grenadeBaseDamage: 58,
   chargerImpactDamage: 33,
   exploderCloseBlast: 14,
@@ -301,6 +306,32 @@ const SHOP_ITEMS = [
       return false;
     },
     sell() {}
+  },
+  {
+    id: "axeSharpen",
+    label: "AXE SHARPEN",
+    cost: 4,
+    description: "Leon only. Adds 2 rescue axe sharpen charges, up to 6.",
+    isVisible(state) {
+      return state.player.characterId === "leon" && state.relics.leonAxe.owned;
+    },
+    canBuy(state) {
+      return (
+        state.player.characterId === "leon" &&
+        state.relics.leonAxe.owned &&
+        state.relics.leonAxe.sharpenCharges < state.relics.leonAxe.maxSharpenCharges
+      );
+    },
+    buy(state) {
+      state.relics.leonAxe.sharpenCharges = Math.min(
+        state.relics.leonAxe.sharpenCharges + 2,
+        state.relics.leonAxe.maxSharpenCharges
+      );
+    },
+    canSell() {
+      return false;
+    },
+    sell() {}
   }
 ];
 
@@ -362,6 +393,19 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
       damageReduction: 0
     },
 
+    relics: {
+      quiteSidearm: {
+        owned: false,
+        ammo: 0,
+        maxAmmo: 10
+      },
+      leonAxe: {
+        owned: false,
+        sharpenCharges: 0,
+        maxSharpenCharges: 6
+      }
+    },
+
     stats: {
       agility: chosenCharacter.startingAgility,
       courage: chosenCharacter.startingCourage
@@ -379,12 +423,16 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
       medKitsUsed: 0,
       reloads: 0,
       knivesUsed: 0,
+      sidearmShotsFired: 0,
+      axeReactions: 0,
+      axeSharpenChargesSpent: 0,
       enemiesKilled: 0,
       damageDealt: 0,
       damageTaken: 0,
       dodgesPrepared: 0,
       emergencySuccesses: 0,
       emergencyFailures: 0,
+      emergencySequenceClears: 0,
       coinsEarned: 0,
       savesMade: 0,
       achievementsUnlocked: []
@@ -430,6 +478,38 @@ function clampHealth(state) {
   if (state.inventory.health < 0) {
     state.inventory.health = 0;
   }
+}
+
+function normalizeEmergencyState(emergency) {
+  if (!emergency?.active) return emergency;
+
+  const normalized = {
+    ...emergency
+  };
+
+  if (Array.isArray(normalized.steps) && normalized.steps.length > 0) {
+    normalized.kind = "sequence";
+    normalized.stepIndex = Math.min(
+      Math.max(Number(normalized.stepIndex) || 0, 0),
+      normalized.steps.length - 1
+    );
+    normalized.stepCount = normalized.steps.length;
+
+    const currentStep = normalized.steps[normalized.stepIndex];
+    if (currentStep) {
+      normalized.title = currentStep.title;
+      normalized.prompt = currentStep.prompt;
+      normalized.key = currentStep.key;
+      normalized.required = currentStep.required;
+      normalized.timeLimitMs = currentStep.timeLimitMs;
+    }
+
+    normalized.sequenceTitle ||= normalized.title || "Emergency Sequence";
+    return normalized;
+  }
+
+  normalized.kind ||= "single";
+  return normalized;
 }
 
 function getCharacterPerk(state) {
@@ -555,6 +635,16 @@ function normalizeStateShape(state) {
   state.armour.level ??= 0;
   state.armour.damageReduction ??= state.armour.level * 0.08;
 
+  state.relics ||= {};
+  state.relics.quiteSidearm ||= {};
+  state.relics.quiteSidearm.owned ??= false;
+  state.relics.quiteSidearm.ammo ??= 0;
+  state.relics.quiteSidearm.maxAmmo ??= 10;
+  state.relics.leonAxe ||= {};
+  state.relics.leonAxe.owned ??= false;
+  state.relics.leonAxe.sharpenCharges ??= 0;
+  state.relics.leonAxe.maxSharpenCharges ??= 6;
+
   state.stats ||= {};
   state.stats.agility ??= perk.startingAgility;
   state.stats.courage ??= perk.startingCourage;
@@ -570,12 +660,16 @@ function normalizeStateShape(state) {
   state.analytics.medKitsUsed ??= 0;
   state.analytics.reloads ??= 0;
   state.analytics.knivesUsed ??= 0;
+  state.analytics.sidearmShotsFired ??= 0;
+  state.analytics.axeReactions ??= 0;
+  state.analytics.axeSharpenChargesSpent ??= 0;
   state.analytics.enemiesKilled ??= 0;
   state.analytics.damageDealt ??= 0;
   state.analytics.damageTaken ??= 0;
   state.analytics.dodgesPrepared ??= 0;
   state.analytics.emergencySuccesses ??= 0;
   state.analytics.emergencyFailures ??= 0;
+  state.analytics.emergencySequenceClears ??= 0;
   state.analytics.coinsEarned ??= 0;
   state.analytics.savesMade ??= 0;
   state.analytics.achievementsUnlocked ??= [];
@@ -610,6 +704,10 @@ function normalizeStateShape(state) {
     state.shield.hasShield = false;
     state.shield.equipped = false;
     state.shield.durability = 0;
+  }
+
+  if (state.progression.emergency?.active) {
+    state.progression.emergency = normalizeEmergencyState(state.progression.emergency);
   }
 
   repairProgressionState(state);
@@ -716,6 +814,23 @@ function buildEnemy(typeKey) {
   };
 }
 
+function createSingleEmergencyState(emergency) {
+  return normalizeEmergencyState({
+    ...deepClone(emergency),
+    active: true,
+    kind: "single"
+  });
+}
+
+function createSequenceEmergencyState(sequence, stepIndex = 0) {
+  return normalizeEmergencyState({
+    ...deepClone(sequence),
+    active: true,
+    kind: "sequence",
+    stepIndex
+  });
+}
+
 function spawnCurrentEnemy(state, rng, level, events = []) {
   const encounterType = state.progression.encounterOrder[state.progression.currentEncounterIndex];
 
@@ -764,6 +879,27 @@ function applyRewards(state, rewards, events) {
     if (reward.type === "pistolLaser") {
       state.pistol.hasLaser = true;
       events.push(reward.text);
+      return;
+    }
+
+    if (reward.type === "quiteParryPistol") {
+      if (state.player.characterId === "quite") {
+        state.relics.quiteSidearm.owned = true;
+        state.relics.quiteSidearm.ammo = state.relics.quiteSidearm.maxAmmo;
+        if (reward.text) {
+          events.push(reward.text);
+        }
+      }
+      return;
+    }
+
+    if (reward.type === "leonRescueAxe") {
+      if (state.player.characterId === "leon") {
+        state.relics.leonAxe.owned = true;
+        if (reward.text) {
+          events.push(reward.text);
+        }
+      }
     }
   });
 }
@@ -802,6 +938,11 @@ function applyRewardBundle(state, reward, events) {
   if (reward.agility || reward.courage) {
     awardStats(state, reward.agility || 0, reward.courage || 0, events);
   }
+}
+
+function dealSpecialEnemyDamage(state, damage) {
+  state.combat.enemy.hp -= damage;
+  state.analytics.damageDealt += damage;
 }
 
 function getEnemyEffectiveness(enemy, weaponKey) {
@@ -933,6 +1074,40 @@ function applyDamage(state, rawDamage, rng, events, options = {}) {
 function performQuiteQuickShot(state, rng, events) {
   if (state.player.characterId !== "quite") return;
 
+  if (state.relics.quiteSidearm.owned && state.relics.quiteSidearm.ammo > 0) {
+    state.relics.quiteSidearm.ammo -= 1;
+    state.analytics.sidearmShotsFired += 1;
+
+    const outcome = resolveWeaponHit(
+      state,
+      rng,
+      "pistol",
+      rng.int(RULES.quiteSidearmDamage[0], RULES.quiteSidearmDamage[1])
+    );
+
+    if (!outcome.hit) {
+      if (outcome.reason === "targetDodged") {
+        events.push("Quite whips out the parry sidearm, but the target slips away from the snap shot.");
+      } else {
+        events.push("Quite snaps the parry sidearm into line, but the rushed shot glances wide.");
+      }
+      return;
+    }
+
+    events.push(
+      `Quite dodges and fires the parry sidearm for ${outcome.damage} damage${outcome.crit ? " (CRIT!)" : ""}.`
+    );
+
+    maybeTriggerBerserkerRage(state.combat.enemy, events);
+
+    if (state.combat.enemy.hp <= 0) {
+      state.combat.pendingDefeatContext = {
+        weaponKey: "pistol"
+      };
+    }
+    return;
+  }
+
   if (state.pistol.ammoInGun <= 0) {
     events.push("Quite slips clear but has no ammo for her quick counter.");
     return;
@@ -1030,20 +1205,71 @@ function addScreamerReinforcement(state, events) {
   events.push(`The ${enemy.name} screams for help. Another zombie rushes into the level.`);
 }
 
+function maybeTriggerLeonAxeReaction(state, rng, events, enemyType, incomingDamage) {
+  if (
+    state.player.characterId !== "leon" ||
+    !state.relics.leonAxe.owned ||
+    enemyType === "spitter" ||
+    incomingDamage <= 0 ||
+    isDead(state)
+  ) {
+    return;
+  }
+
+  if (!rng.chance(RULES.leonAxeTriggerChance)) {
+    return;
+  }
+
+  const sharpened = state.relics.leonAxe.sharpenCharges > 0;
+  if (sharpened) {
+    state.relics.leonAxe.sharpenCharges -= 1;
+    state.analytics.axeSharpenChargesSpent += 1;
+  }
+
+  const [minDamage, maxDamage] = sharpened
+    ? RULES.leonAxeSharpenedDamage
+    : RULES.leonAxeDamage;
+  const axeDamage = rng.int(minDamage, maxDamage);
+  const selfDamage = applyDamage(state, RULES.leonAxeSelfDamage, rng, events, {
+    ignoreArmour: true,
+    ignoreShield: true
+  });
+
+  state.analytics.axeReactions += 1;
+  dealSpecialEnemyDamage(state, axeDamage);
+  events.push(
+    `Leon tears free with the rescue axe, loses ${selfDamage} HP, and deals ${axeDamage} damage${sharpened ? " with a sharpened edge" : ""}.`
+  );
+
+  maybeTriggerBerserkerRage(state.combat.enemy, events);
+
+  if (state.combat.enemy.hp <= 0) {
+    state.combat.pendingDefeatContext = {
+      weaponKey: "axe"
+    };
+  }
+}
+
 function maybeSetEmergency(state, rng, level, events) {
-  if (!level.emergency) return false;
+  if (level.emergencySequence) {
+    const sequenceChance = level.emergencySequence.chance ?? 1;
+    if (!rng.chance(sequenceChance)) {
+      return false;
+    }
 
-  const chance = level.emergency.chance ?? 1;
-  if (!rng.chance(chance)) return false;
+    state.progression.emergency = createSequenceEmergencyState(level.emergencySequence, 0);
+  } else if (level.emergency) {
+    const chance = level.emergency.chance ?? 1;
+    if (!rng.chance(chance)) return false;
 
-  state.progression.emergency = {
-    ...deepClone(level.emergency),
-    active: true
-  };
+    state.progression.emergency = createSingleEmergencyState(level.emergency);
+  } else {
+    return false;
+  }
+
   state.combat.inCombat = false;
   state.combat.enemy = null;
-
-  events.push(`${level.emergency.title}: ${level.emergency.prompt}`);
+  events.push(`${state.progression.emergency.title}: ${state.progression.emergency.prompt}`);
   return true;
 }
 
@@ -1363,6 +1589,10 @@ function enemyTurn(state, rng, events) {
     enemy.successfulDodges = 0;
     const damage = applyDamage(state, RULES.chargerImpactDamage, rng, events);
     events.push(`The ${enemy.name} slams into ${hero} for ${damage} damage and sends them skidding back.`);
+    maybeTriggerLeonAxeReaction(state, rng, events, enemy.type, damage);
+    if (state.combat.enemy?.hp <= 0 || isDead(state)) {
+      return;
+    }
     applyStatusTick(state, events);
     return;
   }
@@ -1395,6 +1625,11 @@ function enemyTurn(state, rng, events) {
 
   const damage = applyDamage(state, rawDamage, rng, events);
   events.push(`The ${enemy.name} hit ${hero} for ${damage} damage.`);
+  maybeTriggerLeonAxeReaction(state, rng, events, enemy.type, damage);
+
+  if (state.combat.enemy?.hp <= 0 || isDead(state)) {
+    return;
+  }
 
   if (enemy.type === "spitter") {
     applySpitterDebuff(state, events);
@@ -1437,7 +1672,7 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
           ignoreArmour: true
         });
         events.push(`The grenade chain reaction backfires for ${backlash} damage.`);
-      } else if (defeatWeapon === "knife") {
+      } else if (defeatWeapon === "knife" || defeatWeapon === "axe") {
         const backlash = applyDamage(state, RULES.exploderCloseBlast, rng, events, {
           ignoreShield: true,
           ignoreArmour: true
@@ -1578,14 +1813,16 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     },
 
     getShopInventory() {
-      return SHOP_ITEMS.map((item) => ({
-        id: item.id,
-        label: item.label,
-        description: item.description,
-        cost: item.cost,
-        sellValue: getSellValue(item.cost),
-        disabled: !item.canBuy(state)
-      }));
+      return SHOP_ITEMS
+        .filter((item) => !item.isVisible || item.isVisible(state))
+        .map((item) => ({
+          id: item.id,
+          label: item.label,
+          description: item.description,
+          cost: item.cost,
+          sellValue: getSellValue(item.cost),
+          disabled: !item.canBuy(state)
+        }));
     },
 
     getSellInventory() {
@@ -1610,6 +1847,11 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
 
       const item = SHOP_ITEMS.find((entry) => entry.id === itemId);
       if (!item) {
+        events.push("That item is not in the shop.");
+        return events;
+      }
+
+      if (item.isVisible && !item.isVisible(state)) {
         events.push("That item is not in the shop.");
         return events;
       }
@@ -1686,13 +1928,8 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
         return events;
       }
 
-      state.progression.emergency = null;
-
-      if (success) {
-        state.analytics.emergencySuccesses += 1;
-        events.push(emergency.successText);
-        applyRewardBundle(state, emergency.reward, events);
-      } else {
+      if (!success) {
+        state.progression.emergency = null;
         state.analytics.emergencyFailures += 1;
         events.push(emergency.failText);
         applyRewardBundle(state, emergency.failReward, events);
@@ -1702,6 +1939,26 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
           ignoreShield: true
         });
         events.push(`${hero} loses ${damage} HP during the scramble.`);
+      } else if (emergency.kind === "sequence" && Array.isArray(emergency.steps)) {
+        const nextStepIndex = (emergency.stepIndex || 0) + 1;
+
+        if (nextStepIndex < emergency.steps.length) {
+          const nextStep = emergency.steps[nextStepIndex];
+          state.progression.emergency = createSequenceEmergencyState(emergency, nextStepIndex);
+          events.push(`Step ${nextStepIndex}/${emergency.steps.length} cleared.`);
+          events.push(`${nextStep.title}: ${nextStep.prompt}`);
+        } else {
+          state.progression.emergency = null;
+          state.analytics.emergencySuccesses += 1;
+          state.analytics.emergencySequenceClears += 1;
+          events.push(emergency.successText);
+          applyRewardBundle(state, emergency.reward, events);
+        }
+      } else {
+        state.progression.emergency = null;
+        state.analytics.emergencySuccesses += 1;
+        events.push(emergency.successText);
+        applyRewardBundle(state, emergency.reward, events);
       }
 
       if (isDead(state)) {
@@ -1710,7 +1967,7 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
         return events;
       }
 
-      if (!state.combat.enemy && !state.progression.levelComplete) {
+      if (!state.progression.emergency?.active && !state.combat.enemy && !state.progression.levelComplete) {
         spawnCurrentEnemy(state, rng, getCurrentLevelData(state), events);
       }
 
@@ -1753,7 +2010,7 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
       if (state.progression.emergency?.active) {
         events.push(`${hero} resumed the saved game.`);
         events.push(`LEVEL ${level.id}: ${level.title}`);
-        events.push(state.progression.emergency.prompt);
+        events.push(`${state.progression.emergency.title}: ${state.progression.emergency.prompt}`);
         return events;
       }
 

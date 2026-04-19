@@ -6,6 +6,7 @@ const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
 const WARNING_BEEP_SOUND = "/static/audio/sfx/system/warning_beep.mp3";
 const SUCCESS_SOUND = "/static/audio/sfx/system/success.mp3";
 const FAIL_SOUND = "/static/audio/sfx/system/fail.mp3";
+const BUTTON_CLICK_SOUND = "/static/audio/sfx/ui/button_click.mp3";
 const PISTOL_SHOT_SOUND = "/static/audio/sfx/combat/pistol_shot.mp3";
 const RIFLE_SHOT_SOUND = "/static/audio/sfx/combat/rifle_shot.mp3";
 const RELOAD_SOUND = "/static/audio/sfx/combat/reload.mp3";
@@ -21,6 +22,7 @@ const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 const warningBeepAudio = new Audio(WARNING_BEEP_SOUND);
 const successAudio = new Audio(SUCCESS_SOUND);
 const failAudio = new Audio(FAIL_SOUND);
+const buttonClickAudio = new Audio(BUTTON_CLICK_SOUND);
 const pistolShotAudio = new Audio(PISTOL_SHOT_SOUND);
 const rifleShotAudio = new Audio(RIFLE_SHOT_SOUND);
 const reloadAudio = new Audio(RELOAD_SOUND);
@@ -36,6 +38,7 @@ errorBeepAudio.preload = "auto";
 warningBeepAudio.preload = "auto";
 successAudio.preload = "auto";
 failAudio.preload = "auto";
+buttonClickAudio.preload = "auto";
 pistolShotAudio.preload = "auto";
 rifleShotAudio.preload = "auto";
 reloadAudio.preload = "auto";
@@ -192,6 +195,24 @@ function playCombatActionSfx(actionKey, events) {
   }
 }
 
+function playDerivedCombatSfx(events) {
+  if (!Array.isArray(events) || events.length === 0) return;
+
+  const text = events.join(" ").toLowerCase();
+
+  if (
+    text.includes("fires the parry sidearm") ||
+    text.includes("whips out the parry sidearm") ||
+    text.includes("snaps the parry sidearm")
+  ) {
+    playSfxAudio(pistolShotAudio);
+  }
+
+  if (text.includes("tears free with the rescue axe")) {
+    playSfxAudio(knifeSlashAudio);
+  }
+}
+
 function $(selector) {
   return document.querySelector(selector);
 }
@@ -301,8 +322,16 @@ function renderStats(engine) {
       `PISTOL BAG: ${state.pistol.ammoInBag}`
     ];
 
+    if (state.relics?.quiteSidearm?.owned) {
+      lines.push(`PARRY SIDEARM: ${state.relics.quiteSidearm.ammo}/${state.relics.quiteSidearm.maxAmmo}`);
+    }
+
     if (state.rifle.owned) {
       lines.push(`RIFLE: ${state.rifle.ammoInGun}/${state.rifle.magCapacity} | BAG ${state.rifle.ammoInBag}`);
+    }
+
+    if (state.relics?.leonAxe?.owned) {
+      lines.push(`AXE SHARPEN: ${state.relics.leonAxe.sharpenCharges}/${state.relics.leonAxe.maxSharpenCharges}`);
     }
 
     lines.push(
@@ -612,10 +641,11 @@ export function bootGameUI({
     locked = true;
     const progress = emergencySession.progress;
     clearEmergencySession();
-    renderAll();
     const events = engine.resolveEmergency(success, progress);
 
-    if (success) {
+    if (success && engine.hasEmergency()) {
+      playSaveBeep();
+    } else if (success) {
       playSuccessCue();
     } else {
       playFailCue();
@@ -637,7 +667,7 @@ export function bootGameUI({
     }
 
     const emergency = engine.getEmergency();
-    const signature = `${engine.state.progression.currentLevelId}:${emergency.title}:${emergency.prompt}`;
+    const signature = `${engine.state.progression.currentLevelId}:${emergency.stepIndex || 0}:${emergency.title}:${emergency.prompt}`;
     if (emergencySession.signature !== signature) {
       clearEmergencySession();
       emergencySession.signature = signature;
@@ -645,10 +675,12 @@ export function bootGameUI({
       emergencySession.required = emergency.required;
       emergencySession.key = String(emergency.key || "X").toUpperCase();
       emergencySession.deadline = 0;
-      playWarningBeep();
+      if ((emergency.stepIndex || 0) === 0) {
+        playWarningBeep();
+      }
     }
 
-    if (!isAnimatingEvents && !emergencySession.active) {
+    if (!isAnimatingEvents && !emergencySession.active && !locked) {
       emergencySession.active = true;
       emergencySession.deadline = Date.now() + emergency.timeLimitMs;
       emergencySession.timerId = window.setInterval(() => {
@@ -671,11 +703,16 @@ export function bootGameUI({
       ? Math.max(emergencySession.deadline - Date.now(), 0)
       : emergency.timeLimitMs;
     emergencyBox.style.display = "block";
-    emergencyTitle.textContent = emergency.title;
-    emergencyPrompt.textContent = emergency.prompt;
+    emergencyTitle.textContent =
+      emergency.stepCount > 1 ? emergency.sequenceTitle || emergency.title : emergency.title;
+    emergencyPrompt.textContent =
+      emergency.stepCount > 1 ? `${emergency.title}: ${emergency.prompt}` : emergency.prompt;
     emergencyKey.textContent = emergencySession.key;
     emergencyTimer.textContent = `${(remainingMs / 1000).toFixed(1)}s`;
-    emergencyProgress.textContent = `${emergencySession.progress}/${emergencySession.required}`;
+    emergencyProgress.textContent =
+      emergency.stepCount > 1
+        ? `STEP ${(emergency.stepIndex || 0) + 1}/${emergency.stepCount} | ${emergencySession.progress}/${emergencySession.required}`
+        : `${emergencySession.progress}/${emergencySession.required}`;
 
     if (emergencyActionBtn) {
       emergencyActionBtn.disabled = locked || !emergencySession.active;
@@ -741,6 +778,7 @@ export function bootGameUI({
     renderAll();
     const events = engine.dispatch(actionKey);
     playCombatActionSfx(actionKey, events);
+    playDerivedCombatSfx(events);
     await runAndRender(events);
     await postLevelFlow();
     locked = false;
@@ -813,6 +851,7 @@ export function bootGameUI({
   function registerEmergencyPress() {
     if (isInteractionLocked() || !engine.hasEmergency() || !emergencySession.active) return;
 
+    playSfxAudio(buttonClickAudio);
     emergencySession.progress += 1;
     renderEmergencyBox();
 
@@ -823,6 +862,7 @@ export function bootGameUI({
 
   function handleEmergencyKeydown(event) {
     if (!engine.hasEmergency() || !emergencySession.active) return;
+    if (event.repeat) return;
     if (event.key.toUpperCase() !== emergencySession.key) return;
 
     event.preventDefault();

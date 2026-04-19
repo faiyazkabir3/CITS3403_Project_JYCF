@@ -72,7 +72,7 @@ export const LEVELS = {
       prompt: "A relay gate is stuck half-open. Press X or click before the horde floods the maintenance rail.",
       key: "X",
       required: 8,
-      timeLimitMs: 10000,
+      timeLimitMs: 5800,
       successText: "You slam the relay gate shut and buy yourself a clean firing lane.",
       failText: "The gate seals too late. You still push through, but the surge clips you on the way in.",
       reward: {
@@ -85,8 +85,7 @@ export const LEVELS = {
       failDamage: 8
     },
     completeText: "The route beacon steadies, and a battered service terminal blinks beside a narrow refuge.",
-    choiceCount: 2,
-    choicePool: [
+    choices: [
       {
         id: "5A",
         label: "5A - AGILE PUSH",
@@ -115,6 +114,10 @@ export const LEVELS = {
     shopAfterClear: true,
     rewards: [
       {
+        type: "quiteParryPistol",
+        text: "Quite finds a compact parry sidearm in a broken checkpoint locker. It holds 10 shots and cannot be reloaded."
+      },
+      {
         type: "stats",
         agility: 6,
         courage: 0,
@@ -127,7 +130,7 @@ export const LEVELS = {
       prompt: "The catwalk gives way beneath you. Press C or click to catch the handrail before you drop.",
       key: "C",
       required: 9,
-      timeLimitMs: 11000,
+      timeLimitMs: 6000,
       successText: "You catch the rail, swing back up, and carry the momentum into the fight.",
       failText: "You recover late and hit the next exchange already shaken.",
       reward: {
@@ -155,7 +158,7 @@ export const LEVELS = {
       prompt: "The extraction relay needs a live override. Press Z or click to prime it before the chamber fully blacks out.",
       key: "Z",
       required: 10,
-      timeLimitMs: 10000,
+      timeLimitMs: 6200,
       successText: "You prime the override in time and feel the whole route snap into focus.",
       failText: "The override catches late. The chamber goes dark and you enter the fight under pressure.",
       reward: {
@@ -241,13 +244,7 @@ export const LEVELS = {
       }
     ],
     completeText: "The barricade finally settles, and the defended supply point is yours to strip clean.",
-    choiceCount: 2,
-    choicePool: [
-      {
-        id: "5A",
-        label: "5A - AGILE PUSH",
-        description: "Swing hard into the faster route and chase agility."
-      },
+    choices: [
       {
         id: "5B",
         label: "5B - MIDLINE SHIFT",
@@ -257,6 +254,11 @@ export const LEVELS = {
         id: "5C",
         label: "5C - COURAGE SWING",
         description: "Stay on the endurance line for more pressure and coins."
+      },
+      {
+        id: "5D",
+        label: "5D - SALVAGE PRESS",
+        description: "Push into a brutal salvage corridor built around melee pressure and Leon's new relic path."
       }
     ]
   },
@@ -281,6 +283,53 @@ export const LEVELS = {
     next: "6C"
   },
 
+  "5D": {
+    id: "5D",
+    title: "Salvage Press",
+    description: "A collapsing salvage line grinds shut around you while heavier infected force every retreat into dead steel.",
+    introText: "Courage route: this branch is about surviving the crush, then turning Leon's rescue tool into a real endgame edge.",
+    enemySequence: ["charger", "heavy", "fast", "berserker"],
+    enemyCount: 4,
+    shopAfterClear: true,
+    rewards: [
+      {
+        type: "coins",
+        value: 3,
+        text: "The salvage bins still hide a few antique coins worth taking."
+      },
+      {
+        type: "stats",
+        agility: 0,
+        courage: 4,
+        text: "You keep the press moving under impossible pressure. Courage +4."
+      },
+      {
+        type: "leonRescueAxe",
+        text: "Leon tears a rescue axe from the salvage rack. It can wrench him free when the dead get too close."
+      }
+    ],
+    emergency: {
+      chance: 1,
+      title: "Brace the Bulkhead",
+      prompt: "A salvage bulkhead starts to fold inward. Press F or click to hold it long enough to slip through.",
+      key: "F",
+      required: 8,
+      timeLimitMs: 5800,
+      successText: "You brace the bulkhead just long enough to keep the route open.",
+      failText: "The bulkhead buckles early and clips you on the squeeze through.",
+      reward: {
+        courage: 2,
+        coins: 2
+      },
+      failReward: {
+        courage: 1
+      },
+      failDamage: 10
+    },
+    completeText: "The salvage line sputters out behind you, leaving only a red-lit gate block ahead.",
+    next: "6D"
+  },
+
   "6C": {
     id: "6C",
     title: "Last Bastion",
@@ -289,5 +338,44 @@ export const LEVELS = {
     enemySequence: ["heavy", "screamer", "berserker", "heavy", "charger"],
     enemyCount: 5,
     completeText: "You survive the holdout, drag yourself through extraction, and leave the station impossible to shake."
+  },
+
+  "6D": {
+    id: "6D",
+    title: "Lockjaw Gate",
+    description: "The last Courage endpoint pins you between a jammed blast gate and repeated impact waves that want to drag you under.",
+    introText: "Courage finale: hold the line, keep the gate sequence alive, and let Leon's rescue axe turn close calls into openings.",
+    enemySequence: ["charger", "heavy", "berserker", "heavy", "charger"],
+    enemyCount: 5,
+    emergencySequence: {
+      sequenceTitle: "Ram Gate Lockdown",
+      steps: [
+        {
+          title: "CUT THE CHAIN",
+          prompt: "The locking chain catches on the floor track. Press X or click to hack it loose before the next impact.",
+          key: "X",
+          required: 7,
+          timeLimitMs: 5500
+        },
+        {
+          title: "CRANK THE GATE",
+          prompt: "The gate motor fights you all the way. Press V or click to force the last crank into place.",
+          key: "V",
+          required: 9,
+          timeLimitMs: 6000
+        }
+      ],
+      successText: "The gate finally locks down and buys you one clean stand before the last rush.",
+      failText: "The lockdown sequence stutters and the impact wave catches you half-covered.",
+      reward: {
+        courage: 3,
+        coins: 2
+      },
+      failReward: {
+        courage: 1
+      },
+      failDamage: 12
+    },
+    completeText: "You hold Lockjaw Gate, survive the final crush, and force the last route open by sheer stubbornness."
   }
 };

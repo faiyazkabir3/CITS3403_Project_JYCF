@@ -64,6 +64,7 @@ Role: agile survivor with strong dodge value and pistol tempo.
 Implemented behavior:
 
 - A successful dodge can trigger a quick pistol counter-shot if ammo is available.
+- On `5A`, Quite can find a parry sidearm with `10` fixed shots that replaces her normal dodge counter until it runs dry.
 - At 70 agility or higher, Quite unlocks `Quick and Swift`, firing two pistol shots with one pistol action.
 - Quite is the best fit for the agility route and emergency-heavy levels.
 
@@ -86,6 +87,8 @@ Implemented behavior:
 - Guarding damage with the shield builds `guardStacks`.
 - Leon crit chance is tied to courage and recent shield blocks.
 - Crits apply to pistol and rifle attacks and double the final weapon damage.
+- On `5D`, Leon can find a rescue axe that has a `33%` chance to trigger after non-spitter hits, damaging both Leon and the attacker.
+- Axe sharpen charges can be bought in the shop after the relic is found.
 
 ## 5. Core Combat Rules
 
@@ -105,9 +108,11 @@ Each enemy defines a matchup profile per weapon:
 | --- | --- |
 | Pistol | 27-33 damage |
 | Laser pistol | 33-41 damage |
+| Quite parry sidearm | 28-34 damage |
 | Rifle | 33-39 damage |
 | Grenade | 58 base damage |
 | Knife | 34% of target base HP |
+| Leon rescue axe | 15-22 damage, or 23-30 with sharpen charge |
 
 ### 5.3 Dodge, Crit, and Armour Formulas
 
@@ -305,15 +310,17 @@ Important current rule:
 - Base rewards: laser pistol unlock plus `Agility +4`
 - Emergency chance: always triggers
 - Emergency input: `X` key or click
-- Emergency requirement: `8` inputs in `10` seconds
+- Emergency requirement: `8` inputs in `5.8` seconds
 - Emergency success: `Agility +2`, `2 coins`
 - Emergency fail: `Agility +1`, `8 damage`
+- Next-level choices shown: `5A`, `5B`, `5C`
 - Route identity: early pressure, cleaner pistol tempo, and a reachable agility payoff for Quite
 
 #### 4C - Breach Wall
 
 - Enemy sequence: `Heavy, Exploder, Heavy, Screamer`
 - Base reward: `6 coins`, `Courage +4`
+- Next-level choices shown: `5B`, `5C`, `5D`
 - Route identity: early shop economy and endurance pressure
 
 #### 4B - Reserve Route
@@ -322,21 +329,14 @@ Important current rule:
 - Base reward: `Agility +2`, `Courage +2`
 - This content still exists in the project but is not currently surfaced from Level 3
 
-### 7.3 Randomized Level 5 Choice Rule
+### 7.3 Level 5 Choice Presentation
 
-After clearing `4A` or `4C`, the game randomly offers exactly `2` route options from:
+The Level 4 branches now show explicit Level 5 route choices instead of random pairs.
 
-- `5A`
-- `5B`
-- `5C`
+- `4A` always offers `5A`, `5B`, and `5C`
+- `4C` always offers `5B`, `5C`, and `5D`
 
-Possible offered pairs:
-
-- `5A` and `5B`
-- `5B` and `5C`
-- `5A` and `5C`
-
-This is the current implemented route-choice behavior.
+This guarantees the relic routes are always visible once the player commits to Agile or Courage.
 
 ### 7.4 Level 5 Branches
 
@@ -344,9 +344,10 @@ This is the current implemented route-choice behavior.
 
 - Enemy sequence: `Charger, Spitter, Exploder, Fast`
 - Base reward: `Agility +6`
+- Character reward: Quite-only parry sidearm relic with `10` fixed shots
 - Emergency chance: always triggers
 - Emergency input: `C` key or click
-- Emergency requirement: `9` inputs in `11` seconds
+- Emergency requirement: `9` inputs in `6` seconds
 - Emergency success: `Agility +3`
 - Emergency fail: `Agility +1`, `10 damage`
 - Route identity: exposed movement, target priority, and momentum-based play
@@ -363,6 +364,18 @@ This is the current implemented route-choice behavior.
 - Base reward: `Courage +6`
 - Route identity: shield durability, armour value, and late-branch power for the finale
 
+#### 5D - Salvage Press
+
+- Enemy sequence: `Charger, Heavy, Fast, Berserker`
+- Base rewards: `3 coins`, `Courage +4`
+- Character reward: Leon-only rescue axe relic
+- Emergency chance: always triggers
+- Emergency input: `F` key or click
+- Emergency requirement: `8` inputs in `5.8` seconds
+- Emergency success: `Courage +2`, `2 coins`
+- Emergency fail: `Courage +1`, `10 damage`
+- Route identity: melee pressure, brutal choke points, and the dedicated Leon relic path
+
 ### 7.5 Final Branch Levels
 
 | Level | Title | Enemies |
@@ -370,10 +383,12 @@ This is the current implemented route-choice behavior.
 | 6A | Blackout Relay | Fast, Screamer, Charger, Berserker |
 | 6B | Split Verdict | Heavy, Exploder, Berserker, Charger |
 | 6C | Last Bastion | Heavy, Screamer, Berserker, Heavy, Charger |
+| 6D | Lockjaw Gate | Charger, Heavy, Berserker, Heavy, Charger |
 
 Additional finale note:
 
-- `6A` now includes a guaranteed pre-combat emergency, `Prime the Override`, with `10` inputs in `10` seconds, rewarding `Agility +5` on success or `Agility +2` on failure with `12` damage taken
+- `6A` now includes a guaranteed pre-combat emergency, `Prime the Override`, with `10` inputs in `6.2` seconds, rewarding `Agility +5` on success or `Agility +2` on failure with `12` damage taken
+- `6D` uses a chained emergency sequence, `Ram Gate Lockdown`, before combat begins
 
 ## 8. Emergency Event Rules
 
@@ -383,6 +398,8 @@ The emergency event system is currently tuned for fairness and readability.
 - The QTE timer starts after the intro text finishes typing
 - The player can respond by pressing the shown key or by clicking the emergency button
 - Abort remains available if the player wants to fail immediately and move on
+- Valid QTE taps now use a faster `5-6` second cadence across the implemented emergency content
+- Emergency sequences can now chain multiple QTE steps before combat starts
 
 This prevents the timer from burning while the story text is still animating.
 
@@ -408,6 +425,7 @@ Current rhythm in a normal run:
 | Rifle Mag | 6 | Adds one full rifle magazine to reserve ammo |
 | Armour | 12 | Adds permanent armour plating, up to level 2 |
 | Shield Repair | 2 | Leon only, restores 40 shield durability |
+| Axe Sharpen | 4 | Leon only, after finding the rescue axe, adds 2 sharpen charges up to 6 |
 
 Additional economy rules:
 
@@ -444,5 +462,5 @@ Important notes:
 - `4B` is present in data and can still be reused later
 - Level 3 currently branches only to `4A` and `4C`
 - The surfaced Agile route now carries the laser pistol unlock instead of leaving it trapped on hidden `4B`
-- Level 5 route presentation is randomized as a pair, not shown as all three options
+- Level 5 route presentation from Level 4 is now explicit rather than randomized
 - The shared Markdown in this repository should now be treated as the maintainable design record instead of temporary Word copies
