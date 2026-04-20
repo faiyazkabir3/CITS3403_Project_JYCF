@@ -271,8 +271,10 @@ function isGameOver(engine) {
   return engine.state.progression.gameOver || engine.state.inventory.health <= 0;
 }
 
+const ACTION_GROUP_IDS = ["main-actions", "attack-actions", "inventory-actions", "stats-actions"];
+
 function showActionGroup(groupId) {
-  ["main-actions", "attack-actions", "inventory-actions"].forEach((id) => {
+  ACTION_GROUP_IDS.forEach((id) => {
     const element = document.getElementById(id);
     if (element) {
       element.style.display = id === groupId ? "flex" : "none";
@@ -290,6 +292,10 @@ function showAttackActions() {
 
 function showInventoryActions() {
   showActionGroup("inventory-actions");
+}
+
+function showStatsActions() {
+  showActionGroup("stats-actions");
 }
 
 function formatPercent(value) {
@@ -1297,6 +1303,7 @@ export function bootGameUI({
   const defendBtn = $("#defend-btn");
   const inventoryBtn = $("#inventory-btn");
   const saveBtn = $("#save-btn");
+  const statsBtn = $("#stats-btn");
   const pistolBtn = $("#pistol-btn");
   const rifleBtn = $("#rifle-btn");
   const knifeBtn = $("#knife-btn");
@@ -1307,6 +1314,7 @@ export function bootGameUI({
   const medkitBtn = $("#medkit-btn");
   const shieldBtn = $("#shield-btn");
   const inventoryBackBtn = $("#inventory-back-btn");
+  const statsBackBtn = $("#stats-back-btn");
 
   if (attackBtn) {
     attackBtn.addEventListener("click", () => {
@@ -1360,6 +1368,13 @@ export function bootGameUI({
     });
   }
 
+  if (statsBtn) {
+    statsBtn.addEventListener("click", () => {
+      showStatsActions();
+      renderAll();
+    });
+  }
+
   if (pistolBtn) pistolBtn.addEventListener("click", async () => handleAction("pistol"));
   if (rifleBtn) rifleBtn.addEventListener("click", async () => handleAction("rifle"));
   if (knifeBtn) knifeBtn.addEventListener("click", async () => handleAction("knife"));
@@ -1381,6 +1396,13 @@ export function bootGameUI({
   if (inventoryBackBtn) {
     inventoryBackBtn.addEventListener("click", () => {
       if (isInteractionLocked() || engine.hasEmergency()) return;
+      showMainActions();
+      renderAll();
+    });
+  }
+
+  if (statsBackBtn) {
+    statsBackBtn.addEventListener("click", () => {
       showMainActions();
       renderAll();
     });

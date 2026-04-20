@@ -208,10 +208,6 @@
             </div>
           </div>
 
-          <div class="combat-log-box">
-            <h2>COMBAT LOG</h2>
-            <div id="combat-log-list" class="combat-log-list"></div>
-          </div>
         </div>
 
         <div id="emergency-box" class="path-choice-box emergency-box" style="display: none;">
@@ -266,6 +262,7 @@
               <button type="button" class="action-btn" id="defend-btn">DEFEND</button>
               <button type="button" class="action-btn" id="inventory-btn">INVENTORY</button>
               <button type="button" class="action-btn" id="save-btn">SAVE GAME</button>
+              <button type="button" class="action-btn" id="stats-btn">PLAYER STATS</button>
             </div>
 
             <div class="todo-buttons" id="attack-actions" style="display: none;">
@@ -283,26 +280,32 @@
               <button type="button" class="action-btn" id="shield-btn">TOGGLE SHIELD</button>
               <button type="button" class="action-btn" id="inventory-back-btn">BACK</button>
             </div>
+
+            <div class="todo-buttons stats-actions" id="stats-actions" style="display: none;">
+              <h3>PLAYER STATS</h3>
+              <ul id="player-stats-list">
+                <li>CHARACTER: LEON</li>
+                <li>PERK: TACTICAL SPECIALIST</li>
+                <li>HP: 100</li>
+                <li>COINS: 0</li>
+                <li>MED: 2</li>
+                <li>GREN: 2</li>
+                <li>PISTOL: 8/8</li>
+                <li>PISTOL BAG: 16</li>
+                <li>SHIELD: ON (100)</li>
+                <li>AGI / COUR: 20 / 50</li>
+                <li>LEVEL: 1</li>
+                <li>ENEMIES LEFT: 1</li>
+                <li>ENEMY HP: 39</li>
+                <li>STATUS: ALIVE</li>
+              </ul>
+              <button type="button" class="action-btn" id="stats-back-btn">BACK</button>
+            </div>
           </div>
 
-          <div class="player-stat-box">
-            <h2>PLAYER STATS</h2>
-            <ul id="player-stats-list">
-              <li>CHARACTER: LEON</li>
-              <li>PERK: TACTICAL SPECIALIST</li>
-              <li>HP: 100</li>
-              <li>COINS: 0</li>
-              <li>MED: 2</li>
-              <li>GREN: 2</li>
-              <li>PISTOL: 8/8</li>
-              <li>PISTOL BAG: 16</li>
-              <li>SHIELD: ON (100)</li>
-              <li>AGI / COUR: 20 / 50</li>
-              <li>LEVEL: 1</li>
-              <li>ENEMIES LEFT: 1</li>
-              <li>ENEMY HP: 39</li>
-              <li>STATUS: ALIVE</li>
-            </ul>
+          <div class="combat-log-box">
+            <h2>COMBAT LOG</h2>
+            <div id="combat-log-list" class="combat-log-list"></div>
           </div>
         </div>
       </div>

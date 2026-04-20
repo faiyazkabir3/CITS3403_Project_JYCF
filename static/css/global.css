@@ -631,7 +631,7 @@ body::before {
 
 .play-page .top-game-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.72fr) minmax(360px, 0.82fr);
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: stretch;
 }
@@ -1092,13 +1092,13 @@ body::before {
 .play-page .combat-log-box {
   display: flex;
   flex-direction: column;
-  min-height: clamp(620px, 72vh, 920px);
+  min-height: clamp(280px, 30vh, 380px);
 }
 
 .play-page .combat-log-box h2,
 .play-page .path-choice-box h2,
 .play-page .todo-box h2,
-.play-page .player-stat-box h2 {
+.play-page .stats-actions h3 {
   margin-top: 0;
   margin-bottom: 12px;
   font-size: 0.85rem;
@@ -1188,13 +1188,14 @@ body::before {
 
 .play-page .game-bottom {
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(340px, 0.92fr) minmax(0, 1.08fr);
   gap: 20px;
+  align-items: stretch;
 }
 
 .play-page .todo-box,
-.play-page .player-stat-box {
-  min-height: 0;
+.play-page .combat-log-box {
+  min-height: clamp(280px, 30vh, 380px);
   padding: 20px;
   border: var(--panel-border);
   border-radius: 18px;
@@ -1205,6 +1206,10 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.play-page .stats-actions {
+  min-height: 0;
 }
 
 .play-page .action-btn {
@@ -1219,12 +1224,12 @@ body::before {
   pointer-events: none;
 }
 
-.play-page .player-stat-box ul {
+.play-page .stats-actions ul {
   margin: 0;
   padding-left: 18px;
   font-size: 0.72rem;
   line-height: 1.9;
-  max-height: 280px;
+  max-height: clamp(180px, 22vh, 280px);
   overflow-y: auto;
   padding-right: 8px;
 }
@@ -1386,8 +1391,7 @@ body::before {
   }
 
   .play-page .graphics-area,
-  .play-page .battle-stage,
-  .play-page .combat-log-box {
+  .play-page .battle-stage {
     min-height: 370px;
   }
 
@@ -1441,6 +1445,11 @@ body::before {
 
   .play-page .game-bottom {
     grid-template-columns: 1fr;
+  }
+
+  .play-page .todo-box,
+  .play-page .combat-log-box {
+    min-height: 240px;
   }
 
   .play-page .shop-grid {
