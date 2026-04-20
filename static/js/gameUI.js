@@ -484,7 +484,6 @@ function inferBattleFx(actionKey, events) {
   const text = Array.isArray(events) ? events.join(" ").toLowerCase() : "";
   const effect = {
     actionFxSrc: "",
-    actionFxAlt: "",
     effect: "",
     impactFxSrc: "",
     impact: false
@@ -494,17 +493,14 @@ function inferBattleFx(actionKey, events) {
     case "pistol":
     case "rifle":
       effect.actionFxSrc = FX_VISUALS.muzzleFlash;
-      effect.actionFxAlt = "Gun flash";
       effect.effect = "shot";
       break;
     case "knife":
       effect.actionFxSrc = FX_VISUALS.slashArc;
-      effect.actionFxAlt = "Knife slash";
       effect.effect = "slash";
       break;
     case "grenade":
       effect.actionFxSrc = FX_VISUALS.grenadeBlast;
-      effect.actionFxAlt = "Grenade explosion";
       effect.effect = "grenade";
       break;
     case "heal":
@@ -612,16 +608,6 @@ function renderBattleScene(engine, battleSceneState) {
     enemy ? `${enemy.name} portrait` : "No threat",
     enemy ? enemy.name.toUpperCase() : "NO CONTACT"
   );
-
-  if (!enemy) {
-    enemyImage?.removeAttribute("src");
-    if (enemyImage) {
-      enemyImage.hidden = true;
-    }
-    if (enemyFallback) {
-      enemyFallback.hidden = false;
-    }
-  }
 
   renderBattleFxImage(actionFxImage, battleSceneState.actionFxSrc || "");
   renderBattleFxImage(impactFxImage, battleSceneState.impactFxSrc || "");
@@ -947,7 +933,6 @@ export function bootGameUI({
     effect: "",
     impact: false,
     actionFxSrc: "",
-    actionFxAlt: "",
     impactFxSrc: "",
     timerId: null
   };
@@ -969,7 +954,6 @@ export function bootGameUI({
     battleSceneState.effect = "";
     battleSceneState.impact = false;
     battleSceneState.actionFxSrc = "";
-    battleSceneState.actionFxAlt = "";
     battleSceneState.impactFxSrc = "";
     battleSceneState.timerId = null;
   }
@@ -995,7 +979,6 @@ export function bootGameUI({
     battleSceneState.effect = effect.effect;
     battleSceneState.impact = effect.impact;
     battleSceneState.actionFxSrc = effect.actionFxSrc;
-    battleSceneState.actionFxAlt = effect.actionFxAlt;
     battleSceneState.impactFxSrc = effect.impactFxSrc;
     renderAll();
 

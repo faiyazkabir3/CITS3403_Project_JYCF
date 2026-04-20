@@ -75,7 +75,6 @@ const selectedCharacterDisplay = document.getElementById("selected-character-dis
 const loadLatestSaveBtn = document.getElementById("load-latest-save-btn");
 const loadLeonSaveBtn = document.getElementById("load-leon-save-btn");
 const loadQuiteSaveBtn = document.getElementById("load-quite-save-btn");
-const deleteSaveBtn = document.getElementById("delete-save-btn");
 const savePreview = document.getElementById("save-preview");
 
 let gameEngine = null;
@@ -416,10 +415,6 @@ if (loadQuiteSaveBtn) {
     playUiButtonSound();
     await loadCharacterSave("quite");
   });
-}
-
-if (deleteSaveBtn) {
-  deleteSaveBtn.style.display = "none";
 }
 
 updateSelectedCharacterText();

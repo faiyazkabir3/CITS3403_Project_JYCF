@@ -303,8 +303,57 @@ body::before {
   padding: 20px;
 }
 
+.achievements-page .menu-container {
+  position: relative;
+}
+
+.achievements-page .top-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.achievements-page .top-bar h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 400;
+  text-align: right;
+  opacity: 0.85;
+}
+
+.achievements-page .back-arrow {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 3;
+  width: 42px;
+  height: 42px;
+  border: var(--panel-border);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: 0.15s ease;
+}
+
+.achievements-page .back-arrow::before {
+  content: "\2190";
+  font-size: 1rem;
+}
+
+.achievements-page .back-arrow:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
 .achievements-page .achievement-box {
-  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
   border: var(--panel-border);
   background: rgba(255, 255, 255, 0.1);
   font-size: 0.75rem;
@@ -313,6 +362,15 @@ body::before {
 .achievements-page .achievement-title {
   margin-bottom: 6px;
   font-size: 0.8rem;
+}
+
+.achievements-page .stat-value {
+  width: 100%;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: right;
 }
 
 .play-page .screen-wrap {
@@ -557,6 +615,9 @@ body::before {
 }
 
 .play-page .top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   text-align: right;
 }
 
@@ -1807,32 +1868,14 @@ body::before {
 }
 
 .settings-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  position: relative;
   margin-bottom: 20px;
   border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-  padding-bottom: 12px;
+  padding: 0 48px 12px 0;
 }
 
 .settings-modal-header h2 {
   margin: 0;
-}
-
-.settings-close-btn {
-  min-width: 44px;
-  min-height: 44px;
-  border: 2px solid #ffffff;
-  background: #ffffff;
-  color: #000000;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.settings-close-btn:hover {
-  background: #000000;
-  color: #ffffff;
 }
 
 .settings-modal-body {
@@ -1895,69 +1938,37 @@ body::before {
   }
 }
 
-/* stronger close button override */
-.settings-modal-header {
-  position: relative;
-  display: block;
-  padding-right: 48px;
-}
-
-.settings-modal-header h2 {
+.settings-modal-header .settings-close-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
   margin: 0;
-}
-
-.settings-modal-header .settings-close-btn {
-  position: absolute !important;
-  top: 0 !important;
-  right: 0 !important;
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
-  min-height: 34px !important;
-  max-width: 34px !important;
-  max-height: 34px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border: 2px solid #ffffff !important;
-  background: #ffffff !important;
-  color: #000000 !important;
-  font-family: inherit !important;
-  font-size: 0.9rem !important;
-  line-height: 1 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 0 0 auto !important;
-  box-sizing: border-box !important;
-  cursor: pointer !important;
+  border: 2px solid #b83a3a;
+  background: #8b1e1e;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  cursor: pointer;
 }
 
 .settings-modal-header .settings-close-btn:hover {
-  background: #000000 !important;
-  color: #ffffff !important;
-}
-
-/* red close button override */
-.settings-modal-header .settings-close-btn {
-  background: #8b1e1e !important;
-  color: #ffffff !important;
-  border: 2px solid #b83a3a !important;
-}
-
-.settings-modal-header .settings-close-btn:hover {
-  background: #5f1111 !important;
-  color: #ffffff !important;
-  border-color: #d65a5a !important;
+  background: #5f1111;
+  color: #ffffff;
+  border-color: #d65a5a;
 }
 
 
 /* play settings button */
-.play-page .top-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .play-page .difficulty-label {
   display: inline-flex;
   align-items: center;
