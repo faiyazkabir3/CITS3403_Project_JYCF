@@ -230,13 +230,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function typeWriter(element, text, speed = 24, isStale = () => false) {
-  if (!element) return;
+async function typeWriter(target, text, speed = 24, isStale = () => false) {
+  const elements = (Array.isArray(target) ? target : [target]).filter(Boolean);
+  if (elements.length === 0) return;
 
-  element.textContent = "";
+  elements.forEach((element) => {
+    element.textContent = "";
+  });
   for (let i = 0; i < text.length; i += 1) {
     if (isStale()) return;
-    element.textContent += text[i];
+    elements.forEach((element) => {
+      element.textContent += text[i];
+    });
     await sleep(speed);
   }
 }
@@ -926,6 +931,7 @@ export function bootGameUI({
   });
 
   const storyText = $("#story-text");
+  const shopStoryText = $("#shop-story-text");
   const emergencyBox = $("#emergency-box");
   const emergencyTitle = $("#emergency-title");
   const emergencyPrompt = $("#emergency-prompt");
@@ -1027,6 +1033,16 @@ export function bootGameUI({
 
   function isInteractionLocked() {
     return locked || isAnimatingEvents;
+  }
+
+  function setStoryText(text) {
+    if (storyText) {
+      storyText.textContent = text;
+    }
+
+    if (shopStoryText) {
+      shopStoryText.textContent = text;
+    }
   }
 
   function areMainActionsLocked() {
@@ -1182,7 +1198,7 @@ export function bootGameUI({
     const renderId = ++storyRenderId;
     isAnimatingEvents = true;
     renderAll();
-    await playEventSequence(storyText, events, 24, 460, () => renderId !== storyRenderId);
+    await playEventSequence([storyText, shopStoryText], events, 24, 460, () => renderId !== storyRenderId);
 
     if (renderId !== storyRenderId) {
       return;
@@ -1369,16 +1385,12 @@ export function bootGameUI({
         }
 
         appendCombatLog(message);
-        if (storyText) {
-          storyText.textContent = message;
-        }
+        setStoryText(message);
       } catch (error) {
         console.error("Save failed:", error);
         playErrorBeep();
         appendCombatLog("Save failed.");
-        if (storyText) {
-          storyText.textContent = "Save failed.";
-        }
+        setStoryText("Save failed.");
       }
     });
   }

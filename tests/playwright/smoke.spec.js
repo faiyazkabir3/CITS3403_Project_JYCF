@@ -53,6 +53,26 @@ async function expectPanelCentered(page, selector) {
   expect(Math.abs(metrics.panelCenterY - metrics.viewportCenterY)).toBeLessThanOrEqual(80);
 }
 
+async function expectCharacterPortraitSizing(page) {
+  const sizing = await page.evaluate(() => {
+    const leonImage = document.querySelector('.character-card[data-character="leon"] img');
+    const quiteImage = document.querySelector('.character-card[data-character="quite"] img');
+    const leonRect = leonImage?.getBoundingClientRect();
+    const quiteRect = quiteImage?.getBoundingClientRect();
+
+    return {
+      leonHeight: leonRect?.height ?? 0,
+      quiteHeight: quiteRect?.height ?? 0,
+      leonObjectFit: leonImage ? window.getComputedStyle(leonImage).objectFit : "",
+      quiteObjectFit: quiteImage ? window.getComputedStyle(quiteImage).objectFit : "",
+    };
+  });
+
+  expect(Math.abs(sizing.leonHeight - sizing.quiteHeight)).toBeLessThanOrEqual(2);
+  expect(sizing.leonObjectFit).toBe("contain");
+  expect(sizing.quiteObjectFit).toBe("cover");
+}
+
 async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
@@ -61,6 +81,7 @@ async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await expect(page.locator("#character-screen")).toHaveClass(/active/);
   await expectPanelCentered(page, "#character-screen");
+  await expectCharacterPortraitSizing(page);
 
   await page.locator(`.character-card[data-character="${character}"]`).click();
   await expect(page.locator("#difficulty-screen")).toHaveClass(/active/);
@@ -206,6 +227,8 @@ async function expectShopLayout(page) {
   await expect(page.locator(".game-main")).toHaveClass(/shop-open/);
   await expect(page.locator("#battle-stage")).toBeHidden();
   await expect(page.locator(".game-bottom")).toBeHidden();
+  await expect(page.locator("#shop-story-text")).toBeVisible();
+  await expect(page.locator("#shop-story-text")).toContainText("SHOP OPEN", { timeout: 15_000 });
   await expect(page.locator("#shop-continue-btn")).toBeVisible();
   await expect(page.locator("#stats-btn")).toBeDisabled();
 
@@ -213,6 +236,7 @@ async function expectShopLayout(page) {
     const gamePanel = document.querySelector("#game-screen")?.getBoundingClientRect();
     const topbar = document.querySelector(".game-topbar")?.getBoundingClientRect();
     const shop = document.querySelector("#shop-box")?.getBoundingClientRect();
+    const shopDialogue = document.querySelector(".shop-dialogue")?.getBoundingClientRect();
     const buyButtons = document.querySelector("#shop-buy-buttons");
     const sellButtons = document.querySelector("#shop-sell-buttons");
     const topGameRow = document.querySelector(".top-game-row");
@@ -225,6 +249,7 @@ async function expectShopLayout(page) {
       shopTop: shop?.top ?? 0,
       shopBottom: shop?.bottom ?? 0,
       shopHeight: shop?.height ?? 0,
+      shopDialogueHeight: shopDialogue?.height ?? 0,
       topGameRowDisplay: topGameRow ? window.getComputedStyle(topGameRow).display : "",
       bottomDisplay: bottom ? window.getComputedStyle(bottom).display : "",
       buyOverflow: buyButtons ? window.getComputedStyle(buyButtons).overflowY : "",
@@ -241,6 +266,7 @@ async function expectShopLayout(page) {
   expect(shopMetrics.shopTop).toBeGreaterThanOrEqual(shopMetrics.topbarBottom);
   expect(shopMetrics.shopBottom).toBeLessThanOrEqual(shopMetrics.gamePanelBottom + 2);
   expect(shopMetrics.shopHeight).toBeGreaterThanOrEqual(shopMetrics.viewportHeight * 0.65);
+  expect(shopMetrics.shopDialogueHeight).toBeGreaterThanOrEqual(70);
   expect(shopMetrics.firstShopOptionHeight).toBeGreaterThanOrEqual(70);
   expect(shopMetrics.gamePanelBottom).toBeLessThanOrEqual(shopMetrics.viewportHeight + 2);
 }

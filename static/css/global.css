@@ -539,6 +539,11 @@ body::before {
   object-fit: contain;
 }
 
+.play-page .character-card[data-character="quite"] img {
+  object-fit: cover;
+  object-position: center;
+}
+
 .play-page .character-name {
   color: var(--text-primary);
   font-size: 0.9rem;
@@ -1203,6 +1208,23 @@ body::before {
 
 .play-page .shop-header .secondary-btn {
   padding: 12px 22px;
+}
+
+.play-page .shop-dialogue {
+  flex: 0 0 auto;
+  max-height: clamp(78px, 12vh, 120px);
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(6, 10, 16, 0.88), rgba(5, 9, 12, 0.96));
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.play-page .shop-dialogue .story-text {
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .play-page .shop-grid {
