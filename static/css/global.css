@@ -375,7 +375,7 @@ body::before {
 
 .play-page .screen-wrap {
   width: min(97vw, 1720px);
-  min-height: calc(100vh - 20px);
+  min-height: calc(100vh - 12px);
   margin: auto;
 }
 
@@ -590,9 +590,9 @@ body::before {
 }
 
 .play-page .game-panel {
-  height: calc(100vh - 20px);
+  height: calc(100dvh - 12px);
   min-height: 0;
-  padding: 48px 16px 16px;
+  padding: 12px;
   background:
     linear-gradient(180deg, rgba(6, 8, 12, 0.94), rgba(2, 3, 6, 0.92)),
     rgba(0, 0, 0, 0.88);
@@ -608,12 +608,20 @@ body::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  padding: 10px 14px;
+  margin-bottom: 8px;
+  padding: 8px 12px 8px 58px;
   border: var(--panel-border);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(16, 22, 31, 0.92), rgba(7, 11, 18, 0.96));
-  font-size: 0.72rem;
+  font-size: 0.66rem;
+}
+
+.play-page .game-panel #game-back-btn {
+  top: 20px;
+  left: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
 }
 
 .play-page .top-right {
@@ -627,20 +635,22 @@ body::before {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 12px;
+  gap: 8px;
   min-height: 0;
 }
 
 .play-page .top-game-row {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  flex: 1;
+  gap: 0;
   align-items: stretch;
+  min-height: 0;
 }
 
 .play-page .graphics-area {
   position: relative;
-  height: clamp(320px, calc(100vh - 400px), 620px);
+  height: 100%;
   min-height: 0;
   padding: 0;
   border: var(--panel-border);
@@ -658,7 +668,7 @@ body::before {
   justify-content: space-between;
   min-height: 0;
   height: 100%;
-  padding: 18px;
+  padding: 14px;
   --battle-accent: #9ab5d3;
   --battle-accent-soft: rgba(154, 181, 211, 0.22);
   --battle-edge-glow: rgba(104, 156, 220, 0.3);
@@ -784,14 +794,14 @@ body::before {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas: "enemy player";
-  gap: 18px;
+  gap: 14px;
   align-items: start;
 }
 
 .play-page .battle-status {
-  padding: 16px 18px;
+  padding: 12px 14px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 18px;
+  border-radius: 14px;
   background: linear-gradient(180deg, rgba(9, 16, 24, 0.74), rgba(5, 9, 13, 0.92));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(3px);
@@ -818,8 +828,8 @@ body::before {
 .play-page .battle-status-heading {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
+  gap: 3px;
+  margin-bottom: 7px;
 }
 
 .play-page .battle-status-label,
@@ -830,23 +840,23 @@ body::before {
 }
 
 .play-page .battle-status strong {
-  font-size: 1rem;
+  font-size: 0.92rem;
   font-weight: 400;
 }
 
 .play-page .battle-status-meta,
 .play-page .battle-status-submeta {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: #e2e7ec;
-  font-size: 0.66rem;
-  line-height: 1.7;
+  font-size: 0.62rem;
+  line-height: 1.55;
 }
 
 .play-page .battle-bar {
   position: relative;
   width: 100%;
-  height: 12px;
-  margin-top: 6px;
+  height: 9px;
+  margin-top: 5px;
   border-radius: 999px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.08);
@@ -876,22 +886,22 @@ body::before {
 .play-page .battle-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .play-page .battle-enemy-tags {
   justify-content: flex-start;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .play-page .battle-enemy-tag,
 .play-page .battle-tag {
-  padding: 5px 10px;
+  padding: 4px 9px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   color: #f7f8fa;
-  font-size: 0.56rem;
+  font-size: 0.52rem;
   letter-spacing: 0.8px;
 }
 
@@ -902,17 +912,18 @@ body::before {
 .play-page .battle-actors {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 190px minmax(0, 1fr);
   grid-template-areas: "enemy fx player";
   align-items: end;
-  gap: 14px;
-  min-height: clamp(230px, 31vh, 380px);
-  padding: 12px 12px 0;
+  gap: 10px;
+  min-height: 0;
+  padding: 6px 10px 0;
 }
 
 .play-page .battle-actor {
   position: relative;
-  min-height: clamp(230px, 31vh, 380px);
+  height: 100%;
+  min-height: 0;
   display: flex;
   align-items: end;
   justify-content: center;
@@ -934,18 +945,18 @@ body::before {
 
 .play-page .battle-actor-image {
   max-width: 100%;
-  max-height: clamp(240px, 36vh, 430px);
+  max-height: min(100%, clamp(190px, 27vh, 340px));
   object-fit: contain;
   filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.48));
 }
 
 .play-page .battle-player .battle-actor-image {
-  max-height: clamp(300px, 43vh, 470px);
+  max-height: min(100%, clamp(220px, 32vh, 370px));
   transform-origin: right bottom;
 }
 
 .play-page .battle-enemy .battle-actor-image {
-  max-height: clamp(280px, 40vh, 450px);
+  max-height: min(100%, clamp(215px, 31vh, 360px));
   transform-origin: left bottom;
   animation: enemy-idle 3.8s ease-in-out infinite;
 }
@@ -963,7 +974,7 @@ body::before {
 
 .play-page .battle-fx {
   position: relative;
-  min-height: 220px;
+  min-height: 170px;
   pointer-events: none;
 }
 
@@ -979,34 +990,34 @@ body::before {
 .play-page .battle-fx-image-action {
   right: 18%;
   top: 34%;
-  width: clamp(92px, 12vw, 150px);
+  width: clamp(82px, 10vw, 132px);
 }
 
 .play-page .battle-fx-image-impact {
   left: 10%;
   top: 20%;
-  width: clamp(90px, 11vw, 140px);
+  width: clamp(80px, 9vw, 124px);
 }
 
 .play-page .battle-stage-footer {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 7px;
 }
 
 .play-page .battle-caption {
-  padding: 16px 18px 18px;
+  padding: 9px 12px 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
+  border-radius: 14px;
   background: linear-gradient(180deg, rgba(6, 10, 16, 0.88), rgba(5, 9, 12, 0.96));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 32px var(--battle-edge-glow);
 }
 
 .play-page .story-text {
   max-width: 100%;
-  margin-top: 6px;
-  font-size: 0.92rem;
-  line-height: 1.8;
+  margin-top: 4px;
+  font-size: 0.74rem;
+  line-height: 1.4;
   white-space: pre-line;
   text-shadow: 0 0 14px rgba(0, 0, 0, 0.45);
 }
@@ -1103,8 +1114,8 @@ body::before {
 .play-page .todo-box h2,
 .play-page .stats-actions h3 {
   margin-top: 0;
-  margin-bottom: 12px;
-  font-size: 0.85rem;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
   font-weight: 400;
 }
 
@@ -1119,7 +1130,7 @@ body::before {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 10px;
+  gap: 6px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 8px;
@@ -1127,11 +1138,11 @@ body::before {
 }
 
 .play-page .combat-log-entry {
-  padding: 12px 14px;
+  padding: 7px 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.05);
-  font-size: 0.72rem;
-  line-height: 1.5;
+  font-size: 0.62rem;
+  line-height: 1.35;
 }
 
 .play-page .choice-buttons {
@@ -1172,10 +1183,70 @@ body::before {
   flex-wrap: wrap;
 }
 
+.play-page .shop-box {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.play-page .shop-header {
+  flex: 0 0 auto;
+  margin-bottom: 8px;
+}
+
+.play-page .shop-header .secondary-btn {
+  padding: 9px 16px;
+}
+
 .play-page .shop-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  flex: 1;
+  gap: 12px;
+  min-height: 0;
+}
+
+.play-page .shop-grid > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.play-page .shop-grid .choice-buttons {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.play-page .shop-box .choice-buttons {
+  gap: 7px;
+}
+
+.play-page .shop-box .choice-btn {
+  gap: 4px;
+  min-height: 0;
+  padding: 8px 10px;
+}
+
+.play-page .shop-box .choice-title {
+  font-size: 0.66rem;
+}
+
+.play-page .shop-box .choice-desc {
+  font-size: 0.58rem;
+}
+
+.play-page .game-main.shop-open .game-bottom {
+  display: none;
+}
+
+.play-page .game-main.shop-open .shop-box {
+  flex: 0 0 clamp(190px, 23vh, 260px);
+  max-height: clamp(190px, 23vh, 260px);
+  padding: 12px;
 }
 
 .play-page .emergency-prompt {
@@ -1193,8 +1264,8 @@ body::before {
 .play-page .game-bottom {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  height: clamp(250px, 25vh, 300px);
-  gap: 12px;
+  height: clamp(174px, 17vh, 190px);
+  gap: 8px;
   align-items: stretch;
 }
 
@@ -1202,9 +1273,9 @@ body::before {
 .play-page .combat-log-box {
   height: 100%;
   min-height: 0;
-  padding: 18px;
+  padding: 12px;
   border: var(--panel-border);
-  border-radius: 18px;
+  border-radius: 14px;
   background: linear-gradient(180deg, rgba(8, 10, 15, 0.92), rgba(3, 4, 8, 0.9));
   overflow: hidden;
 }
@@ -1212,11 +1283,13 @@ body::before {
 .play-page .todo-buttons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .play-page .todo-box .action-btn {
-  padding: 8px 14px;
+  min-height: 22px;
+  padding: 3px 12px;
+  font-size: 0.66rem;
 }
 
 .play-page .stats-actions {
@@ -1241,8 +1314,8 @@ body::before {
   min-height: 0;
   margin: 0;
   padding-left: 18px;
-  font-size: 0.72rem;
-  line-height: 1.9;
+  font-size: 0.66rem;
+  line-height: 1.65;
   max-height: none;
   overflow-y: auto;
   padding-right: 8px;
@@ -1396,9 +1469,19 @@ body::before {
   .play-page .game-panel {
     height: auto;
     min-height: auto;
+    padding-top: 16px;
     padding-inline: 18px;
     padding-bottom: 20px;
     overflow: visible;
+  }
+
+  .play-page .game-panel #game-back-btn {
+    top: 25px;
+    left: 32px;
+  }
+
+  .play-page .game-topbar {
+    padding-left: 66px;
   }
 
   .play-page .top-game-row,
@@ -1467,7 +1550,7 @@ body::before {
 
   .play-page .todo-box,
   .play-page .combat-log-box {
-    height: 240px;
+    height: 220px;
   }
 
   .play-page .shop-grid {
