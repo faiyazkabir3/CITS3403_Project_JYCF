@@ -776,7 +776,10 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   const continueBtn = $("#shop-continue-btn");
   if (!shopBox || !buyButtons || !sellButtons || !continueBtn) return;
 
+  const gameMain = shopBox.closest(".game-main");
+
   if (!engine.isShopOpen() || isGameOver(engine)) {
+    gameMain?.classList.remove("shop-open");
     shopBox.style.display = "none";
     buyButtons.innerHTML = "";
     sellButtons.innerHTML = "";
@@ -784,7 +787,8 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   }
 
   const coins = engine.state.inventory.coins;
-  shopBox.style.display = "block";
+  gameMain?.classList.add("shop-open");
+  shopBox.style.display = "flex";
   buyButtons.innerHTML = "";
   sellButtons.innerHTML = "";
 
@@ -1025,6 +1029,16 @@ export function bootGameUI({
     return locked || isAnimatingEvents;
   }
 
+  function areMainActionsLocked() {
+    return (
+      isGameOver(engine) ||
+      isInteractionLocked() ||
+      engine.hasEmergency() ||
+      engine.isShopOpen() ||
+      engine.hasChoices()
+    );
+  }
+
   function updateActionAvailability() {
     const dead = isGameOver(engine);
     const inCombat = engine.state.combat.inCombat;
@@ -1039,6 +1053,7 @@ export function bootGameUI({
       ["defend-btn", dead || lockedOut || !inCombat],
       ["inventory-btn", dead || lockedOut],
       ["save-btn", interactionLocked || emergencyActive],
+      ["stats-btn", lockedOut],
       ["pistol-btn", dead || interactionLocked || !inCombat],
       ["rifle-btn", dead || interactionLocked || !inCombat || !engine.state.rifle.owned],
       ["knife-btn", dead || interactionLocked || !inCombat],
@@ -1318,7 +1333,7 @@ export function bootGameUI({
 
   if (attackBtn) {
     attackBtn.addEventListener("click", () => {
-      if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      if (areMainActionsLocked()) return;
       showAttackActions();
       renderAll();
     });
@@ -1332,7 +1347,7 @@ export function bootGameUI({
 
   if (inventoryBtn) {
     inventoryBtn.addEventListener("click", () => {
-      if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      if (areMainActionsLocked()) return;
       showInventoryActions();
       renderAll();
     });
@@ -1370,6 +1385,7 @@ export function bootGameUI({
 
   if (statsBtn) {
     statsBtn.addEventListener("click", () => {
+      if (areMainActionsLocked()) return;
       showStatsActions();
       renderAll();
     });
