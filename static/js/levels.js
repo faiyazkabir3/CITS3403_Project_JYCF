@@ -48,29 +48,33 @@ export const LEVELS = {
 
   "4A": {
     id: "4A",
-    title: "Emergency Tunnel",
-    description: "Sirens flash over a cracked maintenance tunnel while fast infected keep pouring through.",
-    introText: "Agile route: emergency events can appear here. Spam the shown key fast enough to gain extra agility.",
-    enemySequence: ["fast", "charger", "spitter"],
+    title: "Signal Sprint",
+    description: "A broken maintenance rail flickers back to life while infected flood the side lanes toward your beacon.",
+    introText: "Agile route: react fast, delete priority threats, and turn emergency pressure into permanent speed.",
+    enemySequence: ["screamer", "fast", "charger"],
     enemyCount: 3,
     shopAfterClear: true,
     rewards: [
       {
+        type: "pistolLaser",
+        text: "You restore a relay sight module and fit it onto the pistol. Laser pistol unlocked."
+      },
+      {
         type: "stats",
-        agility: 3,
+        agility: 4,
         courage: 0,
-        text: "The frantic escape sharpens your timing. Agility +3."
+        text: "You clear the beacon line at full speed. Agility +4."
       }
     ],
     emergency: {
       chance: 1,
-      title: "Emergency Event",
-      prompt: "A side gate jams shut. Press X or click the button before the horde reaches you.",
+      title: "Seal the Relay Gate",
+      prompt: "A relay gate is stuck half-open. Press X or click before the horde floods the maintenance rail.",
       key: "X",
       required: 8,
-      timeLimitMs: 11000,
-      successText: "You force the gate shut and buy yourself a clean angle on the next wave.",
-      failText: "The gate gives late. You survive, but the horde clips you on the way through.",
+      timeLimitMs: 5800,
+      successText: "You slam the relay gate shut and buy yourself a clean firing lane.",
+      failText: "The gate seals too late. You still push through, but the surge clips you on the way in.",
       reward: {
         agility: 2,
         coins: 2
@@ -80,9 +84,8 @@ export const LEVELS = {
       },
       failDamage: 8
     },
-    completeText: "You outrun the surge and reach a narrow refuge with a battered service terminal.",
-    choiceCount: 2,
-    choicePool: [
+    completeText: "The route beacon steadies, and a battered service terminal blinks beside a narrow refuge.",
+    choices: [
       {
         id: "5A",
         label: "5A - AGILE PUSH",
@@ -103,49 +106,70 @@ export const LEVELS = {
 
   "5A": {
     id: "5A",
-    title: "Quickstep Trial",
-    description: "The route narrows into a blur of rushing threats and unstable fuel drums.",
-    introText: "Agile route: quick, accurate turns matter more than raw durability here.",
-    enemySequence: ["fast", "charger", "exploder", "spitter"],
+    title: "Glass Catwalk",
+    description: "A shattered upper walkway forces you across exposed glass and broken guard rails under constant pressure.",
+    introText: "Agile route: speed matters, but so does target order. One bad turn here turns momentum into a fall.",
+    enemySequence: ["charger", "spitter", "exploder", "fast"],
     enemyCount: 4,
     shopAfterClear: true,
     rewards: [
       {
+        type: "quiteParryPistol",
+        text: "Quite finds a compact parry sidearm in a broken checkpoint locker. It holds 10 shots and cannot be reloaded."
+      },
+      {
         type: "stats",
-        agility: 5,
+        agility: 6,
         courage: 0,
-        text: "Clearing the tunnel at full speed unlocks a burst of confidence. Agility +5."
+        text: "You cross the catwalk without losing rhythm. Agility +6."
       }
     ],
     emergency: {
-      chance: 0.7,
-      title: "Emergency Event",
-      prompt: "The floor collapses behind you. Press X or click to scramble clear in time.",
-      key: "X",
+      chance: 1,
+      title: "Catch the Handrail",
+      prompt: "The catwalk gives way beneath you. Press C or click to catch the handrail before you drop.",
+      key: "C",
       required: 9,
-      timeLimitMs: 12000,
-      successText: "You clear the collapse and turn the momentum into a faster first shot.",
-      failText: "You climb out late and hit the next fight already rattled.",
+      timeLimitMs: 6000,
+      successText: "You catch the rail, swing back up, and carry the momentum into the fight.",
+      failText: "You recover late and hit the next exchange already shaken.",
       reward: {
-        agility: 2
+        agility: 3
       },
       failReward: {
         agility: 1
       },
       failDamage: 10
     },
-    completeText: "You escape the cave-in and find the final stairwell above the platform fire.",
+    completeText: "You clear the broken span and reach the last stairwell above the dead platform lights.",
     next: "6A"
   },
 
   "6A": {
     id: "6A",
-    title: "Swift Finale",
-    description: "The last agile route chamber throws relentless motion at you with almost no room to rest.",
-    introText: "Everything here is built to punish hesitation.",
-    enemySequence: ["fast", "charger", "berserker"],
-    enemyCount: 3,
-    completeText: "You survive the agile route and leave the station quicker than anything hunting you."
+    title: "Blackout Relay",
+    description: "The extraction relay is dead, the lights are out, and every second you spend exposed draws another shape through the dark.",
+    introText: "Agile finale: hit 70 agility, keep your nerves, and turn the blackout into an advantage before the last sprint.",
+    enemySequence: ["fast", "screamer", "charger", "berserker"],
+    enemyCount: 4,
+    emergency: {
+      chance: 1,
+      title: "Prime the Override",
+      prompt: "The extraction relay needs a live override. Press Z or click to prime it before the chamber fully blacks out.",
+      key: "Z",
+      required: 10,
+      timeLimitMs: 6200,
+      successText: "You prime the override in time and feel the whole route snap into focus.",
+      failText: "The override catches late. The chamber goes dark and you enter the fight under pressure.",
+      reward: {
+        agility: 5
+      },
+      failReward: {
+        agility: 2
+      },
+      failDamage: 12
+    },
+    completeText: "You restore the relay, outrun the blackout, and hit extraction ahead of the swarm."
   },
 
   "4B": {
@@ -157,10 +181,6 @@ export const LEVELS = {
     enemyCount: 3,
     shopAfterClear: true,
     rewards: [
-      {
-        type: "pistolLaser",
-        text: "You salvage a laser sight from an emergency locker. Pistol damage is improved."
-      },
       {
         type: "stats",
         agility: 2,
@@ -204,33 +224,27 @@ export const LEVELS = {
 
   "4C": {
     id: "4C",
-    title: "Fortified Line",
-    description: "The courage route is slower, louder, and full of targets worth more coins.",
-    introText: "Courage route: expect more zombies, more punishment, and more shop money if you endure it.",
-    enemySequence: ["heavy", "exploder", "heavy", "fast"],
+    title: "Breach Wall",
+    description: "A barricade is buckling under the weight of the infected, but the supply cache behind it could fund the rest of the run.",
+    introText: "Courage route: absorb the pressure, keep the wall standing, and turn the early haul into shop power.",
+    enemySequence: ["heavy", "exploder", "heavy", "screamer"],
     enemyCount: 4,
     shopAfterClear: true,
     rewards: [
       {
         type: "coins",
-        value: 4,
-        text: "The barricade stash yields extra antique coins."
+        value: 6,
+        text: "The breach cache holds a bigger stack of antique coins than expected."
       },
       {
         type: "stats",
         agility: 0,
-        courage: 3,
-        text: "Holding the line builds resolve. Courage +3."
+        courage: 4,
+        text: "You hold the wall through the impact and harden your resolve. Courage +4."
       }
     ],
-    completeText: "The heavy route hurts, but the haul is real.",
-    choiceCount: 2,
-    choicePool: [
-      {
-        id: "5A",
-        label: "5A - AGILE PUSH",
-        description: "Swing hard into the faster route and chase agility."
-      },
+    completeText: "The barricade finally settles, and the defended supply point is yours to strip clean.",
+    choices: [
       {
         id: "5B",
         label: "5B - MIDLINE SHIFT",
@@ -240,42 +254,128 @@ export const LEVELS = {
         id: "5C",
         label: "5C - COURAGE SWING",
         description: "Stay on the endurance line for more pressure and coins."
+      },
+      {
+        id: "5D",
+        label: "5D - SALVAGE PRESS",
+        description: "Push into a brutal salvage corridor built around melee pressure and Leon's new relic path."
       }
     ]
   },
 
   "5C": {
     id: "5C",
-    title: "Stand Firm",
-    description: "A reinforced platform becomes a war of endurance against the toughest infected in the station.",
-    introText: "Courage route: this fight is built for shield durability, crit chains, and coin farming.",
-    enemySequence: ["heavy", "berserker", "exploder", "charger", "spitter"],
+    title: "Furnace Hold",
+    description: "An engine-room choke point turns into a brutal siege where every block and every clean hit has to count.",
+    introText: "Courage route: this is where Leon's shield, armour, and crit scaling are supposed to matter.",
+    enemySequence: ["heavy", "berserker", "charger", "exploder", "heavy"],
     enemyCount: 5,
     shopAfterClear: true,
     rewards: [
       {
+        type: "stats",
+        agility: 0,
+        courage: 6,
+        text: "You anchor the furnace line and refuse to give ground. Courage +6."
+      }
+    ],
+    completeText: "The engine room falls quiet at last, with only heat shimmer and shield-ring left behind.",
+    next: "6C"
+  },
+
+  "5D": {
+    id: "5D",
+    title: "Salvage Press",
+    description: "A collapsing salvage line grinds shut around you while heavier infected force every retreat into dead steel.",
+    introText: "Courage route: this branch is about surviving the crush, then turning Leon's rescue tool into a real endgame edge.",
+    enemySequence: ["charger", "heavy", "fast", "berserker"],
+    enemyCount: 4,
+    shopAfterClear: true,
+    rewards: [
+      {
         type: "coins",
-        value: 6,
-        text: "A crashed convoy adds more antique coins to your pack."
+        value: 3,
+        text: "The salvage bins still hide a few antique coins worth taking."
       },
       {
         type: "stats",
         agility: 0,
-        courage: 5,
-        text: "You refuse to break under pressure. Courage +5."
+        courage: 4,
+        text: "You keep the press moving under impossible pressure. Courage +4."
+      },
+      {
+        type: "leonRescueAxe",
+        text: "Leon tears a rescue axe from the salvage rack. It can wrench him free when the dead get too close."
       }
     ],
-    completeText: "The roar finally dies down and leaves only the ringing in your shield arm.",
-    next: "6C"
+    emergency: {
+      chance: 1,
+      title: "Brace the Bulkhead",
+      prompt: "A salvage bulkhead starts to fold inward. Press F or click to hold it long enough to slip through.",
+      key: "F",
+      required: 8,
+      timeLimitMs: 5800,
+      successText: "You brace the bulkhead just long enough to keep the route open.",
+      failText: "The bulkhead buckles early and clips you on the squeeze through.",
+      reward: {
+        courage: 2,
+        coins: 2
+      },
+      failReward: {
+        courage: 1
+      },
+      failDamage: 10
+    },
+    completeText: "The salvage line sputters out behind you, leaving only a red-lit gate block ahead.",
+    next: "6D"
   },
 
   "6C": {
     id: "6C",
-    title: "Iron Exit",
-    description: "The final courage route chamber dumps the station's hardest bodies into one last brawl.",
-    introText: "Tank too much and you fold. Spend your economy well and you outlast the swarm.",
-    enemySequence: ["heavy", "exploder", "berserker", "screamer", "charger"],
+    title: "Last Bastion",
+    description: "The final extraction holdout forces you to answer a full siege package with no wasted actions and no panic.",
+    introText: "Courage finale: identify the priority target fast, weather the burst, and let the build you funded carry you home.",
+    enemySequence: ["heavy", "screamer", "berserker", "heavy", "charger"],
     enemyCount: 5,
-    completeText: "You survive the courage route and leave richer, scarred, and impossible to shake."
+    completeText: "You survive the holdout, drag yourself through extraction, and leave the station impossible to shake."
+  },
+
+  "6D": {
+    id: "6D",
+    title: "Lockjaw Gate",
+    description: "The last Courage endpoint pins you between a jammed blast gate and repeated impact waves that want to drag you under.",
+    introText: "Courage finale: hold the line, keep the gate sequence alive, and let Leon's rescue axe turn close calls into openings.",
+    enemySequence: ["charger", "heavy", "berserker", "heavy", "charger"],
+    enemyCount: 5,
+    emergencySequence: {
+      sequenceTitle: "Ram Gate Lockdown",
+      steps: [
+        {
+          title: "CUT THE CHAIN",
+          prompt: "The locking chain catches on the floor track. Press X or click to hack it loose before the next impact.",
+          key: "X",
+          required: 7,
+          timeLimitMs: 5500
+        },
+        {
+          title: "CRANK THE GATE",
+          prompt: "The gate motor fights you all the way. Press V or click to force the last crank into place.",
+          key: "V",
+          required: 9,
+          timeLimitMs: 6000
+        }
+      ],
+      successText: "The gate finally locks down and buys you one clean stand before the last rush.",
+      failText: "The lockdown sequence stutters and the impact wave catches you half-covered.",
+      reward: {
+        courage: 3,
+        coins: 2
+      },
+      failReward: {
+        courage: 1
+      },
+      failDamage: 12
+    },
+    completeText: "You hold Lockjaw Gate, survive the final crush, and force the last route open by sheer stubbornness."
   }
 };

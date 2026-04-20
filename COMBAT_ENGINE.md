@@ -1,6 +1,6 @@
 # Combat Engine Documentation
 
-Updated: 12 April 2026
+Updated: 19 April 2026
 
 This document describes the implementation in `static/js/combat-engine.js` and the surrounding save/UI integration. If this file and the code ever disagree, the code is the source of truth.
 
@@ -40,6 +40,7 @@ The engine does not touch the DOM directly and does not perform network requests
 - baseline enemy miss chance
 - baseline and charger-boosted dodge chance values
 - pistol, rifle, grenade, and knife base values
+- Quite sidearm and Leon axe damage values
 - exploder backlash damage
 - poison and corrosion tick values
 - fallback emergency failure damage
@@ -91,6 +92,7 @@ The engine currently supports `leon` and `quite`.
 `SHOP_ITEMS` is a behavior table rather than a plain data table. Each item contains:
 
 - `id`, `label`, `cost`, `description`
+- optional `isVisible(state)`
 - `canBuy(state)`
 - `buy(state)`
 - `canSell(state)`
@@ -112,6 +114,7 @@ This keeps buy/sell rules close to the item definition and makes the shop APIs m
   rifle,
   shield,
   armour,
+  relics,
   stats,
   status,
   analytics,
@@ -154,6 +157,11 @@ Shared survival resources:
 - `ammoInGun`
 - `ammoInBag`
 
+`relics` contains:
+
+- `quiteSidearm { owned, ammo, maxAmmo }`
+- `leonAxe { owned, sharpenCharges, maxSharpenCharges }`
+
 ### 4.4 Defensive state
 
 `shield` contains:
@@ -184,6 +192,13 @@ Shared survival resources:
 ### 4.6 `analytics`
 
 This is the run telemetry bucket. It tracks counts such as shots fired, grenades used, reloads, dodges prepared, emergency results, coins earned, and saves made.
+
+New tracked fields include:
+
+- `sidearmShotsFired`
+- `axeReactions`
+- `axeSharpenChargesSpent`
+- `emergencySequenceClears`
 
 Important note:
 
@@ -245,6 +260,7 @@ This is the non-combat run state:
 Important implementation note:
 
 - the saved run stores `rngSeed`, but it does not store the current RNG cursor position. Reloading preserves gameplay state but does not guarantee the same future random sequence as an uninterrupted run.
+- relic state and active emergency-sequence step are preserved inside `run_state_json`
 
 ## 6. Level Start and Encounter Setup
 
@@ -347,7 +363,7 @@ Prepared dodges are stateful.
 - `ACTIONS.dodge` sets `combat.pendingDodge = true`
 - `resolvePendingDodge()` consumes that flag during the next enemy attack attempt
 - a successful dodge cancels the hit
-- Quite may immediately fire a quick pistol counter-shot if she has ammo
+- Quite may immediately fire a quick pistol counter-shot, or her parry sidearm if she has found it and still has sidearm ammo
 - chargers track successful dodges separately and can be stunned after two clean prepared dodges
 
 ### 7.5 Status tick timing
@@ -572,7 +588,7 @@ Public shop APIs:
 Implementation details:
 
 - the engine stores only the `shopOpen` flag, not a separate shop object
-- buy availability is computed live from `SHOP_ITEMS`
+- buy availability and optional item visibility are computed live from `SHOP_ITEMS`
 - sell inventory is generated from items whose `canSell(state)` returns true
 - buy and sell methods return event arrays just like combat actions
 - `advanceToNextLevel()` refuses to continue while the shop is still open
@@ -581,13 +597,19 @@ Implementation details:
 
 Emergency data comes from `level.emergency`.
 
+Some levels can now use `level.emergencySequence`, which is a multi-step variant with:
+
+- `sequenceTitle`
+- `steps[]`
+- shared `successText`, `failText`, `reward`, `failReward`, and `failDamage`
+
 `maybeSetEmergency()`:
 
-- checks the configured emergency chance
-- clones the level emergency payload into `progression.emergency`
+- checks the configured emergency or sequence chance
+- clones the active emergency payload into `progression.emergency`
 - marks it as active
 - clears any live combat spawn for the moment
-- emits the emergency title and prompt
+- emits the current emergency title and prompt
 
 Public emergency APIs:
 
@@ -597,12 +619,13 @@ Public emergency APIs:
 
 `resolveEmergency()`:
 
-- clears the active emergency
-- records success or failure analytics
-- applies success or failure reward bundles
+- resolves the current step
+- for a single-step emergency, behaves as before
+- for an emergency sequence, either advances to the next step or resolves the whole sequence
+- records success or failure analytics only when the whole emergency is cleared or failed
 - applies failure chip damage with `ignoreShield: true`
 - ends the run if that damage kills the player
-- spawns the first enemy for the level if combat has not started yet
+- spawns the first enemy for the level only after the emergency is fully finished
 
 The UI owns timer, keypress tracking, and click counting. The engine only resolves the outcome.
 
@@ -665,6 +688,8 @@ This means save/load now preserves far more than the legacy flat fields, includi
 - route choices shown to the player
 - shop availability
 - emergency state
+- emergency-sequence step state
+- relic state
 - stats, economy, and equipment state
 
 ### 13.3 Resume behavior
@@ -715,6 +740,15 @@ Update these places:
 - `levels.js` for content data
 - `handleEnemyDefeat()` for cadence logic
 - shop APIs if buy/sell rules change structurally
+
+### 14.5 Adding relic-style passive systems
+
+Update these places:
+
+- `createNewGameState()` and `normalizeStateShape()` for persistent state
+- reward application so levels can award the relic
+- the combat hook where the relic should trigger
+- `gameUI.js` stats rendering and any related audio cues
 
 ## 15. Known Caveats
 

@@ -6,3 +6,6 @@ __pycache__/
 instance/
 venv/
 .env
+node_modules/
+playwright-report/
+test-results/

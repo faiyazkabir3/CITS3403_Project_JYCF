@@ -1,0 +1,21 @@
+{
+  "name": "cits3403-project-jycf",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:js": "node scripts/check-js-sanity.mjs",
+    "lint:js": "eslint static/js",
+    "lint:js:fix": "eslint static/js --fix",
+    "sanity:js": "npm run lint:js && npm run check:js",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "sanity:browser": "playwright test tests/playwright/smoke.spec.js",
+    "sanity:all": "npm run sanity:js && npm run sanity:browser"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.55.0",
+    "eslint": "^10.2.1",
+    "globals": "^17.5.0"
+  }
+}
