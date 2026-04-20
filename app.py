@@ -45,8 +45,14 @@ def ensure_save_data_schema():
     existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
     required_columns = {
         "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
+        "kills": "ALTER TABLE save_data ADD COLUMN kills INTEGER NOT NULL DEFAULT 0",
+        "damage_dealt": "ALTER TABLE save_data ADD COLUMN damage_dealt INTEGER NOT NULL DEFAULT 0",
+        "damage_taken": "ALTER TABLE save_data ADD COLUMN damage_taken INTEGER NOT NULL DEFAULT 0",
+        "pistol_shots": "ALTER TABLE save_data ADD COLUMN pistol_shots INTEGER NOT NULL DEFAULT 0",
         "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
-        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0"
+        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0",
+        "reloads": "ALTER TABLE save_data ADD COLUMN reloads INTEGER NOT NULL DEFAULT 0",
+        "knife_uses": "ALTER TABLE save_data ADD COLUMN knife_uses INTEGER NOT NULL DEFAULT 0"
     }
 
     for column_name, statement in required_columns.items():
@@ -74,16 +80,35 @@ def get_friends(user_id):
 
 def get_user_stats(user_id):
     all_saves = SaveData.query.filter_by(user_id=user_id).all()
+    payloads = [
+        normalize_save_payload(build_save_payload(save))
+        for save in all_saves
+    ]
+
+    def total(field):
+        return sum((payload.get(field) or 0) for payload in payloads if payload)
 
     return {
-        "kills": sum((save.kills or 0) for save in all_saves),
-        "damage_dealt": sum((save.damage_dealt or 0) for save in all_saves),
-        "damage_taken": sum((save.damage_taken or 0) for save in all_saves),
-        "pistol_shots": sum((save.pistol_shots or 0) for save in all_saves),
-        "grenades": sum((save.grenades_used or 0) for save in all_saves),
-        "medkits": sum((save.medkits_used or 0) for save in all_saves),
-        "reloads": sum((save.reloads or 0) for save in all_saves),
-        "knife_uses": sum((save.knife_uses or 0) for save in all_saves),
+        "kills": total("kills"),
+        "damage_dealt": total("damage_dealt"),
+        "damage_taken": total("damage_taken"),
+        "pistol_shots": total("pistol_shots"),
+        "grenades": total("grenades_used"),
+        "medkits": total("medkits_used"),
+        "reloads": total("reloads"),
+        "knife_uses": total("knife_uses"),
+    }
+
+def get_empty_stats():
+    return {
+        "kills": 0,
+        "damage_dealt": 0,
+        "damage_taken": 0,
+        "pistol_shots": 0,
+        "grenades": 0,
+        "medkits": 0,
+        "reloads": 0,
+        "knife_uses": 0,
     }
 
 def make_guest_name():
@@ -138,6 +163,18 @@ def coerce_bool(value, default=False):
         return value.strip().lower() in {"1", "true", "yes", "on"}
 
     return bool(value)
+
+
+COUNTER_ANALYTICS_FIELDS = {
+    "kills": "enemiesKilled",
+    "damage_dealt": "damageDealt",
+    "damage_taken": "damageTaken",
+    "pistol_shots": "pistolShotsFired",
+    "grenades_used": "grenadesUsed",
+    "medkits_used": "medKitsUsed",
+    "reloads": "reloads",
+    "knife_uses": "knivesUsed",
+}
 
 
 def build_save_payload_from_request(data, updated_at=None):
@@ -270,6 +307,13 @@ def normalize_save_payload(payload):
                 normalized.get("game_won", False)
             )
 
+        analytics = run_state.get("analytics") or {}
+        for payload_key, analytics_key in COUNTER_ANALYTICS_FIELDS.items():
+            normalized[payload_key] = max(
+                coerce_int(normalized.get(payload_key), 0),
+                coerce_int(analytics.get(analytics_key), 0)
+            )
+
     normalized["difficulty"] = str(normalized.get("difficulty", "EASY")).upper()
     normalized["character_id"] = str(normalized.get("character_id", "leon")).lower()
     normalized["current_level_id"] = str(normalized.get("current_level_id", "1"))
@@ -279,6 +323,8 @@ def normalize_save_payload(payload):
     normalized["awaiting_choice"] = coerce_bool(normalized.get("awaiting_choice"), False)
     normalized["game_won"] = coerce_bool(normalized.get("game_won"), False)
     normalized["has_started_game"] = coerce_bool(normalized.get("has_started_game"), True)
+    for payload_key in COUNTER_ANALYTICS_FIELDS:
+        normalized[payload_key] = coerce_int(normalized.get(payload_key), 0)
 
     return normalized
 
@@ -516,10 +562,10 @@ def show_achievements():
 
     user_id = session.get("user_id")
 
-    if user_id is None:
-        return redirect(url_for("show_login"))
-
-    stats = get_user_stats(session["user_id"])
+    if user_id is None or session.get("is_guest"):
+        stats = get_empty_stats()
+    else:
+        stats = get_user_stats(user_id)
 
     return render_template(
         "achievements.html",
