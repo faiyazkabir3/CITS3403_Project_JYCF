@@ -57,6 +57,39 @@ async function expectPlayerStats(page, characterLabel) {
   await expect(page.locator("#main-actions")).toBeVisible();
 }
 
+async function expectPlayLayout(page) {
+  await expect(page.locator("#battle-stage")).toBeVisible();
+  await expect(page.locator(".todo-box")).toBeVisible();
+  await expect(page.locator(".combat-log-box")).toBeVisible();
+
+  const panelHeights = await page.evaluate(() => {
+    const actions = document.querySelector(".todo-box")?.getBoundingClientRect();
+    const combatLog = document.querySelector(".combat-log-box")?.getBoundingClientRect();
+    const logList = document.querySelector("#combat-log-list");
+
+    return {
+      actionsHeight: actions?.height ?? 0,
+      combatLogHeight: combatLog?.height ?? 0,
+      combatLogOverflow: logList ? window.getComputedStyle(logList).overflowY : "",
+    };
+  });
+
+  expect(Math.abs(panelHeights.actionsHeight - panelHeights.combatLogHeight)).toBeLessThanOrEqual(2);
+  expect(panelHeights.combatLogOverflow).toBe("auto");
+}
+
+async function expectActionSubmenus(page) {
+  await page.getByRole("button", { name: "ATTACK" }).click();
+  await expect(page.locator("#attack-actions")).toBeVisible();
+  await page.locator("#attack-back-btn").click();
+  await expect(page.locator("#main-actions")).toBeVisible();
+
+  await page.getByRole("button", { name: "INVENTORY" }).click();
+  await expect(page.locator("#inventory-actions")).toBeVisible();
+  await page.locator("#inventory-back-btn").click();
+  await expect(page.locator("#main-actions")).toBeVisible();
+}
+
 test("redirects unauthenticated play access back to login", async ({ page }) => {
   const pageErrors = trackPageErrors(page);
 
@@ -86,7 +119,9 @@ test("guest login can reach main menu, settings, and start a new game", async ({
   await expect(page.locator("#settings-modal")).toBeHidden();
 
   await startNewGame(page, "quite");
+  await expectPlayLayout(page);
   await expectPlayerStats(page, "QUITE");
+  await expectActionSubmenus(page);
   await expect(page.locator("#battle-player-name")).toHaveText("QUITE");
   await expect(page.locator("#battle-tags")).toContainText("LEVEL 1");
   await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /quite_idle\.png/);
@@ -114,6 +149,7 @@ test("registered user can view achievements, save, and load a run", async ({ pag
   await expect(page).toHaveURL(/\/main[-_]menu$/);
 
   await startNewGame(page, "leon");
+  await expectPlayLayout(page);
 
   await page.locator("#save-btn").click();
   await expect(page.locator("#story-text")).toContainText("Game saved successfully.", { timeout: 15_000 });
@@ -130,6 +166,7 @@ test("registered user can view achievements, save, and load a run", async ({ pag
 
   await page.locator("#load-latest-save-btn").click();
   await expect(page.locator("#game-screen")).toHaveClass(/active/, { timeout: 20_000 });
+  await expectPlayLayout(page);
   await expectPlayerStats(page, "LEON");
   await expect(page.locator("#battle-player-name")).toHaveText("LEON");
   await expect(page.locator("#battle-enemy-name")).not.toHaveText("NO CONTACT");

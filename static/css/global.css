@@ -590,11 +590,13 @@ body::before {
 }
 
 .play-page .game-panel {
-  min-height: calc(100vh - 20px);
-  padding: 70px 24px 24px;
+  height: calc(100vh - 20px);
+  min-height: 0;
+  padding: 48px 16px 16px;
   background:
     linear-gradient(180deg, rgba(6, 8, 12, 0.94), rgba(2, 3, 6, 0.92)),
     rgba(0, 0, 0, 0.88);
+  overflow: hidden;
 }
 
 .play-page .game-panel.active {
@@ -606,8 +608,8 @@ body::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 16px 18px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
   border: var(--panel-border);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(16, 22, 31, 0.92), rgba(7, 11, 18, 0.96));
@@ -625,7 +627,7 @@ body::before {
   display: flex;
   flex-direction: column;
   flex: 1;
-  gap: 20px;
+  gap: 12px;
   min-height: 0;
 }
 
@@ -638,7 +640,8 @@ body::before {
 
 .play-page .graphics-area {
   position: relative;
-  min-height: clamp(620px, 72vh, 920px);
+  height: clamp(320px, calc(100vh - 400px), 620px);
+  min-height: 0;
   padding: 0;
   border: var(--panel-border);
   border-radius: 18px;
@@ -653,9 +656,9 @@ body::before {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: clamp(620px, 72vh, 920px);
+  min-height: 0;
   height: 100%;
-  padding: 22px;
+  padding: 18px;
   --battle-accent: #9ab5d3;
   --battle-accent-soft: rgba(154, 181, 211, 0.22);
   --battle-edge-glow: rgba(104, 156, 220, 0.3);
@@ -903,13 +906,13 @@ body::before {
   grid-template-areas: "enemy fx player";
   align-items: end;
   gap: 14px;
-  min-height: clamp(360px, 46vh, 560px);
-  padding: 18px 12px 0;
+  min-height: clamp(230px, 31vh, 380px);
+  padding: 12px 12px 0;
 }
 
 .play-page .battle-actor {
   position: relative;
-  min-height: clamp(360px, 46vh, 560px);
+  min-height: clamp(230px, 31vh, 380px);
   display: flex;
   align-items: end;
   justify-content: center;
@@ -931,18 +934,18 @@ body::before {
 
 .play-page .battle-actor-image {
   max-width: 100%;
-  max-height: clamp(300px, 44vh, 560px);
+  max-height: clamp(240px, 36vh, 430px);
   object-fit: contain;
   filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.48));
 }
 
 .play-page .battle-player .battle-actor-image {
-  max-height: clamp(460px, 66vh, 700px);
+  max-height: clamp(300px, 43vh, 470px);
   transform-origin: right bottom;
 }
 
 .play-page .battle-enemy .battle-actor-image {
-  max-height: clamp(430px, 62vh, 700px);
+  max-height: clamp(280px, 40vh, 450px);
   transform-origin: left bottom;
   animation: enemy-idle 3.8s ease-in-out infinite;
 }
@@ -1092,7 +1095,7 @@ body::before {
 .play-page .combat-log-box {
   display: flex;
   flex-direction: column;
-  min-height: clamp(280px, 30vh, 380px);
+  min-height: 0;
 }
 
 .play-page .combat-log-box h2,
@@ -1119,6 +1122,7 @@ body::before {
   gap: 10px;
   min-height: 0;
   overflow-y: auto;
+  padding-right: 8px;
   scrollbar-gutter: stable;
 }
 
@@ -1188,27 +1192,35 @@ body::before {
 
 .play-page .game-bottom {
   display: grid;
-  grid-template-columns: minmax(340px, 0.92fr) minmax(0, 1.08fr);
-  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  height: clamp(250px, 25vh, 300px);
+  gap: 12px;
   align-items: stretch;
 }
 
 .play-page .todo-box,
 .play-page .combat-log-box {
-  min-height: clamp(280px, 30vh, 380px);
-  padding: 20px;
+  height: 100%;
+  min-height: 0;
+  padding: 18px;
   border: var(--panel-border);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(8, 10, 15, 0.92), rgba(3, 4, 8, 0.9));
+  overflow: hidden;
 }
 
 .play-page .todo-buttons {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+.play-page .todo-box .action-btn {
+  padding: 8px 14px;
 }
 
 .play-page .stats-actions {
+  flex: 1;
   min-height: 0;
 }
 
@@ -1225,11 +1237,13 @@ body::before {
 }
 
 .play-page .stats-actions ul {
+  flex: 1;
+  min-height: 0;
   margin: 0;
   padding-left: 18px;
   font-size: 0.72rem;
   line-height: 1.9;
-  max-height: clamp(180px, 22vh, 280px);
+  max-height: none;
   overflow-y: auto;
   padding-right: 8px;
 }
@@ -1380,9 +1394,11 @@ body::before {
   }
 
   .play-page .game-panel {
+    height: auto;
     min-height: auto;
     padding-inline: 18px;
     padding-bottom: 20px;
+    overflow: visible;
   }
 
   .play-page .top-game-row,
@@ -1392,7 +1408,8 @@ body::before {
 
   .play-page .graphics-area,
   .play-page .battle-stage {
-    min-height: 370px;
+    height: auto;
+    min-height: 360px;
   }
 
   .play-page .battle-hud {
@@ -1445,11 +1462,12 @@ body::before {
 
   .play-page .game-bottom {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .play-page .todo-box,
   .play-page .combat-log-box {
-    min-height: 240px;
+    height: 240px;
   }
 
   .play-page .shop-grid {
@@ -1458,7 +1476,7 @@ body::before {
 
   .play-page .graphics-area,
   .play-page .battle-stage {
-    min-height: 340px;
+    min-height: 320px;
   }
 
   .play-page .battle-stage {
