@@ -40,8 +40,14 @@ def ensure_save_data_schema():
     existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
     required_columns = {
         "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
+        "kills": "ALTER TABLE save_data ADD COLUMN kills INTEGER NOT NULL DEFAULT 0",
+        "damage_dealt": "ALTER TABLE save_data ADD COLUMN damage_dealt INTEGER NOT NULL DEFAULT 0",
+        "damage_taken": "ALTER TABLE save_data ADD COLUMN damage_taken INTEGER NOT NULL DEFAULT 0",
+        "pistol_shots": "ALTER TABLE save_data ADD COLUMN pistol_shots INTEGER NOT NULL DEFAULT 0",
         "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
-        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0"
+        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0",
+        "reloads": "ALTER TABLE save_data ADD COLUMN reloads INTEGER NOT NULL DEFAULT 0",
+        "knife_uses": "ALTER TABLE save_data ADD COLUMN knife_uses INTEGER NOT NULL DEFAULT 0"
     }
 
     for column_name, statement in required_columns.items():
@@ -79,6 +85,18 @@ def get_user_stats(user_id):
         "medkits": sum((save.medkits_used or 0) for save in all_saves),
         "reloads": sum((save.reloads or 0) for save in all_saves),
         "knife_uses": sum((save.knife_uses or 0) for save in all_saves),
+    }
+
+def get_empty_stats():
+    return {
+        "kills": 0,
+        "damage_dealt": 0,
+        "damage_taken": 0,
+        "pistol_shots": 0,
+        "grenades": 0,
+        "medkits": 0,
+        "reloads": 0,
+        "knife_uses": 0,
     }
 
 def make_guest_name():
@@ -265,6 +283,40 @@ def normalize_save_payload(payload):
                 normalized.get("game_won", False)
             )
 
+        analytics = run_state.get("analytics") or {}
+        normalized["kills"] = coerce_int(
+            normalized.get("kills"),
+            coerce_int(analytics.get("enemiesKilled"), 0)
+        )
+        normalized["damage_dealt"] = coerce_int(
+            normalized.get("damage_dealt"),
+            coerce_int(analytics.get("damageDealt"), 0)
+        )
+        normalized["damage_taken"] = coerce_int(
+            normalized.get("damage_taken"),
+            coerce_int(analytics.get("damageTaken"), 0)
+        )
+        normalized["pistol_shots"] = coerce_int(
+            normalized.get("pistol_shots"),
+            coerce_int(analytics.get("pistolShotsFired"), 0)
+        )
+        normalized["grenades_used"] = coerce_int(
+            normalized.get("grenades_used"),
+            coerce_int(analytics.get("grenadesUsed"), 0)
+        )
+        normalized["medkits_used"] = coerce_int(
+            normalized.get("medkits_used"),
+            coerce_int(analytics.get("medKitsUsed"), 0)
+        )
+        normalized["reloads"] = coerce_int(
+            normalized.get("reloads"),
+            coerce_int(analytics.get("reloads"), 0)
+        )
+        normalized["knife_uses"] = coerce_int(
+            normalized.get("knife_uses"),
+            coerce_int(analytics.get("knivesUsed"), 0)
+        )
+
     normalized["difficulty"] = str(normalized.get("difficulty", "EASY")).upper()
     normalized["character_id"] = str(normalized.get("character_id", "leon")).lower()
     normalized["current_level_id"] = str(normalized.get("current_level_id", "1"))
@@ -274,6 +326,14 @@ def normalize_save_payload(payload):
     normalized["awaiting_choice"] = coerce_bool(normalized.get("awaiting_choice"), False)
     normalized["game_won"] = coerce_bool(normalized.get("game_won"), False)
     normalized["has_started_game"] = coerce_bool(normalized.get("has_started_game"), True)
+    normalized["kills"] = coerce_int(normalized.get("kills"), 0)
+    normalized["damage_dealt"] = coerce_int(normalized.get("damage_dealt"), 0)
+    normalized["damage_taken"] = coerce_int(normalized.get("damage_taken"), 0)
+    normalized["pistol_shots"] = coerce_int(normalized.get("pistol_shots"), 0)
+    normalized["grenades_used"] = coerce_int(normalized.get("grenades_used"), 0)
+    normalized["medkits_used"] = coerce_int(normalized.get("medkits_used"), 0)
+    normalized["reloads"] = coerce_int(normalized.get("reloads"), 0)
+    normalized["knife_uses"] = coerce_int(normalized.get("knife_uses"), 0)
 
     return normalized
 
@@ -506,10 +566,10 @@ def show_achievements():
 
     user_id = session.get("user_id")
 
-    if user_id is None:
-        return redirect(url_for("show_login"))
-
-    stats = get_user_stats(session["user_id"])
+    if user_id is None or session.get("is_guest"):
+        stats = get_empty_stats()
+    else:
+        stats = get_user_stats(user_id)
 
     return render_template(
         "achievements.html",

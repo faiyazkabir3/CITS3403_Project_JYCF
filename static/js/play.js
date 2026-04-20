@@ -189,13 +189,15 @@ function buildSavedState(saveData) {
     },
 
     analytics: {
-      pistolShotsFired: 0,
-      grenadesUsed: 0,
-      medKitsUsed: 0,
-      reloads: 0,
-      knivesUsed: 0,
-      enemiesKilled: 0,
-      damageTaken: 0,
+      pistolShotsFired: saveData.pistol_shots ?? 0,
+      rifleShotsFired: saveData.rifle_shots ?? 0,
+      grenadesUsed: saveData.grenades_used ?? 0,
+      medKitsUsed: saveData.medkits_used ?? 0,
+      reloads: saveData.reloads ?? 0,
+      knivesUsed: saveData.knife_uses ?? 0,
+      enemiesKilled: saveData.kills ?? 0,
+      damageDealt: saveData.damage_dealt ?? 0,
+      damageTaken: saveData.damage_taken ?? 0,
       dodgesPrepared: 0,
       savesMade: 0,
       achievementsUnlocked: []
