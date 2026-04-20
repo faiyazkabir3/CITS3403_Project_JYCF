@@ -374,8 +374,11 @@ body::before {
 }
 
 .play-page .screen-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: min(97vw, 1720px);
-  min-height: calc(100vh - 12px);
+  min-height: calc(100dvh - 12px);
   margin: auto;
 }
 
@@ -390,8 +393,11 @@ body::before {
 }
 
 .play-page .panel:not(.game-panel) {
+  width: min(90vw, 900px);
   max-width: 900px;
+  max-height: calc(100dvh - 48px);
   margin: 0 auto;
+  overflow-y: auto;
 }
 
 .play-page .panel.active {
@@ -590,6 +596,7 @@ body::before {
 }
 
 .play-page .game-panel {
+  width: 100%;
   height: calc(100dvh - 12px);
   min-height: 0;
   padding: 12px;
@@ -1191,18 +1198,18 @@ body::before {
 
 .play-page .shop-header {
   flex: 0 0 auto;
-  margin-bottom: 8px;
+  margin-bottom: 18px;
 }
 
 .play-page .shop-header .secondary-btn {
-  padding: 9px 16px;
+  padding: 12px 22px;
 }
 
 .play-page .shop-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   flex: 1;
-  gap: 12px;
+  gap: 18px;
   min-height: 0;
 }
 
@@ -1217,26 +1224,31 @@ body::before {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 6px;
+  padding-right: 10px;
   scrollbar-gutter: stable;
 }
 
 .play-page .shop-box .choice-buttons {
-  gap: 7px;
+  gap: 12px;
 }
 
 .play-page .shop-box .choice-btn {
-  gap: 4px;
+  gap: 8px;
   min-height: 0;
-  padding: 8px 10px;
+  padding: 18px 20px;
 }
 
 .play-page .shop-box .choice-title {
-  font-size: 0.66rem;
+  font-size: 0.82rem;
 }
 
 .play-page .shop-box .choice-desc {
-  font-size: 0.58rem;
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.play-page .game-main.shop-open .top-game-row {
+  display: none;
 }
 
 .play-page .game-main.shop-open .game-bottom {
@@ -1244,9 +1256,9 @@ body::before {
 }
 
 .play-page .game-main.shop-open .shop-box {
-  flex: 0 0 clamp(190px, 23vh, 260px);
-  max-height: clamp(190px, 23vh, 260px);
-  padding: 12px;
+  flex: 1 1 auto;
+  max-height: none;
+  padding: 26px 28px;
 }
 
 .play-page .emergency-prompt {

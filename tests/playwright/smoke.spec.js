@@ -35,15 +35,36 @@ async function registerAndLogin(page, credentials) {
   await expect(page).toHaveURL(/\/main[-_]menu$/);
 }
 
+async function expectPanelCentered(page, selector) {
+  await expect(page.locator(selector)).toBeVisible();
+
+  const metrics = await page.evaluate((panelSelector) => {
+    const panel = document.querySelector(panelSelector)?.getBoundingClientRect();
+
+    return {
+      panelCenterX: panel ? panel.left + panel.width / 2 : 0,
+      panelCenterY: panel ? panel.top + panel.height / 2 : 0,
+      viewportCenterX: window.innerWidth / 2,
+      viewportCenterY: window.innerHeight / 2,
+    };
+  }, selector);
+
+  expect(Math.abs(metrics.panelCenterX - metrics.viewportCenterX)).toBeLessThanOrEqual(2);
+  expect(Math.abs(metrics.panelCenterY - metrics.viewportCenterY)).toBeLessThanOrEqual(80);
+}
+
 async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
+  await expectPanelCentered(page, "#start-screen");
 
   await page.getByRole("button", { name: "NEW GAME" }).click();
   await expect(page.locator("#character-screen")).toHaveClass(/active/);
+  await expectPanelCentered(page, "#character-screen");
 
   await page.locator(`.character-card[data-character="${character}"]`).click();
   await expect(page.locator("#difficulty-screen")).toHaveClass(/active/);
+  await expectPanelCentered(page, "#difficulty-screen");
 
   await page.getByRole("button", { name: "EASY" }).click();
   await expect(page.locator("#game-screen")).toHaveClass(/active/);
@@ -183,31 +204,44 @@ async function saveShopState(page) {
 async function expectShopLayout(page) {
   await expect(page.locator("#shop-box")).toBeVisible();
   await expect(page.locator(".game-main")).toHaveClass(/shop-open/);
+  await expect(page.locator("#battle-stage")).toBeHidden();
   await expect(page.locator(".game-bottom")).toBeHidden();
   await expect(page.locator("#shop-continue-btn")).toBeVisible();
   await expect(page.locator("#stats-btn")).toBeDisabled();
 
   const shopMetrics = await page.evaluate(() => {
     const gamePanel = document.querySelector("#game-screen")?.getBoundingClientRect();
+    const topbar = document.querySelector(".game-topbar")?.getBoundingClientRect();
     const shop = document.querySelector("#shop-box")?.getBoundingClientRect();
     const buyButtons = document.querySelector("#shop-buy-buttons");
     const sellButtons = document.querySelector("#shop-sell-buttons");
+    const topGameRow = document.querySelector(".top-game-row");
     const bottom = document.querySelector(".game-bottom");
+    const firstShopOption = document.querySelector("#shop-buy-buttons .choice-btn")?.getBoundingClientRect();
 
     return {
       gamePanelBottom: gamePanel?.bottom ?? 0,
+      topbarBottom: topbar?.bottom ?? 0,
+      shopTop: shop?.top ?? 0,
       shopBottom: shop?.bottom ?? 0,
+      shopHeight: shop?.height ?? 0,
+      topGameRowDisplay: topGameRow ? window.getComputedStyle(topGameRow).display : "",
       bottomDisplay: bottom ? window.getComputedStyle(bottom).display : "",
       buyOverflow: buyButtons ? window.getComputedStyle(buyButtons).overflowY : "",
       sellOverflow: sellButtons ? window.getComputedStyle(sellButtons).overflowY : "",
+      firstShopOptionHeight: firstShopOption?.height ?? 0,
       viewportHeight: window.innerHeight,
     };
   });
 
+  expect(shopMetrics.topGameRowDisplay).toBe("none");
   expect(shopMetrics.bottomDisplay).toBe("none");
   expect(shopMetrics.buyOverflow).toBe("auto");
   expect(shopMetrics.sellOverflow).toBe("auto");
+  expect(shopMetrics.shopTop).toBeGreaterThanOrEqual(shopMetrics.topbarBottom);
   expect(shopMetrics.shopBottom).toBeLessThanOrEqual(shopMetrics.gamePanelBottom + 2);
+  expect(shopMetrics.shopHeight).toBeGreaterThanOrEqual(shopMetrics.viewportHeight * 0.65);
+  expect(shopMetrics.firstShopOptionHeight).toBeGreaterThanOrEqual(70);
   expect(shopMetrics.gamePanelBottom).toBeLessThanOrEqual(shopMetrics.viewportHeight + 2);
 }
 
@@ -280,9 +314,11 @@ test("registered user can view achievements, save, and load a run", async ({ pag
 
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
+  await expectPanelCentered(page, "#start-screen");
 
   await page.getByRole("button", { name: "LOAD GAME" }).click();
   await expect(page.locator("#load-screen")).toHaveClass(/active/);
+  await expectPanelCentered(page, "#load-screen");
   await expect(page.locator("#save-preview")).toContainText("CHARACTER: LEON", { timeout: 15_000 });
 
   await page.locator("#load-latest-save-btn").click();
@@ -294,7 +330,7 @@ test("registered user can view achievements, save, and load a run", async ({ pag
   expect(pageErrors).toEqual([]);
 });
 
-test("registered user sees compact shop mode with locked stats", async ({ page }) => {
+test("registered user sees expanded shop mode with locked stats", async ({ page }) => {
   const pageErrors = trackPageErrors(page);
   const credentials = uniqueCredentials();
 
@@ -309,6 +345,7 @@ test("registered user sees compact shop mode with locked stats", async ({ page }
   await page.goto("/play");
   await page.getByRole("button", { name: "LOAD GAME" }).click();
   await expect(page.locator("#load-screen")).toHaveClass(/active/);
+  await expectPanelCentered(page, "#load-screen");
   await expect(page.locator("#save-preview")).toContainText("LEVEL: 2", { timeout: 15_000 });
 
   await page.locator("#load-latest-save-btn").click();
