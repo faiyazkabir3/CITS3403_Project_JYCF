@@ -230,13 +230,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function typeWriter(element, text, speed = 24, isStale = () => false) {
-  if (!element) return;
+async function typeWriter(target, text, speed = 24, isStale = () => false) {
+  const elements = (Array.isArray(target) ? target : [target]).filter(Boolean);
+  if (elements.length === 0) return;
 
-  element.textContent = "";
+  elements.forEach((element) => {
+    element.textContent = "";
+  });
   for (let i = 0; i < text.length; i += 1) {
     if (isStale()) return;
-    element.textContent += text[i];
+    elements.forEach((element) => {
+      element.textContent += text[i];
+    });
     await sleep(speed);
   }
 }
@@ -271,8 +276,10 @@ function isGameOver(engine) {
   return engine.state.progression.gameOver || engine.state.inventory.health <= 0;
 }
 
+const ACTION_GROUP_IDS = ["main-actions", "attack-actions", "inventory-actions", "stats-actions"];
+
 function showActionGroup(groupId) {
-  ["main-actions", "attack-actions", "inventory-actions"].forEach((id) => {
+  ACTION_GROUP_IDS.forEach((id) => {
     const element = document.getElementById(id);
     if (element) {
       element.style.display = id === groupId ? "flex" : "none";
@@ -290,6 +297,10 @@ function showAttackActions() {
 
 function showInventoryActions() {
   showActionGroup("inventory-actions");
+}
+
+function showStatsActions() {
+  showActionGroup("stats-actions");
 }
 
 function formatPercent(value) {
@@ -770,7 +781,10 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   const continueBtn = $("#shop-continue-btn");
   if (!shopBox || !buyButtons || !sellButtons || !continueBtn) return;
 
+  const gameMain = shopBox.closest(".game-main");
+
   if (!engine.isShopOpen() || isGameOver(engine)) {
+    gameMain?.classList.remove("shop-open");
     shopBox.style.display = "none";
     buyButtons.innerHTML = "";
     sellButtons.innerHTML = "";
@@ -778,7 +792,8 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   }
 
   const coins = engine.state.inventory.coins;
-  shopBox.style.display = "block";
+  gameMain?.classList.add("shop-open");
+  shopBox.style.display = "flex";
   buyButtons.innerHTML = "";
   sellButtons.innerHTML = "";
 
@@ -916,6 +931,7 @@ export function bootGameUI({
   });
 
   const storyText = $("#story-text");
+  const shopStoryText = $("#shop-story-text");
   const emergencyBox = $("#emergency-box");
   const emergencyTitle = $("#emergency-title");
   const emergencyPrompt = $("#emergency-prompt");
@@ -1019,6 +1035,26 @@ export function bootGameUI({
     return locked || isAnimatingEvents;
   }
 
+  function setStoryText(text) {
+    if (storyText) {
+      storyText.textContent = text;
+    }
+
+    if (shopStoryText) {
+      shopStoryText.textContent = text;
+    }
+  }
+
+  function areMainActionsLocked() {
+    return (
+      isGameOver(engine) ||
+      isInteractionLocked() ||
+      engine.hasEmergency() ||
+      engine.isShopOpen() ||
+      engine.hasChoices()
+    );
+  }
+
   function updateActionAvailability() {
     const dead = isGameOver(engine);
     const inCombat = engine.state.combat.inCombat;
@@ -1033,6 +1069,7 @@ export function bootGameUI({
       ["defend-btn", dead || lockedOut || !inCombat],
       ["inventory-btn", dead || lockedOut],
       ["save-btn", interactionLocked || emergencyActive],
+      ["stats-btn", lockedOut],
       ["pistol-btn", dead || interactionLocked || !inCombat],
       ["rifle-btn", dead || interactionLocked || !inCombat || !engine.state.rifle.owned],
       ["knife-btn", dead || interactionLocked || !inCombat],
@@ -1161,7 +1198,7 @@ export function bootGameUI({
     const renderId = ++storyRenderId;
     isAnimatingEvents = true;
     renderAll();
-    await playEventSequence(storyText, events, 24, 460, () => renderId !== storyRenderId);
+    await playEventSequence([storyText, shopStoryText], events, 24, 460, () => renderId !== storyRenderId);
 
     if (renderId !== storyRenderId) {
       return;
@@ -1297,6 +1334,7 @@ export function bootGameUI({
   const defendBtn = $("#defend-btn");
   const inventoryBtn = $("#inventory-btn");
   const saveBtn = $("#save-btn");
+  const statsBtn = $("#stats-btn");
   const pistolBtn = $("#pistol-btn");
   const rifleBtn = $("#rifle-btn");
   const knifeBtn = $("#knife-btn");
@@ -1307,10 +1345,11 @@ export function bootGameUI({
   const medkitBtn = $("#medkit-btn");
   const shieldBtn = $("#shield-btn");
   const inventoryBackBtn = $("#inventory-back-btn");
+  const statsBackBtn = $("#stats-back-btn");
 
   if (attackBtn) {
     attackBtn.addEventListener("click", () => {
-      if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      if (areMainActionsLocked()) return;
       showAttackActions();
       renderAll();
     });
@@ -1324,7 +1363,7 @@ export function bootGameUI({
 
   if (inventoryBtn) {
     inventoryBtn.addEventListener("click", () => {
-      if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency() || engine.isShopOpen() || engine.hasChoices()) return;
+      if (areMainActionsLocked()) return;
       showInventoryActions();
       renderAll();
     });
@@ -1346,17 +1385,21 @@ export function bootGameUI({
         }
 
         appendCombatLog(message);
-        if (storyText) {
-          storyText.textContent = message;
-        }
+        setStoryText(message);
       } catch (error) {
         console.error("Save failed:", error);
         playErrorBeep();
         appendCombatLog("Save failed.");
-        if (storyText) {
-          storyText.textContent = "Save failed.";
-        }
+        setStoryText("Save failed.");
       }
+    });
+  }
+
+  if (statsBtn) {
+    statsBtn.addEventListener("click", () => {
+      if (areMainActionsLocked()) return;
+      showStatsActions();
+      renderAll();
     });
   }
 
@@ -1381,6 +1424,13 @@ export function bootGameUI({
   if (inventoryBackBtn) {
     inventoryBackBtn.addEventListener("click", () => {
       if (isInteractionLocked() || engine.hasEmergency()) return;
+      showMainActions();
+      renderAll();
+    });
+  }
+
+  if (statsBackBtn) {
+    statsBackBtn.addEventListener("click", () => {
       showMainActions();
       renderAll();
     });
