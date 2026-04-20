@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.use({ viewport: { width: 1366, height: 768 } });
+
 function uniqueCredentials() {
   const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   return {
@@ -46,6 +48,7 @@ async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "EASY" }).click();
   await expect(page.locator("#game-screen")).toHaveClass(/active/);
   await expect(page.locator("#save-btn")).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator("#stats-btn")).toBeEnabled({ timeout: 20_000 });
   await expect(page.locator("#battle-stage")).toBeVisible();
 }
 
@@ -66,16 +69,38 @@ async function expectPlayLayout(page) {
     const actions = document.querySelector(".todo-box")?.getBoundingClientRect();
     const combatLog = document.querySelector(".combat-log-box")?.getBoundingClientRect();
     const logList = document.querySelector("#combat-log-list");
+    const gameBack = document.querySelector("#game-back-btn")?.getBoundingClientRect();
+    const topbar = document.querySelector(".game-topbar")?.getBoundingClientRect();
+    const missionFeed = document.querySelector(".battle-caption")?.getBoundingClientRect();
+    const graphics = document.querySelector(".graphics-area")?.getBoundingClientRect();
+    const gamePanel = document.querySelector("#game-screen")?.getBoundingClientRect();
+    const gameBottom = document.querySelector(".game-bottom")?.getBoundingClientRect();
 
     return {
       actionsHeight: actions?.height ?? 0,
       combatLogHeight: combatLog?.height ?? 0,
       combatLogOverflow: logList ? window.getComputedStyle(logList).overflowY : "",
+      backTop: gameBack?.top ?? 0,
+      backBottom: gameBack?.bottom ?? 0,
+      topbarTop: topbar?.top ?? 0,
+      topbarBottom: topbar?.bottom ?? 0,
+      missionFeedBottom: missionFeed?.bottom ?? 0,
+      graphicsBottom: graphics?.bottom ?? 0,
+      gamePanelBottom: gamePanel?.bottom ?? 0,
+      gameBottomTop: gameBottom?.top ?? 0,
+      gameBottomBottom: gameBottom?.bottom ?? 0,
+      viewportHeight: window.innerHeight,
     };
   });
 
   expect(Math.abs(panelHeights.actionsHeight - panelHeights.combatLogHeight)).toBeLessThanOrEqual(2);
   expect(panelHeights.combatLogOverflow).toBe("auto");
+  expect(panelHeights.backTop).toBeGreaterThanOrEqual(panelHeights.topbarTop - 2);
+  expect(panelHeights.backBottom).toBeLessThanOrEqual(panelHeights.topbarBottom + 2);
+  expect(panelHeights.missionFeedBottom).toBeLessThanOrEqual(panelHeights.graphicsBottom + 2);
+  expect(panelHeights.graphicsBottom).toBeLessThanOrEqual(panelHeights.gameBottomTop - 4);
+  expect(panelHeights.gameBottomBottom).toBeLessThanOrEqual(panelHeights.gamePanelBottom + 2);
+  expect(panelHeights.gamePanelBottom).toBeLessThanOrEqual(panelHeights.viewportHeight + 2);
 }
 
 async function expectActionSubmenus(page) {
@@ -88,6 +113,102 @@ async function expectActionSubmenus(page) {
   await expect(page.locator("#inventory-actions")).toBeVisible();
   await page.locator("#inventory-back-btn").click();
   await expect(page.locator("#main-actions")).toBeVisible();
+}
+
+async function saveShopState(page) {
+  await page.evaluate(async () => {
+    if (!window.gameEngine?.state) {
+      throw new Error("Game engine was not available for shop-state setup.");
+    }
+
+    const state = structuredClone(window.gameEngine.state);
+    state.progression.currentLevelId = "2";
+    state.progression.enemiesRemaining = 0;
+    state.progression.encounterOrder = [];
+    state.progression.currentEncounterIndex = 0;
+    state.progression.levelComplete = true;
+    state.progression.awaitingChoice = false;
+    state.progression.shopOpen = true;
+    state.progression.gameWon = false;
+    state.progression.gameOver = false;
+    state.progression.currentChoiceOptions = [];
+    state.combat.inCombat = false;
+    state.combat.enemy = null;
+    state.inventory.health = Math.max(state.inventory.health, 80);
+    state.inventory.coins = Math.max(state.inventory.coins, 20);
+
+    const payload = {
+      difficulty: state.difficulty,
+      character_id: state.player.characterId,
+      health: state.inventory.health,
+      medkits: state.inventory.medKits,
+      grenades: state.inventory.grenades,
+      ammo_in_gun: state.pistol.ammoInGun,
+      ammo_in_bag: state.pistol.ammoInBag,
+      mag_capacity: state.pistol.magCapacity,
+      laser_upgrade: state.pistol.hasLaser,
+      shield_owned: state.shield.hasShield,
+      shield_on: state.shield.equipped,
+      current_level_id: state.progression.currentLevelId,
+      enemies_remaining: state.progression.enemiesRemaining,
+      level_complete: state.progression.levelComplete,
+      awaiting_choice: state.progression.awaitingChoice,
+      game_won: state.progression.gameWon,
+      kills: state.analytics.enemiesKilled,
+      damage_dealt: state.analytics.damageDealt,
+      damage_taken: state.analytics.damageTaken,
+      pistol_shots: state.analytics.pistolShotsFired,
+      grenades_used: state.analytics.grenadesUsed,
+      medkits_used: state.analytics.medKitsUsed,
+      reloads: state.analytics.reloads,
+      knife_uses: state.analytics.knivesUsed,
+      run_state: state,
+    };
+
+    const response = await fetch("/save-game", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.message || "Failed to save forced shop state.");
+    }
+  });
+}
+
+async function expectShopLayout(page) {
+  await expect(page.locator("#shop-box")).toBeVisible();
+  await expect(page.locator(".game-main")).toHaveClass(/shop-open/);
+  await expect(page.locator(".game-bottom")).toBeHidden();
+  await expect(page.locator("#shop-continue-btn")).toBeVisible();
+  await expect(page.locator("#stats-btn")).toBeDisabled();
+
+  const shopMetrics = await page.evaluate(() => {
+    const gamePanel = document.querySelector("#game-screen")?.getBoundingClientRect();
+    const shop = document.querySelector("#shop-box")?.getBoundingClientRect();
+    const buyButtons = document.querySelector("#shop-buy-buttons");
+    const sellButtons = document.querySelector("#shop-sell-buttons");
+    const bottom = document.querySelector(".game-bottom");
+
+    return {
+      gamePanelBottom: gamePanel?.bottom ?? 0,
+      shopBottom: shop?.bottom ?? 0,
+      bottomDisplay: bottom ? window.getComputedStyle(bottom).display : "",
+      buyOverflow: buyButtons ? window.getComputedStyle(buyButtons).overflowY : "",
+      sellOverflow: sellButtons ? window.getComputedStyle(sellButtons).overflowY : "",
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(shopMetrics.bottomDisplay).toBe("none");
+  expect(shopMetrics.buyOverflow).toBe("auto");
+  expect(shopMetrics.sellOverflow).toBe("auto");
+  expect(shopMetrics.shopBottom).toBeLessThanOrEqual(shopMetrics.gamePanelBottom + 2);
+  expect(shopMetrics.gamePanelBottom).toBeLessThanOrEqual(shopMetrics.viewportHeight + 2);
 }
 
 test("redirects unauthenticated play access back to login", async ({ page }) => {
@@ -170,5 +291,28 @@ test("registered user can view achievements, save, and load a run", async ({ pag
   await expectPlayerStats(page, "LEON");
   await expect(page.locator("#battle-player-name")).toHaveText("LEON");
   await expect(page.locator("#battle-enemy-name")).not.toHaveText("NO CONTACT");
+  expect(pageErrors).toEqual([]);
+});
+
+test("registered user sees compact shop mode with locked stats", async ({ page }) => {
+  const pageErrors = trackPageErrors(page);
+  const credentials = uniqueCredentials();
+
+  await registerAndLogin(page, credentials);
+  const checkpointSave = page.waitForResponse(
+    (response) => response.url().includes("/save-game") && response.request().method() === "POST",
+  );
+  await startNewGame(page, "leon");
+  await checkpointSave;
+  await saveShopState(page);
+
+  await page.goto("/play");
+  await page.getByRole("button", { name: "LOAD GAME" }).click();
+  await expect(page.locator("#load-screen")).toHaveClass(/active/);
+  await expect(page.locator("#save-preview")).toContainText("LEVEL: 2", { timeout: 15_000 });
+
+  await page.locator("#load-latest-save-btn").click();
+  await expect(page.locator("#game-screen")).toHaveClass(/active/, { timeout: 20_000 });
+  await expectShopLayout(page);
   expect(pageErrors).toEqual([]);
 });
