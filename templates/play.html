@@ -47,7 +47,7 @@
         </button>
 
         <button type="button" class="character-card" data-character="quite">
-          <img src="{{ url_for('static', filename='images/quite_dual_good.png') }}" alt="Quite character">
+          <img src="{{ url_for('static', filename='images/players/quite_idle.png') }}" alt="Quite character">
           <span class="character-name">QUITE</span>
           <div class="character-desc">
             <strong>AGILE SURVIVOR</strong>
@@ -148,7 +148,65 @@
       <div class="game-main">
         <div class="top-game-row">
           <div class="graphics-area">
-            <div id="story-text" class="story-text">Mission starting...</div>
+            <div id="battle-stage" class="battle-stage" data-theme="tutorial">
+              <div id="battle-backdrop" class="battle-backdrop" aria-hidden="true"></div>
+              <div id="battle-overlay" class="battle-overlay" aria-hidden="true"></div>
+
+              <div id="battle-hud" class="battle-hud">
+                <section class="battle-status battle-status-player" aria-label="Player battle status">
+                  <div class="battle-status-heading">
+                    <span class="battle-status-label">OPERATOR</span>
+                    <strong id="battle-player-name">LEON</strong>
+                  </div>
+                  <div class="battle-bar battle-bar-player">
+                    <span id="battle-player-health-fill"></span>
+                  </div>
+                  <div class="battle-bar battle-bar-shield">
+                    <span id="battle-player-shield-fill"></span>
+                  </div>
+                  <p id="battle-player-meta" class="battle-status-meta">HP 100/100 | SHIELD ON</p>
+                  <p id="battle-player-weapon" class="battle-status-submeta">WEAPON: PISTOL</p>
+                </section>
+
+                <section class="battle-status battle-status-enemy" aria-label="Enemy battle status">
+                  <div class="battle-status-heading">
+                    <span class="battle-status-label">THREAT</span>
+                    <strong id="battle-enemy-name">NO CONTACT</strong>
+                  </div>
+                  <div class="battle-bar battle-bar-enemy">
+                    <span id="battle-enemy-health-fill"></span>
+                  </div>
+                  <p id="battle-enemy-meta" class="battle-status-meta">SCAN ONLINE</p>
+                  <div id="battle-enemy-tags" class="battle-enemy-tags"></div>
+                </section>
+              </div>
+
+              <div class="battle-actors" aria-hidden="true">
+                <div id="battle-player" class="battle-actor battle-player">
+                  <img id="battle-player-image" class="battle-actor-image" alt="Player portrait">
+                  <div id="battle-player-fallback" class="battle-actor-fallback" hidden>LEON</div>
+                </div>
+
+                <div id="battle-fx" class="battle-fx">
+                  <img id="battle-action-fx-image" class="battle-fx-image battle-fx-image-action" alt="">
+                  <img id="battle-impact-fx-image" class="battle-fx-image battle-fx-image-impact" alt="">
+                </div>
+
+                <div id="battle-enemy" class="battle-actor battle-enemy">
+                  <img id="battle-enemy-image" class="battle-actor-image" alt="Enemy portrait">
+                  <div id="battle-enemy-fallback" class="battle-actor-fallback" hidden>NO CONTACT</div>
+                </div>
+              </div>
+
+              <div class="battle-stage-footer">
+                <div id="battle-tags" class="battle-tags"></div>
+
+                <div class="battle-caption">
+                  <span class="battle-caption-label">MISSION FEED</span>
+                  <div id="story-text" class="story-text">Mission starting...</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="combat-log-box">

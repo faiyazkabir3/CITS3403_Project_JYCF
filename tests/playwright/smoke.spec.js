@@ -46,6 +46,7 @@ async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "EASY" }).click();
   await expect(page.locator("#game-screen")).toHaveClass(/active/);
   await expect(page.locator("#save-btn")).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator("#battle-stage")).toBeVisible();
 }
 
 test("redirects unauthenticated play access back to login", async ({ page }) => {
@@ -78,6 +79,15 @@ test("guest login can reach main menu, settings, and start a new game", async ({
 
   await startNewGame(page, "quite");
   await expect(page.locator("#player-stats-list")).toContainText("CHARACTER: QUITE");
+  await expect(page.locator("#battle-player-name")).toHaveText("QUITE");
+  await expect(page.locator("#battle-tags")).toContainText("LEVEL 1");
+  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /quite_idle\.png/);
+  await expect(page.locator("#battle-impact-fx-image")).toBeHidden();
+
+  await page.locator("#attack-btn").click();
+  await page.locator("#pistol-btn").click();
+  await page.waitForTimeout(900);
+  await expect(page.locator("#battle-impact-fx-image")).toBeHidden();
   expect(pageErrors).toEqual([]);
 });
 
@@ -113,5 +123,7 @@ test("registered user can view achievements, save, and load a run", async ({ pag
   await page.locator("#load-latest-save-btn").click();
   await expect(page.locator("#game-screen")).toHaveClass(/active/, { timeout: 20_000 });
   await expect(page.locator("#player-stats-list")).toContainText("CHARACTER: LEON");
+  await expect(page.locator("#battle-player-name")).toHaveText("LEON");
+  await expect(page.locator("#battle-enemy-name")).not.toHaveText("NO CONTACT");
   expect(pageErrors).toEqual([]);
 });

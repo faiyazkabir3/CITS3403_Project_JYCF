@@ -1,4 +1,12 @@
 import { createCombatEngine } from "./combat-engine.js";
+import {
+  ENEMY_VISUALS,
+  FX_VISUALS,
+  OVERLAY_VISUALS,
+  SPECIAL_VISUALS,
+  getPlayerVisual,
+  getLevelVisual
+} from "./visuals.js";
 
 const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
@@ -33,6 +41,7 @@ const whooshAudio = new Audio(WHOOSH_SOUND);
 const shieldAudio = new Audio(SHIELD_SOUND);
 const medkitAudio = new Audio(MEDKIT_SOUND);
 const healAudio = new Audio(HEAL_SOUND);
+const BATTLE_FX_DURATION_MS = 460;
 saveBeepAudio.preload = "auto";
 errorBeepAudio.preload = "auto";
 warningBeepAudio.preload = "auto";
@@ -285,6 +294,383 @@ function showInventoryActions() {
 
 function formatPercent(value) {
   return `${Math.round(value * 100)}%`;
+}
+
+function clampPercent(value) {
+  return Math.max(0, Math.min(100, value));
+}
+
+function setBarFill(element, ratio) {
+  if (!element) return;
+  element.style.width = `${clampPercent(ratio * 100)}%`;
+}
+
+function renderTagList(container, tags, className) {
+  if (!container) return;
+
+  container.replaceChildren();
+  tags.forEach((text) => {
+    const tag = document.createElement("span");
+    tag.className = className;
+    tag.textContent = text;
+    container.appendChild(tag);
+  });
+}
+
+function ensureBattleAssetBinding(imageEl, fallbackEl) {
+  if (!imageEl || imageEl.dataset.bound === "true") return;
+
+  imageEl.dataset.bound = "true";
+  imageEl.addEventListener("load", () => {
+    imageEl.hidden = false;
+    if (fallbackEl) {
+      fallbackEl.hidden = true;
+    }
+  });
+
+  imageEl.addEventListener("error", () => {
+    imageEl.hidden = true;
+    if (fallbackEl) {
+      fallbackEl.hidden = false;
+    }
+  });
+}
+
+function setBattleAsset(imageEl, fallbackEl, src, alt, fallbackText) {
+  if (!imageEl || !fallbackEl) return;
+
+  ensureBattleAssetBinding(imageEl, fallbackEl);
+  fallbackEl.textContent = fallbackText;
+  imageEl.alt = alt;
+
+  if (!src) {
+    imageEl.removeAttribute("src");
+    imageEl.hidden = true;
+    fallbackEl.hidden = false;
+    return;
+  }
+
+  if (imageEl.dataset.currentSrc !== src) {
+    imageEl.dataset.currentSrc = src;
+    imageEl.hidden = true;
+    fallbackEl.hidden = false;
+    imageEl.src = src;
+  } else if (imageEl.complete && imageEl.naturalWidth > 0) {
+    imageEl.hidden = false;
+    fallbackEl.hidden = true;
+  }
+}
+
+function renderBattleFxImage(imageEl, src) {
+  if (!imageEl) return;
+
+  if (!src) {
+    imageEl.hidden = true;
+    imageEl.removeAttribute("src");
+    imageEl.removeAttribute("data-current-src");
+    return;
+  }
+
+  if (imageEl.dataset.currentSrc !== src) {
+    imageEl.dataset.currentSrc = src;
+    imageEl.src = src;
+  }
+
+  imageEl.alt = "";
+  imageEl.hidden = false;
+}
+
+function getCurrentWeaponLabel(state, lastActionKey) {
+  switch (lastActionKey) {
+    case "rifle":
+    case "reloadRifle":
+      return state.rifle.owned ? "RIFLE" : "PISTOL";
+    case "knife":
+      return "KNIFE";
+    case "grenade":
+      return "GRENADE";
+    case "heal":
+      return "MEDKIT";
+    case "toggleShield":
+      return "SHIELD";
+    default:
+      return "PISTOL";
+  }
+}
+
+function getBattleMode(engine) {
+  if (isGameOver(engine)) return "loss";
+  if (engine.hasEmergency()) return "emergency";
+  if (engine.isShopOpen()) return "shop";
+  if (engine.hasChoices()) return "choice";
+  if (engine.state.progression.levelComplete && !engine.state.combat.inCombat) return "clear";
+  if (engine.state.combat.inCombat) return "combat";
+  return "idle";
+}
+
+function getBattleTags(engine, currentLevel) {
+  const state = engine.state;
+  const tags = [];
+
+  if (currentLevel?.title) {
+    tags.push(currentLevel.title.toUpperCase());
+  }
+
+  tags.push(`LEVEL ${state.progression.currentLevelId}`);
+  tags.push(`DIFF ${state.difficulty}`);
+
+  if (engine.hasEmergency()) {
+    tags.push("EMERGENCY");
+  }
+
+  if (engine.isShopOpen()) {
+    tags.push("SHOP ONLINE");
+  }
+
+  if (engine.hasChoices()) {
+    tags.push("ROUTE SELECT");
+  }
+
+  if (state.progression.levelComplete && !state.combat.inCombat) {
+    tags.push("AREA SECURED");
+  }
+
+  if (state.status.poisonTurns > 0) {
+    tags.push(`POISON ${state.status.poisonTurns}`);
+  }
+
+  if (state.status.corrosionTurns > 0) {
+    tags.push(`CORROSION ${state.status.corrosionTurns}`);
+  }
+
+  return tags;
+}
+
+function getEnemyTags(enemy) {
+  if (!enemy) {
+    return ["NO TARGET"];
+  }
+
+  const tags = [enemy.type.toUpperCase()];
+
+  if (enemy.rageActive) {
+    tags.push("RAGING");
+  }
+
+  if (enemy.stunnedTurns > 0) {
+    tags.push(`STUNNED ${enemy.stunnedTurns}`);
+  }
+
+  if (enemy.chargeReady) {
+    tags.push("CHARGING");
+  }
+
+  if (enemy.poisonTurns > 0) {
+    tags.push(`ACID ${enemy.poisonTurns}`);
+  }
+
+  if (enemy.corrosionTurns > 0) {
+    tags.push(`CORROSIVE ${enemy.corrosionTurns}`);
+  }
+
+  if (enemy.summonAfterTurns && !enemy.summonedReinforcement) {
+    tags.push("CALLING");
+  }
+
+  return tags;
+}
+
+function inferBattleFx(actionKey, events) {
+  const text = Array.isArray(events) ? events.join(" ").toLowerCase() : "";
+  const effect = {
+    actionFxSrc: "",
+    actionFxAlt: "",
+    effect: "",
+    impactFxSrc: "",
+    impact: false
+  };
+
+  switch (actionKey) {
+    case "pistol":
+    case "rifle":
+      effect.actionFxSrc = FX_VISUALS.muzzleFlash;
+      effect.actionFxAlt = "Gun flash";
+      effect.effect = "shot";
+      break;
+    case "knife":
+      effect.actionFxSrc = FX_VISUALS.slashArc;
+      effect.actionFxAlt = "Knife slash";
+      effect.effect = "slash";
+      break;
+    case "grenade":
+      effect.actionFxSrc = FX_VISUALS.grenadeBlast;
+      effect.actionFxAlt = "Grenade explosion";
+      effect.effect = "grenade";
+      break;
+    case "heal":
+      effect.effect = "heal";
+      break;
+    case "reloadPistol":
+    case "reloadRifle":
+      effect.effect = "reload";
+      break;
+    case "dodge":
+      effect.effect = "dodge";
+      break;
+    case "toggleShield":
+      effect.effect = "shield";
+      break;
+    default:
+      break;
+  }
+
+  const enemyDamaged =
+    text.includes("dealt") ||
+    text.includes("critical hit") ||
+    text.includes("threw a grenade") ||
+    text.includes("blast damage") ||
+    text.includes("tears free with the rescue axe") ||
+    text.includes("fires the parry sidearm");
+
+  if (enemyDamaged) {
+    effect.impact = true;
+    effect.impactFxSrc = FX_VISUALS.hitSplatter;
+  }
+
+  return effect;
+}
+
+function renderBattleScene(engine, battleSceneState) {
+  const state = engine.state;
+  const currentLevel = engine.getCurrentLevel();
+  const enemy = state.combat.enemy;
+  const battleMode = getBattleMode(engine);
+  const levelVisual = getLevelVisual(state.progression.currentLevelId);
+  const activeVisual = battleMode === "shop" ? SPECIAL_VISUALS.shop : levelVisual;
+  const playerPoseKey = battleSceneState.effect ? battleSceneState.lastActionKey : "";
+  const playerVisual = getPlayerVisual(state.player.characterId, playerPoseKey);
+  const enemyVisual = enemy ? ENEMY_VISUALS[enemy.type] : null;
+
+  const stage = $("#battle-stage");
+  const backdrop = $("#battle-backdrop");
+  const overlay = $("#battle-overlay");
+  const playerActor = $("#battle-player");
+  const enemyActor = $("#battle-enemy");
+  const playerImage = $("#battle-player-image");
+  const enemyImage = $("#battle-enemy-image");
+  const playerFallback = $("#battle-player-fallback");
+  const enemyFallback = $("#battle-enemy-fallback");
+  const actionFxImage = $("#battle-action-fx-image");
+  const impactFxImage = $("#battle-impact-fx-image");
+  const playerName = $("#battle-player-name");
+  const playerMeta = $("#battle-player-meta");
+  const playerWeapon = $("#battle-player-weapon");
+  const playerHealthFill = $("#battle-player-health-fill");
+  const playerShieldFill = $("#battle-player-shield-fill");
+  const enemyName = $("#battle-enemy-name");
+  const enemyMeta = $("#battle-enemy-meta");
+  const enemyHealthFill = $("#battle-enemy-health-fill");
+  const enemyTags = $("#battle-enemy-tags");
+  const battleTags = $("#battle-tags");
+
+  if (!stage || !backdrop || !overlay) return;
+
+  stage.dataset.theme = activeVisual.theme;
+  stage.dataset.mode = battleMode;
+  stage.dataset.effect = battleSceneState.effect || "idle";
+  stage.dataset.impact = battleSceneState.impact ? "hit" : "idle";
+
+  backdrop.style.setProperty("--battle-backdrop-image", `url("${activeVisual.backdrop}")`);
+  overlay.style.setProperty("--battle-overlay-image", `url("${OVERLAY_VISUALS.scanline}")`);
+  overlay.style.setProperty(
+    "--battle-danger-image",
+    engine.hasEmergency() ? `url("${OVERLAY_VISUALS.danger}")` : "none"
+  );
+
+  if (playerActor) {
+    playerActor.className = "battle-actor battle-player";
+  }
+
+  if (enemyActor) {
+    enemyActor.className = ["battle-actor", "battle-enemy", enemyVisual?.impactClass || ""]
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  setBattleAsset(
+    playerImage,
+    playerFallback,
+    playerVisual.image,
+    `${state.player.characterName} portrait`,
+    state.player.characterName
+  );
+
+  setBattleAsset(
+    enemyImage,
+    enemyFallback,
+    enemyVisual?.image || "",
+    enemy ? `${enemy.name} portrait` : "No threat",
+    enemy ? enemy.name.toUpperCase() : "NO CONTACT"
+  );
+
+  if (!enemy) {
+    enemyImage?.removeAttribute("src");
+    if (enemyImage) {
+      enemyImage.hidden = true;
+    }
+    if (enemyFallback) {
+      enemyFallback.hidden = false;
+    }
+  }
+
+  renderBattleFxImage(actionFxImage, battleSceneState.actionFxSrc || "");
+  renderBattleFxImage(impactFxImage, battleSceneState.impactFxSrc || "");
+
+  if (playerName) {
+    playerName.textContent = state.player.characterName;
+  }
+
+  if (playerMeta) {
+    const shieldText = state.shield.hasShield
+      ? `SHIELD ${state.shield.equipped ? "ON" : "OFF"} ${state.shield.durability}/${state.shield.maxDurability}`
+      : "SHIELD NONE";
+    playerMeta.textContent = `HP ${state.inventory.health}/${state.inventory.maxHealth} | ${shieldText}`;
+  }
+
+  if (playerWeapon) {
+    playerWeapon.textContent = `WEAPON: ${getCurrentWeaponLabel(state, battleSceneState.lastActionKey)}`;
+  }
+
+  setBarFill(playerHealthFill, state.inventory.health / state.inventory.maxHealth);
+  setBarFill(
+    playerShieldFill,
+    state.shield.hasShield && state.shield.maxDurability > 0
+      ? state.shield.durability / state.shield.maxDurability
+      : 0
+  );
+
+  if (enemyName) {
+    enemyName.textContent = enemy ? enemy.name.toUpperCase() : "NO CONTACT";
+  }
+
+  if (enemyMeta) {
+    if (enemy) {
+      const enemyStatus = enemy.rageActive
+        ? "RAGING"
+        : enemy.stunnedTurns > 0
+          ? `STUNNED ${enemy.stunnedTurns}`
+          : enemy.chargeReady
+            ? "CHARGING"
+            : "HOSTILE";
+      enemyMeta.textContent = `HP ${Math.max(enemy.hp, 0)}/${enemy.baseHp} | ${enemyStatus}`;
+    } else {
+      enemyMeta.textContent = "SCAN ONLINE";
+    }
+  }
+
+  setBarFill(enemyHealthFill, enemy ? enemy.hp / enemy.baseHp : 0);
+  renderTagList(enemyTags, getEnemyTags(enemy), "battle-enemy-tag");
+  renderTagList(battleTags, getBattleTags(engine, currentLevel), "battle-tag");
 }
 
 function renderStats(engine) {
@@ -556,6 +942,15 @@ export function bootGameUI({
   let locked = false;
   let isAnimatingEvents = false;
   let storyRenderId = 0;
+  const battleSceneState = {
+    lastActionKey: "idle",
+    effect: "",
+    impact: false,
+    actionFxSrc: "",
+    actionFxAlt: "",
+    impactFxSrc: "",
+    timerId: null
+  };
   const emergencySession = {
     active: false,
     signature: null,
@@ -565,6 +960,50 @@ export function bootGameUI({
     key: "X",
     timerId: null
   };
+
+  function clearBattleFx() {
+    if (battleSceneState.timerId) {
+      window.clearTimeout(battleSceneState.timerId);
+    }
+
+    battleSceneState.effect = "";
+    battleSceneState.impact = false;
+    battleSceneState.actionFxSrc = "";
+    battleSceneState.actionFxAlt = "";
+    battleSceneState.impactFxSrc = "";
+    battleSceneState.timerId = null;
+  }
+
+  function triggerBattleFx(actionKey, events) {
+    if (
+      ["pistol", "rifle", "knife", "grenade", "reloadPistol", "reloadRifle", "heal", "dodge", "toggleShield"].includes(
+        actionKey
+      )
+    ) {
+      battleSceneState.lastActionKey = actionKey;
+    }
+
+    const effect = inferBattleFx(actionKey, events);
+    if (!effect.effect && !effect.impact && !effect.actionFxSrc && !effect.impactFxSrc) {
+      return;
+    }
+
+    if (battleSceneState.timerId) {
+      window.clearTimeout(battleSceneState.timerId);
+    }
+
+    battleSceneState.effect = effect.effect;
+    battleSceneState.impact = effect.impact;
+    battleSceneState.actionFxSrc = effect.actionFxSrc;
+    battleSceneState.actionFxAlt = effect.actionFxAlt;
+    battleSceneState.impactFxSrc = effect.impactFxSrc;
+    renderAll();
+
+    battleSceneState.timerId = window.setTimeout(() => {
+      clearBattleFx();
+      renderAll();
+    }, BATTLE_FX_DURATION_MS);
+  }
 
   function clearEmergencySession() {
     if (emergencySession.timerId) {
@@ -726,6 +1165,7 @@ export function bootGameUI({
   function renderAll() {
     const interactionLocked = isInteractionLocked();
     renderStats(engine);
+    renderBattleScene(engine, battleSceneState);
     renderWeaponVisibility(engine);
     renderChoiceBox(engine, handlePathChoice, interactionLocked);
     renderShopBox(engine, interactionLocked, handleShopBuy, handleShopSell, handleShopContinue);
@@ -779,6 +1219,7 @@ export function bootGameUI({
     const events = engine.dispatch(actionKey);
     playCombatActionSfx(actionKey, events);
     playDerivedCombatSfx(events);
+    triggerBattleFx(actionKey, events);
     await runAndRender(events);
     await postLevelFlow();
     locked = false;
