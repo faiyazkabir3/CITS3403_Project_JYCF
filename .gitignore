@@ -9,3 +9,5 @@ venv/
 node_modules/
 playwright-report/
 test-results/
+.vscode/settings.json
+.vscode/*.code-workspace
