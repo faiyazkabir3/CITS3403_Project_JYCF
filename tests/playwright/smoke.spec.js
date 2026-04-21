@@ -73,6 +73,59 @@ async function expectCharacterPortraitSizing(page) {
   expect(sizing.quiteObjectFit).toBe("cover");
 }
 
+async function expectTransparentImageCorners(page, selector) {
+  await expect(page.locator(selector)).toBeVisible();
+
+  const transparency = await page.evaluate(async (imageSelector) => {
+    const image = document.querySelector(imageSelector);
+    if (!(image instanceof HTMLImageElement)) {
+      return { found: false, hasContext: false, alphas: [], width: 0, height: 0 };
+    }
+
+    if (!image.complete || image.naturalWidth === 0) {
+      await image.decode();
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      return {
+        found: true,
+        hasContext: false,
+        alphas: [],
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+    }
+
+    context.drawImage(image, 0, 0);
+
+    const samplePoints = [
+      [0, 0],
+      [image.naturalWidth - 1, 0],
+      [0, image.naturalHeight - 1],
+      [image.naturalWidth - 1, image.naturalHeight - 1],
+      [Math.floor(image.naturalWidth / 2), 0],
+    ];
+
+    return {
+      found: true,
+      hasContext: true,
+      alphas: samplePoints.map(([x, y]) => context.getImageData(x, y, 1, 1).data[3]),
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    };
+  }, selector);
+
+  expect(transparency.found).toBeTruthy();
+  expect(transparency.hasContext).toBeTruthy();
+  expect(transparency.width).toBeGreaterThan(0);
+  expect(transparency.height).toBeGreaterThan(0);
+  expect(transparency.alphas).toEqual([0, 0, 0, 0, 0]);
+}
+
 async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
@@ -82,6 +135,8 @@ async function startNewGame(page, character = "leon") {
   await expect(page.locator("#character-screen")).toHaveClass(/active/);
   await expectPanelCentered(page, "#character-screen");
   await expectCharacterPortraitSizing(page);
+  await expect(page.locator('.character-card[data-character="leon"] img')).toHaveAttribute("src", /players\/leon_idle\.png/);
+  await expectTransparentImageCorners(page, '.character-card[data-character="leon"] img');
 
   await page.locator(`.character-card[data-character="${character}"]`).click();
   await expect(page.locator("#difficulty-screen")).toHaveClass(/active/);
@@ -378,6 +433,8 @@ test("registered user can view achievements, save, and load a run", async ({ pag
 
   await startNewGame(page, "leon");
   await expectPlayLayout(page);
+  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /players\/leon_idle\.png/);
+  await expectTransparentImageCorners(page, "#battle-player-image");
 
   await page.locator("#save-btn").click();
   await expect(page.locator("#story-text")).toContainText("Game saved successfully.", { timeout: 15_000 });

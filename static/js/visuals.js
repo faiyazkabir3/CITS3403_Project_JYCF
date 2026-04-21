@@ -2,7 +2,7 @@ const IMAGE_ROOT = "/static/images";
 
 export const PLAYER_VISUALS = {
   leon: {
-    image: `${IMAGE_ROOT}/leon_ken_looby.png`
+    image: `${IMAGE_ROOT}/players/leon_idle.png`
   },
   quite: {
     image: `${IMAGE_ROOT}/players/quite_idle.png`,
