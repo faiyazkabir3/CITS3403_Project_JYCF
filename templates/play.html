@@ -163,8 +163,31 @@
                   <div class="battle-bar battle-bar-shield">
                     <span id="battle-player-shield-fill"></span>
                   </div>
-                  <p id="battle-player-meta" class="battle-status-meta">HP 100/100 | SHIELD ON</p>
-                  <p id="battle-player-weapon" class="battle-status-submeta">WEAPON: PISTOL</p>
+                  <div id="battle-player-resources" class="battle-player-resources" data-health-state="normal">
+                    <div id="battle-player-health-row" class="battle-resource-row battle-resource-row-health">
+                      <span class="battle-resource-icon-wrap" aria-hidden="true">
+                        <img
+                          src="{{ url_for('static', filename='images/ui/icon_heart.svg') }}"
+                          alt=""
+                          class="battle-resource-icon"
+                        >
+                      </span>
+                      <span class="battle-resource-label">HP</span>
+                      <strong id="battle-player-health-text" class="battle-resource-value">100/100</strong>
+                    </div>
+                    <div id="battle-player-shield-row" class="battle-resource-row battle-resource-row-shield">
+                      <span class="battle-resource-icon-wrap" aria-hidden="true">
+                        <img
+                          src="{{ url_for('static', filename='images/ui/icon_shield.svg') }}"
+                          alt=""
+                          class="battle-resource-icon"
+                        >
+                      </span>
+                      <span class="battle-resource-label">SHIELD</span>
+                      <strong id="battle-player-shield-text" class="battle-resource-value">NONE</strong>
+                    </div>
+                    <div id="battle-player-loadout" class="battle-player-loadout" aria-label="Player loadout"></div>
+                  </div>
                 </section>
 
                 <section class="battle-status battle-status-enemy" aria-label="Enemy battle status">
@@ -259,55 +282,35 @@
 
         <div class="game-bottom">
           <div class="todo-box">
-            <h2>ACTIONS</h2>
+            <h2 id="action-panel-title">ACTIONS</h2>
 
-            <div class="todo-buttons" id="main-actions">
+            <div class="todo-buttons action-panel-grid action-panel-grid-main" id="main-actions">
               <button type="button" class="action-btn" id="attack-btn">ATTACK</button>
               <button type="button" class="action-btn" id="defend-btn">DEFEND</button>
               <button type="button" class="action-btn" id="inventory-btn">INVENTORY</button>
-              <button type="button" class="action-btn" id="save-btn">SAVE GAME</button>
-              <button type="button" class="action-btn" id="stats-btn">PLAYER STATS</button>
+              <button type="button" class="action-btn" id="stats-btn">STATS</button>
+              <button type="button" class="action-btn action-btn-wide" id="save-btn">SAVE GAME</button>
             </div>
 
-            <div class="todo-buttons" id="attack-actions" style="display: none;">
+            <div class="todo-buttons action-panel-grid action-panel-grid-submenu" id="attack-actions" style="display: none;">
               <button type="button" class="action-btn" id="pistol-btn">PISTOL</button>
               <button type="button" class="action-btn" id="rifle-btn" style="display: none;">RIFLE</button>
               <button type="button" class="action-btn" id="knife-btn">KNIFE</button>
               <button type="button" class="action-btn" id="grenade-btn">GRENADE</button>
-              <button type="button" class="action-btn" id="attack-back-btn">BACK</button>
+              <button type="button" class="action-btn action-btn-wide" id="attack-back-btn">BACK</button>
             </div>
 
-            <div class="todo-buttons" id="inventory-actions" style="display: none;">
+            <div class="todo-buttons action-panel-grid action-panel-grid-submenu" id="inventory-actions" style="display: none;">
               <button type="button" class="action-btn" id="reload-btn">RELOAD PISTOL</button>
               <button type="button" class="action-btn" id="reload-rifle-btn" style="display: none;">RELOAD RIFLE</button>
               <button type="button" class="action-btn" id="medkit-btn">USE MEDKIT</button>
               <button type="button" class="action-btn" id="shield-btn">TOGGLE SHIELD</button>
-              <button type="button" class="action-btn" id="inventory-back-btn">BACK</button>
+              <button type="button" class="action-btn action-btn-wide" id="inventory-back-btn">BACK</button>
             </div>
 
-            <div class="todo-buttons stats-actions" id="stats-actions" style="display: none;">
-              <div class="stats-actions-header">
-                <h3>PLAYER STATS</h3>
-                <button type="button" class="back-arrow" id="stats-back-btn" aria-label="Back to actions">
-                  ←
-                </button>
-              </div>
-              <ul id="player-stats-list">
-                <li>CHARACTER: LEON</li>
-                <li>PERK: TACTICAL SPECIALIST</li>
-                <li>HP: 100</li>
-                <li>COINS: 0</li>
-                <li>MED: 2</li>
-                <li>GREN: 2</li>
-                <li>PISTOL: 8/8</li>
-                <li>PISTOL BAG: 16</li>
-                <li>SHIELD: ON (100)</li>
-                <li>AGI / COUR: 20 / 50</li>
-                <li>LEVEL: 1</li>
-                <li>ENEMIES LEFT: 1</li>
-                <li>ENEMY HP: 39</li>
-                <li>STATUS: ALIVE</li>
-              </ul>
+            <div class="todo-buttons stats-actions player-stats-panel" id="stats-actions" style="display: none;">
+              <div id="player-stats-grid" class="player-stats-grid" aria-live="polite"></div>
+              <button type="button" class="action-btn action-btn-wide" id="stats-back-btn">BACK</button>
             </div>
           </div>
 

@@ -25,6 +25,21 @@ const WHOOSH_SOUND = "/static/audio/sfx/combat/whoosh.mp3";
 const SHIELD_SOUND = "/static/audio/sfx/system/shield.mp3";
 const MEDKIT_SOUND = "/static/audio/sfx/system/medkit.mp3";
 const HEAL_SOUND = "/static/audio/sfx/system/heal.mp3";
+const UI_ICON_ROOT = "/static/images/ui";
+const LOADOUT_ICON_SRC = {
+  heart: `${UI_ICON_ROOT}/icon_heart.svg`,
+  shield: `${UI_ICON_ROOT}/icon_shield.svg`,
+  pistol: `${UI_ICON_ROOT}/icon_pistol.svg`,
+  coin: `${UI_ICON_ROOT}/icon_coin.svg`,
+  medkit: `${UI_ICON_ROOT}/icon_medkit.svg`,
+  rifle: `${UI_ICON_ROOT}/icon_rifle.svg`,
+  knife: `${UI_ICON_ROOT}/icon_knife.svg`,
+  grenade: `${UI_ICON_ROOT}/icon_grenade.svg`,
+  ammo: `${UI_ICON_ROOT}/icon_ammo.svg`,
+  infinity: `${UI_ICON_ROOT}/icon_infinity.svg`,
+  sidearm: `${UI_ICON_ROOT}/icon_sidearm.svg`,
+  axe: `${UI_ICON_ROOT}/icon_axe.svg`
+};
 const saveBeepAudio = new Audio(SAVE_BEEP_SOUND);
 const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 const warningBeepAudio = new Audio(WARNING_BEEP_SOUND);
@@ -277,14 +292,34 @@ function isGameOver(engine) {
 }
 
 const ACTION_GROUP_IDS = ["main-actions", "attack-actions", "inventory-actions", "stats-actions"];
+const ACTIVE_WEAPON_ACTIONS = {
+  pistol: "pistol",
+  reloadPistol: "pistol",
+  rifle: "rifle",
+  reloadRifle: "rifle",
+  knife: "knife",
+  grenade: "grenade"
+};
+const ACTION_PANEL_TITLES = {
+  "main-actions": "ACTIONS",
+  "attack-actions": "ACTIONS",
+  "inventory-actions": "ACTIONS",
+  "stats-actions": "PLAYER ITEMS"
+};
 
 function showActionGroup(groupId) {
+  const title = document.getElementById("action-panel-title");
+
   ACTION_GROUP_IDS.forEach((id) => {
     const element = document.getElementById(id);
     if (element) {
-      element.style.display = id === groupId ? "flex" : "none";
+      element.style.display = id === groupId ? "" : "none";
     }
   });
+
+  if (title) {
+    title.textContent = ACTION_PANEL_TITLES[groupId] || "ACTIONS";
+  }
 }
 
 function showMainActions() {
@@ -326,6 +361,175 @@ function renderTagList(container, tags, className) {
     tag.textContent = text;
     container.appendChild(tag);
   });
+}
+
+function getHealthState(inventory) {
+  const ratio = inventory.maxHealth > 0 ? inventory.health / inventory.maxHealth : 0;
+
+  if (ratio <= 0.15) {
+    return "critical";
+  }
+
+  if (ratio <= 0.3) {
+    return "low";
+  }
+
+  return "normal";
+}
+
+function getShieldStatusText(state) {
+  if (!state.shield.hasShield || state.shield.maxDurability <= 0) {
+    return "NONE";
+  }
+
+  return `${state.shield.equipped ? "ON" : "OFF"} ${state.shield.durability}/${state.shield.maxDurability}`;
+}
+
+function createPlayerStatItem(label, value) {
+  const item = document.createElement("div");
+  item.className = "player-stat-item";
+
+  const itemLabel = document.createElement("span");
+  itemLabel.className = "player-stat-label";
+  itemLabel.textContent = label;
+
+  const itemValue = document.createElement("strong");
+  itemValue.className = "player-stat-value";
+  itemValue.textContent = value;
+
+  item.append(itemLabel, itemValue);
+  return item;
+}
+
+function createLoadoutChip({
+  weaponKey,
+  icon,
+  counterIcon,
+  value,
+  active = false,
+  low = false,
+  empty = false,
+  ariaLabel
+}) {
+  const chip = document.createElement("div");
+  chip.className = "battle-loadout-chip";
+  chip.dataset.weapon = weaponKey;
+  chip.dataset.active = active ? "true" : "false";
+  chip.dataset.low = low ? "true" : "false";
+  chip.dataset.empty = empty ? "true" : "false";
+  chip.setAttribute("aria-label", ariaLabel);
+  chip.title = ariaLabel;
+
+  const weaponIcon = document.createElement("img");
+  weaponIcon.className = "battle-loadout-icon";
+  weaponIcon.src = icon;
+  weaponIcon.alt = "";
+  weaponIcon.setAttribute("aria-hidden", "true");
+
+  const countWrap = document.createElement("span");
+  countWrap.className = "battle-loadout-count";
+
+  if (counterIcon) {
+    const countIcon = document.createElement("img");
+    countIcon.className = "battle-loadout-count-icon";
+    countIcon.src = counterIcon;
+    countIcon.alt = "";
+    countIcon.setAttribute("aria-hidden", "true");
+    countWrap.append(countIcon);
+  }
+
+  const countValue = document.createElement("strong");
+  countValue.className = "battle-loadout-count-value";
+  countValue.textContent = value;
+
+  countWrap.append(countValue);
+  chip.append(weaponIcon, countWrap);
+  return chip;
+}
+
+function buildPlayerLoadout(state, activeWeaponKey) {
+  const chips = [
+    {
+      weaponKey: "pistol",
+      icon: LOADOUT_ICON_SRC.pistol,
+      counterIcon: LOADOUT_ICON_SRC.ammo,
+      value: `${state.pistol.ammoInGun}/${state.pistol.magCapacity}`,
+      low: state.pistol.ammoInGun > 0 && state.pistol.ammoInGun <= 3,
+      empty: state.pistol.ammoInGun <= 0,
+      ariaLabel: `Pistol ammo ${state.pistol.ammoInGun} of ${state.pistol.magCapacity}`
+    },
+    {
+      weaponKey: "coins",
+      icon: LOADOUT_ICON_SRC.coin,
+      value: `${state.inventory.coins}`,
+      ariaLabel: `Coins ${state.inventory.coins}`
+    },
+    {
+      weaponKey: "medkit",
+      icon: LOADOUT_ICON_SRC.medkit,
+      value: `${state.inventory.medKits}`,
+      empty: state.inventory.medKits <= 0,
+      ariaLabel: `Medkits remaining ${state.inventory.medKits}`
+    }
+  ];
+
+  if (state.rifle.owned) {
+    chips.push({
+      weaponKey: "rifle",
+      icon: LOADOUT_ICON_SRC.rifle,
+      counterIcon: LOADOUT_ICON_SRC.ammo,
+      value: `${state.rifle.ammoInGun}/${state.rifle.magCapacity}`,
+      low: state.rifle.ammoInGun > 0 && state.rifle.ammoInGun <= 3,
+      empty: state.rifle.ammoInGun <= 0,
+      ariaLabel: `Rifle ammo ${state.rifle.ammoInGun} of ${state.rifle.magCapacity}`
+    });
+  }
+
+  chips.push(
+    {
+      weaponKey: "knife",
+      icon: LOADOUT_ICON_SRC.knife,
+      counterIcon: LOADOUT_ICON_SRC.infinity,
+      value: "\u221E",
+      ariaLabel: "Knife ready with infinite use"
+    },
+    {
+      weaponKey: "grenade",
+      icon: LOADOUT_ICON_SRC.grenade,
+      counterIcon: LOADOUT_ICON_SRC.ammo,
+      value: `${state.inventory.grenades}`,
+      empty: state.inventory.grenades <= 0,
+      ariaLabel: `Grenades remaining ${state.inventory.grenades}`
+    }
+  );
+
+  if (state.relics?.quiteSidearm?.owned) {
+    chips.push({
+      weaponKey: "sidearm",
+      icon: LOADOUT_ICON_SRC.sidearm,
+      counterIcon: LOADOUT_ICON_SRC.ammo,
+      value: `${state.relics.quiteSidearm.ammo}/${state.relics.quiteSidearm.maxAmmo}`,
+      low: state.relics.quiteSidearm.ammo > 0 && state.relics.quiteSidearm.ammo <= 3,
+      empty: state.relics.quiteSidearm.ammo <= 0,
+      ariaLabel: `Parry sidearm ammo ${state.relics.quiteSidearm.ammo} of ${state.relics.quiteSidearm.maxAmmo}`
+    });
+  }
+
+  if (state.relics?.leonAxe?.owned) {
+    chips.push({
+      weaponKey: "axe",
+      icon: LOADOUT_ICON_SRC.axe,
+      counterIcon: LOADOUT_ICON_SRC.ammo,
+      value: `${state.relics.leonAxe.sharpenCharges}/${state.relics.leonAxe.maxSharpenCharges}`,
+      empty: state.relics.leonAxe.sharpenCharges <= 0,
+      ariaLabel: `Axe sharpen charges ${state.relics.leonAxe.sharpenCharges} of ${state.relics.leonAxe.maxSharpenCharges}`
+    });
+  }
+
+  return chips.map((chip) => ({
+    ...chip,
+    active: chip.weaponKey === activeWeaponKey
+  }));
 }
 
 function ensureBattleAssetBinding(imageEl, fallbackEl) {
@@ -389,24 +593,6 @@ function renderBattleFxImage(imageEl, src) {
 
   imageEl.alt = "";
   imageEl.hidden = false;
-}
-
-function getCurrentWeaponLabel(state, lastActionKey) {
-  switch (lastActionKey) {
-    case "rifle":
-    case "reloadRifle":
-      return state.rifle.owned ? "RIFLE" : "PISTOL";
-    case "knife":
-      return "KNIFE";
-    case "grenade":
-      return "GRENADE";
-    case "heal":
-      return "MEDKIT";
-    case "toggleShield":
-      return "SHIELD";
-    default:
-      return "PISTOL";
-  }
 }
 
 function getBattleMode(engine) {
@@ -570,8 +756,12 @@ function renderBattleScene(engine, battleSceneState) {
   const actionFxImage = $("#battle-action-fx-image");
   const impactFxImage = $("#battle-impact-fx-image");
   const playerName = $("#battle-player-name");
-  const playerMeta = $("#battle-player-meta");
-  const playerWeapon = $("#battle-player-weapon");
+  const playerResources = $("#battle-player-resources");
+  const playerHealthRow = $("#battle-player-health-row");
+  const playerShieldRow = $("#battle-player-shield-row");
+  const playerHealthText = $("#battle-player-health-text");
+  const playerShieldText = $("#battle-player-shield-text");
+  const playerLoadout = $("#battle-player-loadout");
   const playerHealthFill = $("#battle-player-health-fill");
   const playerShieldFill = $("#battle-player-shield-fill");
   const enemyName = $("#battle-enemy-name");
@@ -627,15 +817,34 @@ function renderBattleScene(engine, battleSceneState) {
     playerName.textContent = state.player.characterName;
   }
 
-  if (playerMeta) {
-    const shieldText = state.shield.hasShield
-      ? `SHIELD ${state.shield.equipped ? "ON" : "OFF"} ${state.shield.durability}/${state.shield.maxDurability}`
-      : "SHIELD NONE";
-    playerMeta.textContent = `HP ${state.inventory.health}/${state.inventory.maxHealth} | ${shieldText}`;
+  if (playerResources) {
+    const healthState = getHealthState(state.inventory);
+    playerResources.dataset.healthState = healthState;
   }
 
-  if (playerWeapon) {
-    playerWeapon.textContent = `WEAPON: ${getCurrentWeaponLabel(state, battleSceneState.lastActionKey)}`;
+  if (playerHealthRow) {
+    playerHealthRow.dataset.low = getHealthState(state.inventory) === "normal" ? "false" : "true";
+  }
+
+  if (playerHealthText) {
+    playerHealthText.textContent = `${state.inventory.health}/${state.inventory.maxHealth}`;
+  }
+
+  if (playerShieldRow) {
+    playerShieldRow.dataset.empty =
+      !state.shield.hasShield || state.shield.maxDurability <= 0 || state.shield.durability <= 0 ? "true" : "false";
+  }
+
+  if (playerShieldText) {
+    playerShieldText.textContent = getShieldStatusText(state);
+  }
+
+  if (playerLoadout) {
+    playerLoadout.replaceChildren();
+
+    buildPlayerLoadout(state, battleSceneState.activeWeaponKey).forEach((chipConfig) => {
+      playerLoadout.appendChild(createLoadoutChip(chipConfig));
+    });
   }
 
   setBarFill(playerHealthFill, state.inventory.health / state.inventory.maxHealth);
@@ -674,75 +883,75 @@ function renderStats(engine) {
   const state = engine.state;
   const derived = engine.getDerivedStats();
   const currentLevel = engine.getCurrentLevel();
-  const enemy = state.combat.enemy;
 
   const topLeft = $(".top-left");
   if (topLeft && currentLevel) {
     topLeft.textContent = `LEVEL ${currentLevel.id} - ${currentLevel.title}`;
   }
 
-  const shieldText = state.shield.hasShield
-    ? `${state.shield.equipped ? "ON" : "OFF"} (${state.shield.durability})`
-    : "NONE";
   const statusText = [
     state.status.poisonTurns > 0 ? `POISON ${state.status.poisonTurns}` : null,
     state.status.corrosionTurns > 0 ? `CORROSION ${state.status.corrosionTurns}` : null
   ]
     .filter(Boolean)
     .join(" / ") || "CLEAR";
-  const enemyLabel = enemy ? `${enemy.name} (${Math.max(enemy.hp, 0)} HP)` : "-";
 
-  const statsUl = $("#player-stats-list");
-  if (statsUl) {
-    const lines = [
-      `CHARACTER: ${state.player.characterName}`,
-      `PERK: ${state.player.perkName}`,
-      `HP: ${state.inventory.health}/${state.inventory.maxHealth}`,
-      `COINS: ${state.inventory.coins}`,
-      `MED: ${state.inventory.medKits}`,
-      `GREN: ${state.inventory.grenades}`,
-      `PISTOL: ${state.pistol.ammoInGun}/${state.pistol.magCapacity}`,
-      `PISTOL BAG: ${state.pistol.ammoInBag}`
+  const statsGrid = $("#player-stats-grid");
+  if (statsGrid) {
+    const items = [
+      ["PERK", state.player.perkName],
+      ["COINS", `${state.inventory.coins}`],
+      ["MEDKITS", `${state.inventory.medKits}`],
+      ["PISTOL BAG", `${state.pistol.ammoInBag}`]
     ];
 
-    if (state.relics?.quiteSidearm?.owned) {
-      lines.push(`PARRY SIDEARM: ${state.relics.quiteSidearm.ammo}/${state.relics.quiteSidearm.maxAmmo}`);
-    }
-
     if (state.rifle.owned) {
-      lines.push(`RIFLE: ${state.rifle.ammoInGun}/${state.rifle.magCapacity} | BAG ${state.rifle.ammoInBag}`);
+      items.push(["RIFLE BAG", `${state.rifle.ammoInBag}`]);
     }
 
-    if (state.relics?.leonAxe?.owned) {
-      lines.push(`AXE SHARPEN: ${state.relics.leonAxe.sharpenCharges}/${state.relics.leonAxe.maxSharpenCharges}`);
-    }
-
-    lines.push(
-      `SHIELD: ${shieldText}`,
-      `AGI / COUR: ${state.stats.agility} / ${state.stats.courage}`,
-      `DODGE / CRIT: ${formatPercent(derived.dodgeChance)} / ${formatPercent(derived.critChance)}`,
-      `ARMOUR CUT: ${formatPercent(derived.armourReduction)}`,
-      `LEVEL: ${state.progression.currentLevelId}`,
-      `ENEMIES LEFT: ${state.progression.enemiesRemaining}`,
-      `ENEMY: ${enemyLabel}`,
-      `STATUS: ${isGameOver(engine) ? "DEAD" : statusText}`
+    items.push(
+      ["AGI / COUR", `${state.stats.agility} / ${state.stats.courage}`],
+      ["DODGE / CRIT", `${formatPercent(derived.dodgeChance)} / ${formatPercent(derived.critChance)}`],
+      ["ARMOUR CUT", `${formatPercent(derived.armourReduction)}`],
+      ["STATUS", isGameOver(engine) ? "DEAD" : statusText]
     );
 
-    statsUl.innerHTML = lines.map((line) => `<li>${line}</li>`).join("");
+    statsGrid.replaceChildren(...items.map(([label, value]) => createPlayerStatItem(label, value)));
   }
 }
 
 function renderWeaponVisibility(engine) {
   const rifleOwned = engine.state.rifle.owned;
+  const shieldOwned = engine.state.shield.hasShield;
   const rifleBtn = $("#rifle-btn");
   const reloadRifleBtn = $("#reload-rifle-btn");
+  const pistolBtn = $("#pistol-btn");
+  const reloadBtn = $("#reload-btn");
+  const medkitBtn = $("#medkit-btn");
+  const shieldBtn = $("#shield-btn");
 
   if (rifleBtn) {
     rifleBtn.style.display = rifleOwned ? "" : "none";
   }
 
+  if (pistolBtn) {
+    pistolBtn.style.gridColumn = rifleOwned ? "" : "1 / -1";
+  }
+
   if (reloadRifleBtn) {
     reloadRifleBtn.style.display = rifleOwned ? "" : "none";
+  }
+
+  if (reloadBtn) {
+    reloadBtn.style.gridColumn = rifleOwned ? "" : "1 / -1";
+  }
+
+  if (shieldBtn) {
+    shieldBtn.style.display = shieldOwned ? "" : "none";
+  }
+
+  if (medkitBtn) {
+    medkitBtn.style.gridColumn = shieldOwned ? "" : "1 / -1";
   }
 }
 
@@ -946,6 +1155,7 @@ export function bootGameUI({
   let storyRenderId = 0;
   const battleSceneState = {
     lastActionKey: "idle",
+    activeWeaponKey: "pistol",
     effect: "",
     impact: false,
     actionFxSrc: "",
@@ -972,6 +1182,14 @@ export function bootGameUI({
     battleSceneState.actionFxSrc = "";
     battleSceneState.impactFxSrc = "";
     battleSceneState.timerId = null;
+  }
+
+  function updateActiveWeapon(actionKey) {
+    const activeWeaponKey = ACTIVE_WEAPON_ACTIONS[actionKey];
+
+    if (activeWeaponKey) {
+      battleSceneState.activeWeaponKey = activeWeaponKey;
+    }
   }
 
   function triggerBattleFx(actionKey, events) {
@@ -1235,6 +1453,7 @@ export function bootGameUI({
     if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency()) return;
 
     locked = true;
+    updateActiveWeapon(actionKey);
     renderAll();
     const events = engine.dispatch(actionKey);
     playCombatActionSfx(actionKey, events);

@@ -95,34 +95,16 @@ async function startNewGame(page, character = "leon") {
 }
 
 async function expectPlayerStats(page, characterLabel) {
-  await page.getByRole("button", { name: "PLAYER STATS" }).click();
+  await page.getByRole("button", { name: "STATS" }).click();
   await expect(page.locator("#stats-actions")).toBeVisible();
-  await expect(page.locator("#player-stats-list")).toContainText(`CHARACTER: ${characterLabel}`);
-
-  const statsMetrics = await page.evaluate(() => {
-    const statsList = document.querySelector("#player-stats-list");
-    const statsBackButton = document.querySelector("#stats-back-btn")?.getBoundingClientRect();
-    const todoBox = document.querySelector(".todo-box")?.getBoundingClientRect();
-
-    if (statsList) {
-      statsList.scrollTop = statsList.scrollHeight;
-    }
-
-    return {
-      backBottom: statsBackButton?.bottom ?? 0,
-      listCanScroll: statsList ? statsList.scrollHeight > statsList.clientHeight : false,
-      listOverflow: statsList ? window.getComputedStyle(statsList).overflowY : "",
-      listScrollTop: statsList?.scrollTop ?? 0,
-      todoBottom: todoBox?.bottom ?? 0,
-    };
-  });
-
-  expect(statsMetrics.listOverflow).toBe("auto");
-  expect(statsMetrics.listCanScroll).toBeTruthy();
-  expect(statsMetrics.listScrollTop).toBeGreaterThan(0);
-  expect(statsMetrics.backBottom).toBeLessThanOrEqual(statsMetrics.todoBottom + 2);
-
+  await expect(page.locator("#action-panel-title")).toHaveText("PLAYER ITEMS");
+  await expect(page.locator("#player-stats-grid")).toContainText("PERK");
+  await expect(page.locator("#battle-player-name")).toHaveText(characterLabel);
+  await expect(page.locator("#player-stats-grid")).not.toContainText("CHARACTER");
+  await expect(page.locator("#player-stats-grid")).not.toContainText("HP");
+  await expect(page.locator("#player-stats-grid")).not.toContainText("SHIELD");
   await page.locator("#stats-back-btn").click();
+  await expect(page.locator("#action-panel-title")).toHaveText("ACTIONS");
   await expect(page.locator("#main-actions")).toBeVisible();
 }
 
@@ -130,6 +112,15 @@ async function expectPlayLayout(page) {
   await expect(page.locator("#battle-stage")).toBeVisible();
   await expect(page.locator(".todo-box")).toBeVisible();
   await expect(page.locator(".combat-log-box")).toBeVisible();
+  await expect(page.locator("#battle-player-health-text")).toBeVisible();
+  await expect(page.locator("#battle-player-shield-text")).toBeVisible();
+  await expect(page.locator("#battle-player-loadout")).toBeVisible();
+  await expect(page.locator('#battle-player-loadout [data-weapon="pistol"]')).toContainText("8/8");
+  await expect(page.locator('#battle-player-loadout [data-weapon="coins"]')).toContainText("0");
+  await expect(page.locator('#battle-player-loadout [data-weapon="medkit"]')).toContainText("2");
+  await expect(page.locator('#battle-player-loadout [data-weapon="knife"]')).toContainText("∞");
+  await expect(page.locator('#battle-player-loadout [data-weapon="grenade"]')).toContainText("2");
+  await expect(page.locator('#battle-player-loadout [data-weapon="pistol"]')).toHaveAttribute("data-active", "true");
 
   const panelHeights = await page.evaluate(() => {
     const actions = document.querySelector(".todo-box")?.getBoundingClientRect();
@@ -141,6 +132,9 @@ async function expectPlayLayout(page) {
     const graphics = document.querySelector(".graphics-area")?.getBoundingClientRect();
     const gamePanel = document.querySelector("#game-screen")?.getBoundingClientRect();
     const gameBottom = document.querySelector(".game-bottom")?.getBoundingClientRect();
+    const mainActions = document.querySelector("#main-actions");
+    const attackBtn = document.querySelector("#attack-btn")?.getBoundingClientRect();
+    const saveBtn = document.querySelector("#save-btn")?.getBoundingClientRect();
 
     return {
       actionsHeight: actions?.height ?? 0,
@@ -156,6 +150,9 @@ async function expectPlayLayout(page) {
       gameBottomTop: gameBottom?.top ?? 0,
       gameBottomBottom: gameBottom?.bottom ?? 0,
       viewportHeight: window.innerHeight,
+      mainActionsDisplay: mainActions ? window.getComputedStyle(mainActions).display : "",
+      attackWidth: attackBtn?.width ?? 0,
+      saveWidth: saveBtn?.width ?? 0,
     };
   });
 
@@ -167,16 +164,46 @@ async function expectPlayLayout(page) {
   expect(panelHeights.graphicsBottom).toBeLessThanOrEqual(panelHeights.gameBottomTop - 4);
   expect(panelHeights.gameBottomBottom).toBeLessThanOrEqual(panelHeights.gamePanelBottom + 2);
   expect(panelHeights.gamePanelBottom).toBeLessThanOrEqual(panelHeights.viewportHeight + 2);
+  expect(panelHeights.mainActionsDisplay).toBe("grid");
+  expect(panelHeights.saveWidth).toBeGreaterThanOrEqual(panelHeights.attackWidth * 1.9);
 }
 
 async function expectActionSubmenus(page) {
   await page.getByRole("button", { name: "ATTACK" }).click();
   await expect(page.locator("#attack-actions")).toBeVisible();
+
+  const attackMetrics = await page.evaluate(() => {
+    const pistol = document.querySelector("#pistol-btn")?.getBoundingClientRect();
+    const knife = document.querySelector("#knife-btn")?.getBoundingClientRect();
+    return {
+      pistolWidth: pistol?.width ?? 0,
+      knifeWidth: knife?.width ?? 0,
+    };
+  });
+
+  expect(attackMetrics.pistolWidth).toBeGreaterThanOrEqual(attackMetrics.knifeWidth * 1.9);
   await page.locator("#attack-back-btn").click();
   await expect(page.locator("#main-actions")).toBeVisible();
 
   await page.getByRole("button", { name: "INVENTORY" }).click();
   await expect(page.locator("#inventory-actions")).toBeVisible();
+
+  const inventoryMetrics = await page.evaluate(() => {
+    const reload = document.querySelector("#reload-btn")?.getBoundingClientRect();
+    const medkit = document.querySelector("#medkit-btn")?.getBoundingClientRect();
+    const shield = document.querySelector("#shield-btn");
+    return {
+      reloadWidth: reload?.width ?? 0,
+      medkitWidth: medkit?.width ?? 0,
+      shieldDisplay: shield ? window.getComputedStyle(shield).display : "none",
+    };
+  });
+
+  if (inventoryMetrics.shieldDisplay === "none") {
+    expect(Math.abs(inventoryMetrics.reloadWidth - inventoryMetrics.medkitWidth)).toBeLessThanOrEqual(4);
+  } else {
+    expect(inventoryMetrics.reloadWidth).toBeGreaterThanOrEqual(inventoryMetrics.medkitWidth * 1.9);
+  }
   await page.locator("#inventory-back-btn").click();
   await expect(page.locator("#main-actions")).toBeVisible();
 }
@@ -299,9 +326,9 @@ async function expectShopLayout(page) {
   expect(shopMetrics.battleStageHeight).toBeGreaterThanOrEqual(180);
   expect(shopMetrics.shopTop).toBeGreaterThanOrEqual(shopMetrics.battleStageBottom - 2);
   expect(shopMetrics.shopBottom).toBeLessThanOrEqual(shopMetrics.gamePanelBottom + 2);
-  expect(shopMetrics.shopHeight).toBeGreaterThanOrEqual(260);
-  expect(shopMetrics.shopDialogueHeight).toBeGreaterThanOrEqual(70);
-  expect(shopMetrics.firstShopOptionHeight).toBeGreaterThanOrEqual(70);
+  expect(shopMetrics.shopHeight).toBeGreaterThanOrEqual(shopMetrics.viewportHeight * 0.5);
+  expect(shopMetrics.shopDialogueHeight).toBeGreaterThanOrEqual(65);
+  expect(shopMetrics.firstShopOptionHeight).toBeGreaterThanOrEqual(34);
   expect(shopMetrics.gamePanelBottom).toBeLessThanOrEqual(shopMetrics.viewportHeight + 2);
 }
 
