@@ -12,8 +12,22 @@ A collaborative full-stack web application built using Flask, SQLAlchemy, and Bo
 pip install -r requirements.txt
 ```
 
-3. Make sure your `.env` file contains a valid `SECRET_KEY`.
-4. Run the Flask app:
+3. Generate a strong local `SECRET_KEY`:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+4. Add the generated value to your local `.env` file:
+
+```text
+SECRET_KEY=paste_the_generated_value_here
+DATABASE_URL=sqlite:///project.db
+```
+
+Do not use placeholder values like `replace_me`, and do not commit `.env`.
+
+5. Run the Flask app:
 
 ```powershell
 python app.py
