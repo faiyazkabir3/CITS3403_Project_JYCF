@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 db_path = (INSTANCE_DIR / "playwright_smoke.db").resolve()
 
-os.environ.setdefault("SECRET_KEY", "playwright-smoke-secret")
+os.environ.setdefault("SECRET_KEY", "playwright-smoke-secret-key-for-local-browser-tests")
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{db_path.as_posix()}")
 
 from app import app  # noqa: E402

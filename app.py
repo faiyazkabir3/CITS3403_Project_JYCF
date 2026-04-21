@@ -25,9 +25,39 @@ os.makedirs(app.instance_path, exist_ok=True)
 SAVE_FALLBACK_DIR = Path(app.instance_path) / "save_fallbacks"
 SAVE_FALLBACK_DIR.mkdir(exist_ok=True)
 
-secret_key = os.environ.get("SECRET_KEY")
-if not secret_key:
-    raise RuntimeError("SECRET_KEY is missing. Add it to your .env file.")
+SECRET_KEY_PLACEHOLDERS = {
+    "change-me",
+    "changeme",
+    "dev",
+    "flask-secret-key",
+    "password",
+    "replace-me",
+    "replace_me",
+    "secret",
+    "super-secret-key",
+    "your-secret-key",
+}
+
+
+def load_required_secret_key():
+    secret_key = os.environ.get("SECRET_KEY", "").strip()
+    normalized_secret_key = secret_key.lower()
+
+    if not secret_key:
+        raise RuntimeError("SECRET_KEY is missing. Add it to your .env file.")
+
+    if normalized_secret_key in SECRET_KEY_PLACEHOLDERS:
+        raise RuntimeError(
+            "SECRET_KEY is still set to a placeholder. Generate a strong random value and store it in your .env file."
+        )
+
+    if len(secret_key) < 32:
+        raise RuntimeError("SECRET_KEY is too short. Use at least 32 random characters in your .env file.")
+
+    return secret_key
+
+
+secret_key = load_required_secret_key()
 
 app.config["SECRET_KEY"] = secret_key
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///project.db")
