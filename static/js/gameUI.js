@@ -30,6 +30,8 @@ const LOADOUT_ICON_SRC = {
   heart: `${UI_ICON_ROOT}/icon_heart.svg`,
   shield: `${UI_ICON_ROOT}/icon_shield.svg`,
   pistol: `${UI_ICON_ROOT}/icon_pistol.svg`,
+  coin: `${UI_ICON_ROOT}/icon_coin.svg`,
+  medkit: `${UI_ICON_ROOT}/icon_medkit.svg`,
   rifle: `${UI_ICON_ROOT}/icon_rifle.svg`,
   knife: `${UI_ICON_ROOT}/icon_knife.svg`,
   grenade: `${UI_ICON_ROOT}/icon_grenade.svg`,
@@ -427,17 +429,20 @@ function createLoadoutChip({
   const countWrap = document.createElement("span");
   countWrap.className = "battle-loadout-count";
 
-  const countIcon = document.createElement("img");
-  countIcon.className = "battle-loadout-count-icon";
-  countIcon.src = counterIcon;
-  countIcon.alt = "";
-  countIcon.setAttribute("aria-hidden", "true");
+  if (counterIcon) {
+    const countIcon = document.createElement("img");
+    countIcon.className = "battle-loadout-count-icon";
+    countIcon.src = counterIcon;
+    countIcon.alt = "";
+    countIcon.setAttribute("aria-hidden", "true");
+    countWrap.append(countIcon);
+  }
 
   const countValue = document.createElement("strong");
   countValue.className = "battle-loadout-count-value";
   countValue.textContent = value;
 
-  countWrap.append(countIcon, countValue);
+  countWrap.append(countValue);
   chip.append(weaponIcon, countWrap);
   return chip;
 }
@@ -452,6 +457,19 @@ function buildPlayerLoadout(state, activeWeaponKey) {
       low: state.pistol.ammoInGun > 0 && state.pistol.ammoInGun <= 3,
       empty: state.pistol.ammoInGun <= 0,
       ariaLabel: `Pistol ammo ${state.pistol.ammoInGun} of ${state.pistol.magCapacity}`
+    },
+    {
+      weaponKey: "coins",
+      icon: LOADOUT_ICON_SRC.coin,
+      value: `${state.inventory.coins}`,
+      ariaLabel: `Coins ${state.inventory.coins}`
+    },
+    {
+      weaponKey: "medkit",
+      icon: LOADOUT_ICON_SRC.medkit,
+      value: `${state.inventory.medKits}`,
+      empty: state.inventory.medKits <= 0,
+      ariaLabel: `Medkits remaining ${state.inventory.medKits}`
     }
   ];
 

@@ -116,6 +116,8 @@ async function expectPlayLayout(page) {
   await expect(page.locator("#battle-player-shield-text")).toBeVisible();
   await expect(page.locator("#battle-player-loadout")).toBeVisible();
   await expect(page.locator('#battle-player-loadout [data-weapon="pistol"]')).toContainText("8/8");
+  await expect(page.locator('#battle-player-loadout [data-weapon="coins"]')).toContainText("0");
+  await expect(page.locator('#battle-player-loadout [data-weapon="medkit"]')).toContainText("2");
   await expect(page.locator('#battle-player-loadout [data-weapon="knife"]')).toContainText("∞");
   await expect(page.locator('#battle-player-loadout [data-weapon="grenade"]')).toContainText("2");
   await expect(page.locator('#battle-player-loadout [data-weapon="pistol"]')).toHaveAttribute("data-active", "true");
