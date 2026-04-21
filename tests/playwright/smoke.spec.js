@@ -98,6 +98,30 @@ async function expectPlayerStats(page, characterLabel) {
   await page.getByRole("button", { name: "PLAYER STATS" }).click();
   await expect(page.locator("#stats-actions")).toBeVisible();
   await expect(page.locator("#player-stats-list")).toContainText(`CHARACTER: ${characterLabel}`);
+
+  const statsMetrics = await page.evaluate(() => {
+    const statsList = document.querySelector("#player-stats-list");
+    const statsBackButton = document.querySelector("#stats-back-btn")?.getBoundingClientRect();
+    const todoBox = document.querySelector(".todo-box")?.getBoundingClientRect();
+
+    if (statsList) {
+      statsList.scrollTop = statsList.scrollHeight;
+    }
+
+    return {
+      backBottom: statsBackButton?.bottom ?? 0,
+      listCanScroll: statsList ? statsList.scrollHeight > statsList.clientHeight : false,
+      listOverflow: statsList ? window.getComputedStyle(statsList).overflowY : "",
+      listScrollTop: statsList?.scrollTop ?? 0,
+      todoBottom: todoBox?.bottom ?? 0,
+    };
+  });
+
+  expect(statsMetrics.listOverflow).toBe("auto");
+  expect(statsMetrics.listCanScroll).toBeTruthy();
+  expect(statsMetrics.listScrollTop).toBeGreaterThan(0);
+  expect(statsMetrics.backBottom).toBeLessThanOrEqual(statsMetrics.todoBottom + 2);
+
   await page.locator("#stats-back-btn").click();
   await expect(page.locator("#main-actions")).toBeVisible();
 }
@@ -225,7 +249,7 @@ async function saveShopState(page) {
 async function expectShopLayout(page) {
   await expect(page.locator("#shop-box")).toBeVisible();
   await expect(page.locator(".game-main")).toHaveClass(/shop-open/);
-  await expect(page.locator("#battle-stage")).toBeHidden();
+  await expect(page.locator("#battle-stage")).toBeVisible();
   await expect(page.locator(".game-bottom")).toBeHidden();
   await expect(page.locator("#shop-story-text")).toBeVisible();
   await expect(page.locator("#shop-story-text")).toContainText("SHOP OPEN", { timeout: 15_000 });
@@ -235,6 +259,9 @@ async function expectShopLayout(page) {
   const shopMetrics = await page.evaluate(() => {
     const gamePanel = document.querySelector("#game-screen")?.getBoundingClientRect();
     const topbar = document.querySelector(".game-topbar")?.getBoundingClientRect();
+    const battleStage = document.querySelector("#battle-stage")?.getBoundingClientRect();
+    const battleBackdrop = document.querySelector("#battle-backdrop");
+    const battleStageMode = document.querySelector("#battle-stage")?.dataset.mode ?? "";
     const shop = document.querySelector("#shop-box")?.getBoundingClientRect();
     const shopDialogue = document.querySelector(".shop-dialogue")?.getBoundingClientRect();
     const buyButtons = document.querySelector("#shop-buy-buttons");
@@ -246,6 +273,10 @@ async function expectShopLayout(page) {
     return {
       gamePanelBottom: gamePanel?.bottom ?? 0,
       topbarBottom: topbar?.bottom ?? 0,
+      battleBackdropImage: battleBackdrop ? window.getComputedStyle(battleBackdrop).backgroundImage : "",
+      battleStageBottom: battleStage?.bottom ?? 0,
+      battleStageHeight: battleStage?.height ?? 0,
+      battleStageMode,
       shopTop: shop?.top ?? 0,
       shopBottom: shop?.bottom ?? 0,
       shopHeight: shop?.height ?? 0,
@@ -259,13 +290,16 @@ async function expectShopLayout(page) {
     };
   });
 
-  expect(shopMetrics.topGameRowDisplay).toBe("none");
+  expect(shopMetrics.topGameRowDisplay).not.toBe("none");
   expect(shopMetrics.bottomDisplay).toBe("none");
   expect(shopMetrics.buyOverflow).toBe("auto");
   expect(shopMetrics.sellOverflow).toBe("auto");
-  expect(shopMetrics.shopTop).toBeGreaterThanOrEqual(shopMetrics.topbarBottom);
+  expect(shopMetrics.battleStageMode).toBe("shop");
+  expect(shopMetrics.battleBackdropImage).toContain("bg_shop_terminal");
+  expect(shopMetrics.battleStageHeight).toBeGreaterThanOrEqual(180);
+  expect(shopMetrics.shopTop).toBeGreaterThanOrEqual(shopMetrics.battleStageBottom - 2);
   expect(shopMetrics.shopBottom).toBeLessThanOrEqual(shopMetrics.gamePanelBottom + 2);
-  expect(shopMetrics.shopHeight).toBeGreaterThanOrEqual(shopMetrics.viewportHeight * 0.65);
+  expect(shopMetrics.shopHeight).toBeGreaterThanOrEqual(260);
   expect(shopMetrics.shopDialogueHeight).toBeGreaterThanOrEqual(70);
   expect(shopMetrics.firstShopOptionHeight).toBeGreaterThanOrEqual(70);
   expect(shopMetrics.gamePanelBottom).toBeLessThanOrEqual(shopMetrics.viewportHeight + 2);
@@ -289,6 +323,19 @@ test("guest login can reach main menu, settings, and start a new game", async ({
 
   await expect(page).toHaveURL(/\/main[-_]menu$/);
   await expect(page.getByText("GUEST MODE")).toBeVisible();
+  await expect(page.locator("#open-settings-btn")).toBeVisible();
+
+  const menuMetrics = await page.evaluate(() => {
+    const settingsButton = document.querySelector("#open-settings-btn")?.getBoundingClientRect();
+    const menuContainer = document.querySelector(".menu-container")?.getBoundingClientRect();
+
+    return {
+      containerBottom: menuContainer?.bottom ?? 0,
+      settingsBottom: settingsButton?.bottom ?? 0,
+    };
+  });
+
+  expect(menuMetrics.settingsBottom).toBeLessThanOrEqual(menuMetrics.containerBottom + 2);
 
   await page.locator("#open-settings-btn").click();
   await expect(page.locator("#settings-modal")).toBeVisible();
