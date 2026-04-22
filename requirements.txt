@@ -1,3 +1,5 @@
 Flask
 Flask-SQLAlchemy
+Flask-SocketIO
 python-dotenv
+simple-websocket

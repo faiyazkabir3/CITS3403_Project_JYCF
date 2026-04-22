@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body class="menu-page">
+<body class="menu-page" data-user-id="{{ user_id or '' }}">
 
   <div class="menu-container">
     <div class="top-bar">
