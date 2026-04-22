@@ -34,7 +34,9 @@
             <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
             {% if friends %}
               {% for friend in friends %}
-                <a href="{{ url_for('chat', friend_id=friend.id) }}">{{ friend.username }}</a>
+                <a href="{{ url_for('view_profile', user_id=friend.id) }}">
+                  {{ friend.display_name or friend.username }}
+                </a>
               {% endfor %}
             {% else %}
               <span class="no-friends">No friends yet</span>
@@ -65,7 +67,20 @@
         <ul>
           {% if leaderboard %}
             {% for entry in leaderboard %}
-              <li>#{{ entry.rank }} {{ entry.username }} - {{ entry.score }}</li>
+              <li>
+                <span>#{{ entry.rank }}</span>
+                {% if can_view_profiles %}
+                  <a
+                    href="{{ url_for('view_profile', user_id=entry.user_id) }}"
+                    class="leaderboard-name{% if entry.is_current_user %} leaderboard-name-current{% endif %}"
+                  >
+                    {{ entry.display_name }}
+                  </a>
+                {% else %}
+                  <span class="leaderboard-name">{{ entry.display_name }}</span>
+                {% endif %}
+                <span>- {{ entry.score }}</span>
+              </li>
             {% endfor %}
           {% else %}
             <li>No scores yet</li>

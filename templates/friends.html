@@ -26,7 +26,9 @@
       <ul>
         {% for req in incoming_requests %}
           <li>
-            {{ req.from_user.username }}
+            <a class="friend-name-link" href="{{ url_for('view_profile', user_id=req.from_user.id) }}">
+              {{ req.from_user.display_name or req.from_user.username }}
+            </a>
             <div>
               <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}">Accept</a>
               <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}">Reject</a>
@@ -44,7 +46,9 @@
       <ul>
         {% for f in friends %}
           <li>
-            {{ f.username }}
+            <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
+              {{ f.display_name or f.username }}
+            </a>
             <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
             <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
           </li>

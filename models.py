@@ -10,6 +10,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     display_name = db.Column(db.String(80), nullable=True)
     profile_image = db.Column(db.String(255), nullable=False, default="images/Shadows.gif")
+    bio = db.Column(db.Text, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     save_data = db.relationship("SaveData", backref="user", lazy=True)
 

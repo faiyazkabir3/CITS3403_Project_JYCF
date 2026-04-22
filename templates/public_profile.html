@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ display_name }}'s Profile</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+</head>
+<body class="achievements-page profile-page public-profile-page">
+  <div class="menu-container">
+    <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
+
+    <div class="top-bar">
+      <h1>{{ display_name }}</h1>
+    </div>
+
+    <div class="menu-content">
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="profile-flash-stack">
+            {% for message in messages %}
+              <p class="profile-message profile-success">{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <section class="public-profile-hero">
+        <div class="public-profile-avatar">
+          <img src="{{ url_for('static', filename=profile_image) }}" alt="{{ display_name }}">
+        </div>
+
+        <div class="public-profile-heading">
+          <h2>{{ display_name }}</h2>
+          <p>@{{ profile_user.username }}</p>
+        </div>
+      </section>
+
+      <section class="profile-section">
+        <h2>Bio</h2>
+        <p class="public-profile-bio">{{ bio or "No bio yet" }}</p>
+      </section>
+
+      <section class="profile-section public-profile-stats">
+        <h2>Leaderboard</h2>
+
+        {% if leaderboard_entry %}
+          <div class="public-profile-stat-row">
+            <span>Rank</span>
+            <strong>#{{ leaderboard_entry.rank }}</strong>
+          </div>
+          <div class="public-profile-stat-row">
+            <span>Score</span>
+            <strong>{{ leaderboard_entry.score }}</strong>
+          </div>
+        {% else %}
+          <p class="profile-meta">Unranked</p>
+        {% endif %}
+      </section>
+
+      <section class="profile-section">
+        <h2>Actions</h2>
+
+        {% if is_self %}
+          <a href="{{ url_for('profile') }}" class="profile-cancel-btn public-profile-action-link">EDIT PROFILE</a>
+        {% elif friend_action.disabled %}
+          <button type="button" class="public-profile-action-btn" disabled>
+            {{ friend_action.label }}
+          </button>
+        {% else %}
+          <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}">
+            <input type="hidden" name="action" value="{{ friend_action.action }}">
+            <button type="submit" class="public-profile-action-btn">
+              {{ friend_action.label }}
+            </button>
+          </form>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</body>
+</html>

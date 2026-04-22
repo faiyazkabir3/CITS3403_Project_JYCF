@@ -25,6 +25,7 @@ os.makedirs(app.instance_path, exist_ok=True)
 SAVE_FALLBACK_DIR = Path(app.instance_path) / "save_fallbacks"
 SAVE_FALLBACK_DIR.mkdir(exist_ok=True)
 
+BIO_MAX_LENGTH = 500
 PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
@@ -91,6 +92,7 @@ def ensure_user_schema():
             'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
+        "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
     }
 
     for column_name, statement in required_columns.items():
@@ -141,7 +143,8 @@ with app.app_context():
 def get_friends(user_id):
     friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
     friend_ids = [f.friend_id for f in friendships]
-    return User.query.filter(User.id.in_(friend_ids)).all()
+    friends = User.query.filter(User.id.in_(friend_ids)).all()
+    return sorted(friends, key=lambda user: get_display_name(user).lower())
 
 def get_user_stats(user_id):
     all_saves = SaveData.query.filter_by(user_id=user_id).all()
@@ -193,6 +196,12 @@ def get_profile_image(user):
 
     return PROFILE_IMAGE_DEFAULT
 
+def get_profile_bio(user):
+    if user is None:
+        return ""
+
+    return (user.bio or "").strip()
+
 def calculate_leaderboard_score(stats):
     return (
         coerce_int(stats.get("kills"), 0)
@@ -205,10 +214,11 @@ def calculate_leaderboard_score(stats):
         + (coerce_int(stats.get("damage_taken"), 0) // 2)
     )
 
-def get_leaderboard(limit=5):
+def get_leaderboard_entries(current_user_id=None, limit=None):
     try:
         rows = (
             db.session.query(
+                User.id.label("user_id"),
                 User.username.label("username"),
                 User.display_name.label("display_name"),
                 func.coalesce(func.sum(SaveData.kills), 0).label("kills"),
@@ -248,23 +258,123 @@ def get_leaderboard(limit=5):
             "knife_uses": row.knife_uses,
         }
         entries.append({
-            "username": display_name,
+            "user_id": row.user_id,
+            "display_name": display_name,
+            "login_username": row.username,
             "score": calculate_leaderboard_score(stats),
         })
 
     ranked_entries = sorted(
         entries,
-        key=lambda entry: (-entry["score"], entry["username"])
-    )[:limit]
+        key=lambda entry: (-entry["score"], entry["display_name"].lower(), entry["login_username"])
+    )
 
-    return [
-        {
-            "rank": index,
-            "username": entry["username"],
-            "score": entry["score"],
+    for index, entry in enumerate(ranked_entries, start=1):
+        entry["rank"] = index
+        entry["is_current_user"] = entry["user_id"] == current_user_id
+
+    if limit is not None:
+        ranked_entries = ranked_entries[:limit]
+
+    return ranked_entries
+
+def get_leaderboard(limit=5, current_user_id=None):
+    return get_leaderboard_entries(
+        current_user_id=current_user_id,
+        limit=limit
+    )
+
+def get_leaderboard_entry_for_user(user_id, current_user_id=None):
+    for entry in get_leaderboard_entries(current_user_id=current_user_id):
+        if entry["user_id"] == user_id:
+            return entry
+
+    return None
+
+def get_accepted_friendship(user_id, friend_id):
+    return Friend.query.filter_by(
+        user_id=user_id,
+        friend_id=friend_id,
+        status="accepted"
+    ).first()
+
+def get_pending_friend_request(from_user_id, to_user_id):
+    return FriendRequest.query.filter_by(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id,
+        status="pending"
+    ).first()
+
+def ensure_accepted_friendship(user_id, friend_id):
+    if get_accepted_friendship(user_id, friend_id) is None:
+        db.session.add(Friend(
+            user_id=user_id,
+            friend_id=friend_id,
+            status="accepted"
+        ))
+
+def accept_pending_friend_request(friend_request):
+    friend_request.status = "accepted"
+    ensure_accepted_friendship(friend_request.from_user_id, friend_request.to_user_id)
+    ensure_accepted_friendship(friend_request.to_user_id, friend_request.from_user_id)
+
+def create_friend_request(from_user_id, to_user_id):
+    if from_user_id == to_user_id:
+        return False, "You can't send a friend request to yourself."
+
+    if get_accepted_friendship(from_user_id, to_user_id) is not None:
+        return False, "You are already friends."
+
+    if get_pending_friend_request(from_user_id, to_user_id) is not None:
+        return False, "Friend request already sent."
+
+    if get_pending_friend_request(to_user_id, from_user_id) is not None:
+        return False, "This user already sent you a friend request."
+
+    db.session.add(FriendRequest(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id,
+        status="pending"
+    ))
+    return True, "Friend request sent."
+
+def get_friend_action(current_user_id, profile_user_id):
+    if current_user_id == profile_user_id:
+        return {
+            "state": "self",
+            "label": "YOUR PROFILE",
+            "disabled": True,
         }
-        for index, entry in enumerate(ranked_entries, start=1)
-    ]
+
+    if get_accepted_friendship(current_user_id, profile_user_id) is not None:
+        return {
+            "state": "friends",
+            "label": "FRIENDS",
+            "disabled": True,
+        }
+
+    if get_pending_friend_request(current_user_id, profile_user_id) is not None:
+        return {
+            "state": "outgoing_pending",
+            "label": "REQUEST SENT",
+            "disabled": True,
+        }
+
+    incoming_request = get_pending_friend_request(profile_user_id, current_user_id)
+    if incoming_request is not None:
+        return {
+            "state": "incoming_pending",
+            "label": "ACCEPT REQUEST",
+            "disabled": False,
+            "action": "accept_friend_request",
+        }
+
+    return {
+        "state": "add",
+        "label": "ADD FRIEND",
+        "disabled": False,
+        "action": "send_friend_request",
+    }
 
 def make_guest_name():
     num = random.randint(10000, 99999)
@@ -699,7 +809,8 @@ def main_menu():
         friends=friends,
         is_guest=is_guest,
         profile_image=profile_image,
-        leaderboard=get_leaderboard()
+        leaderboard=get_leaderboard(current_user_id=user_id),
+        can_view_profiles=not is_guest
     )
 
 
@@ -724,6 +835,7 @@ def profile():
 
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
+        bio = request.form.get("bio", "").strip()
         profile_image = request.form.get("profile_image", get_profile_image(user))
         current_password = request.form.get("current_password", "")
         new_password = request.form.get("new_password", "")
@@ -736,6 +848,8 @@ def profile():
 
         if len(display_name) > 80:
             error = "Display name must be 80 characters or fewer."
+        elif len(bio) > BIO_MAX_LENGTH:
+            error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
         elif profile_image not in PROFILE_IMAGE_FILENAMES:
             error = "Choose one of the available profile pictures."
         elif wants_password_change:
@@ -748,6 +862,7 @@ def profile():
 
         if error is None:
             user.display_name = display_name or None
+            user.bio = bio or None
             user.profile_image = profile_image
 
             if wants_password_change:
@@ -774,10 +889,75 @@ def profile():
         username=get_display_name(user),
         login_username=user.username,
         display_name=user.display_name or "",
+        bio=get_profile_bio(user),
+        bio_max_length=BIO_MAX_LENGTH,
         profile_image=get_profile_image(user),
         profile_images=PROFILE_IMAGE_OPTIONS,
         error=error,
         success=success
+    )
+
+
+@app.route("/profile/<int:user_id>", methods=["GET", "POST"])
+def view_profile(user_id):
+    current_user_id = session.get("user_id")
+
+    if current_user_id is None or session.get("is_guest"):
+        if session.get("username"):
+            return redirect(url_for("main_menu"))
+
+        return redirect(url_for("show_login"))
+
+    profile_user = User.query.get(user_id)
+    if profile_user is None:
+        flash("Profile not found.")
+        return redirect(url_for("main_menu"))
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        try:
+            if action == "send_friend_request":
+                _, message = create_friend_request(current_user_id, user_id)
+                flash(message)
+            elif action == "accept_friend_request":
+                incoming_request = get_pending_friend_request(user_id, current_user_id)
+
+                if incoming_request is None:
+                    flash("Friend request not found.")
+                else:
+                    accept_pending_friend_request(incoming_request)
+                    flash("Friend request accepted.")
+            else:
+                flash("Profile action not recognised.")
+
+            db.session.commit()
+        except SQLAlchemyError as error:
+            db.session.rollback()
+            app.logger.warning(
+                "Profile friend action failed for user %s and profile %s. %s",
+                current_user_id,
+                user_id,
+                getattr(error, "orig", error)
+            )
+            flash("Profile action failed.")
+
+        return redirect(url_for("view_profile", user_id=user_id))
+
+    leaderboard_entry = get_leaderboard_entry_for_user(
+        user_id,
+        current_user_id=current_user_id
+    )
+
+    return render_template(
+        "public_profile.html",
+        profile_user=profile_user,
+        display_name=get_display_name(profile_user),
+        profile_image=get_profile_image(profile_user),
+        bio=get_profile_bio(profile_user),
+        leaderboard_entry=leaderboard_entry,
+        friend_action=get_friend_action(current_user_id, user_id),
+        is_self=current_user_id == user_id
     )
 
 
@@ -934,13 +1114,26 @@ def add_friend(user_id):
     if not current_user or current_user == user_id:
         return redirect(url_for("main_menu"))
 
-    existing = Friend.query.filter_by(user_id=current_user, friend_id=user_id).first()
+    target_user = User.query.get(user_id)
+    if target_user is None:
+        flash("User not found.")
+        return redirect(url_for("main_menu"))
 
-    if not existing:
-        db.session.add(Friend(user_id=current_user, friend_id=user_id))
+    try:
+        _, message = create_friend_request(current_user, user_id)
         db.session.commit()
+        flash(message)
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Friend request failed for user %s and target %s. %s",
+            current_user,
+            user_id,
+            getattr(error, "orig", error)
+        )
+        flash("Friend request failed.")
 
-    return redirect(url_for("main_menu"))
+    return redirect(url_for("view_profile", user_id=user_id))
 
 
 @app.route('/friends', methods=['GET', 'POST'])
@@ -955,31 +1148,22 @@ def show_friends():
     if request.method == 'POST':
         from_user_id = session.get('user_id')
         friend_username = request.form['friend_username'].strip().lower()
-        
-        # Look up the friend
         friend = User.query.filter_by(username=friend_username).first()
+
         if friend:
-            # Prevent sending request to self
-            if friend.id == from_user_id:
-                flash("You can't send a friend request to yourself.")
-            else:
-                # Make sure no duplicate pending request
-                existing = FriendRequest.query.filter_by(
-                    from_user_id=from_user_id, 
-                    to_user_id=friend.id, 
-                    status='pending'
-                ).first()
-                
-                if not existing:
-                    new_request = FriendRequest(
-                        from_user_id=from_user_id,
-                        to_user_id=friend.id,
-                        status='pending'
-                    )
-                    db.session.add(new_request)
-                    db.session.commit()
-                else:
-                    flash("Friend request already sent.")
+            try:
+                _, message = create_friend_request(from_user_id, friend.id)
+                db.session.commit()
+                flash(message)
+            except SQLAlchemyError as error:
+                db.session.rollback()
+                app.logger.warning(
+                    "Friend request failed for user %s and target %s. %s",
+                    from_user_id,
+                    friend.id,
+                    getattr(error, "orig", error)
+                )
+                flash("Friend request failed.")
         else:
             flash('User not found.')
         
@@ -995,7 +1179,7 @@ def show_friends():
     
     return render_template(
         'friends_view.html',
-        username=current_user.username,
+        username=get_display_name(current_user),
         current_user=current_user,
         incoming_requests=incoming_requests,
         friends=friends
@@ -1010,20 +1194,7 @@ def accept_friend(request_id):
 
     friend_request = FriendRequest.query.get(request_id)
     if friend_request and friend_request.to_user_id == current_user:
-        friend_request.status = "accepted"
-
-        # Add mutual friendship entries
-        db.session.add(Friend(
-            user_id=friend_request.from_user_id,
-            friend_id=friend_request.to_user_id,
-            status="accepted"
-        ))
-        db.session.add(Friend(
-            user_id=friend_request.to_user_id,
-            friend_id=friend_request.from_user_id,
-            status="accepted"
-        ))
-
+        accept_pending_friend_request(friend_request)
         db.session.commit()
 
     return redirect(url_for("show_friends"))

@@ -19,7 +19,7 @@
     <a href="{{ url_for('show_friends') }}" class="back-arrow" aria-label="Back to friends"></a>
 
     <div class="top-bar">
-      <h1>{{ friend.username }}'s Stats</h1>
+      <h1>{{ friend.display_name or friend.username }}'s Stats</h1>
     </div>
 
     <div class="menu-content">

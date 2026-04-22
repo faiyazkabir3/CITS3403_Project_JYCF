@@ -46,6 +46,21 @@
         </section>
 
         <section class="profile-section">
+          <h2>Bio</h2>
+
+          <label for="bio">About You</label>
+          <textarea
+            id="bio"
+            name="bio"
+            maxlength="{{ bio_max_length }}"
+            rows="5"
+            placeholder="Write a short profile bio."
+          >{{ bio }}</textarea>
+
+          <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
+        </section>
+
+        <section class="profile-section">
           <h2>Profile Picture</h2>
 
           <div class="profile-avatar-grid">

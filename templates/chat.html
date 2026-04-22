@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chat with {{ friend.username }}</title>
+  <title>Chat with {{ friend.display_name or friend.username }}</title>
 
   <!-- Google font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
       <!-- Top back arrow -->
       <a href="{{ url_for('show_friends') }}" class="back-arrow">←</a>
 
-      <h1 class="chat-header">Chat with {{ friend.username }}</h1>
+      <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
 
       <!-- Chat Messages -->
       <div class="chat-container">
