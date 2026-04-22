@@ -11,7 +11,7 @@ except ModuleNotFoundError:
         return False
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -140,6 +140,77 @@ def get_empty_stats():
         "reloads": 0,
         "knife_uses": 0,
     }
+
+def calculate_leaderboard_score(stats):
+    return (
+        coerce_int(stats.get("kills"), 0)
+        + coerce_int(stats.get("pistol_shots"), 0)
+        + coerce_int(stats.get("grenades_used"), 0)
+        + coerce_int(stats.get("medkits_used"), 0)
+        + coerce_int(stats.get("reloads"), 0)
+        + coerce_int(stats.get("knife_uses"), 0)
+        + (coerce_int(stats.get("damage_dealt"), 0) // 100)
+        + (coerce_int(stats.get("damage_taken"), 0) // 2)
+    )
+
+def get_leaderboard(limit=5):
+    try:
+        rows = (
+            db.session.query(
+                User.username.label("username"),
+                func.coalesce(func.sum(SaveData.kills), 0).label("kills"),
+                func.coalesce(func.sum(SaveData.damage_dealt), 0).label("damage_dealt"),
+                func.coalesce(func.sum(SaveData.damage_taken), 0).label("damage_taken"),
+                func.coalesce(func.sum(SaveData.pistol_shots), 0).label("pistol_shots"),
+                func.coalesce(func.sum(SaveData.grenades_used), 0).label("grenades_used"),
+                func.coalesce(func.sum(SaveData.medkits_used), 0).label("medkits_used"),
+                func.coalesce(func.sum(SaveData.reloads), 0).label("reloads"),
+                func.coalesce(func.sum(SaveData.knife_uses), 0).label("knife_uses"),
+            )
+            .join(SaveData, SaveData.user_id == User.id)
+            .filter(SaveData.has_started_game.is_(True))
+            .group_by(User.id, User.username)
+            .all()
+        )
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Leaderboard query failed. %s",
+            getattr(error, "orig", error)
+        )
+        return []
+
+    entries = []
+
+    for row in rows:
+        stats = {
+            "kills": row.kills,
+            "damage_dealt": row.damage_dealt,
+            "damage_taken": row.damage_taken,
+            "pistol_shots": row.pistol_shots,
+            "grenades_used": row.grenades_used,
+            "medkits_used": row.medkits_used,
+            "reloads": row.reloads,
+            "knife_uses": row.knife_uses,
+        }
+        entries.append({
+            "username": row.username,
+            "score": calculate_leaderboard_score(stats),
+        })
+
+    ranked_entries = sorted(
+        entries,
+        key=lambda entry: (-entry["score"], entry["username"])
+    )[:limit]
+
+    return [
+        {
+            "rank": index,
+            "username": entry["username"],
+            "score": entry["score"],
+        }
+        for index, entry in enumerate(ranked_entries, start=1)
+    ]
 
 def make_guest_name():
     num = random.randint(10000, 99999)
@@ -568,7 +639,8 @@ def main_menu():
         "main_menu_view.html",
         username=username,
         friends=friends,
-        is_guest=is_guest
+        is_guest=is_guest,
+        leaderboard=get_leaderboard()
     )
 
 
