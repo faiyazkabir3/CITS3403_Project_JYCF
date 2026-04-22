@@ -58,11 +58,13 @@
       <div class="leaderboard">
         <h2>LEADERBOARD</h2>
         <ul>
-          <li>#1 PlayerX - 1200</li>
-          <li>#2 ZombieSlayer - 980</li>
-          <li>#3 Survivor99 - 870</li>
-          <li>#4 DeadShot - 820</li>
-          <li>#5 NightRun - 760</li>
+          {% if leaderboard %}
+            {% for entry in leaderboard %}
+              <li>#{{ entry.rank }} {{ entry.username }} - {{ entry.score }}</li>
+            {% endfor %}
+          {% else %}
+            <li>No scores yet</li>
+          {% endif %}
         </ul>
       </div>
 
