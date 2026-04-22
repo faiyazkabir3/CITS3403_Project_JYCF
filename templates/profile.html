@@ -19,7 +19,7 @@
     </div>
 
     <div class="menu-content">
-      <form method="POST" action="{{ url_for('profile') }}" class="profile-form">
+      <form method="POST" action="{{ url_for('profile') }}" class="profile-form" enctype="multipart/form-data">
         {% if error %}
           <p class="profile-message profile-error">{{ error }}</p>
         {% endif %}
@@ -62,8 +62,24 @@
 
         <section class="profile-section">
           <h2>Profile Picture</h2>
+          <p class="profile-meta profile-current-upload-note">Choose a preset, or upload your own JPEG photo.</p>
 
           <div class="profile-avatar-grid">
+            {% if custom_profile_image %}
+              <label class="profile-avatar-option">
+                <input
+                  type="radio"
+                  name="profile_image"
+                  value="{{ custom_profile_image }}"
+                  {% if custom_profile_image == profile_image %}checked{% endif %}
+                >
+                <span class="profile-avatar-frame">
+                  <img src="{{ url_for('static', filename=custom_profile_image) }}" alt="Uploaded profile photo">
+                </span>
+                <span class="profile-avatar-label">Uploaded Photo</span>
+              </label>
+            {% endif %}
+
             {% for option in profile_images %}
               <label class="profile-avatar-option">
                 <input
@@ -75,9 +91,22 @@
                 <span class="profile-avatar-frame">
                   <img src="{{ url_for('static', filename=option.filename) }}" alt="{{ option.label }}">
                 </span>
-                <span>{{ option.label }}</span>
+                <span class="profile-avatar-label">{{ option.label }}</span>
               </label>
             {% endfor %}
+          </div>
+
+          <div class="profile-upload-panel">
+            <label for="custom-profile-image">Upload Your Own JPEG</label>
+            <input
+              type="file"
+              id="custom-profile-image"
+              name="custom_profile_image"
+              accept=".jpg,.jpeg,image/jpeg"
+            >
+            <p class="profile-meta">
+              JPG and JPEG only, up to 5MB. Uploading a new photo will replace your current custom picture.
+            </p>
           </div>
         </section>
 

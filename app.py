@@ -3,6 +3,7 @@ import random
 import json
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 try:
     from dotenv import load_dotenv
@@ -14,6 +15,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 from models import db, User, SaveData, Friend, Message, FriendRequest
 
@@ -24,14 +26,25 @@ app = Flask(__name__, instance_relative_config=True)
 os.makedirs(app.instance_path, exist_ok=True)
 SAVE_FALLBACK_DIR = Path(app.instance_path) / "save_fallbacks"
 SAVE_FALLBACK_DIR.mkdir(exist_ok=True)
+PROFILE_IMAGE_UPLOAD_DIR = Path(app.static_folder) / "uploads" / "profile_pics"
+PROFILE_IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 BIO_MAX_LENGTH = 500
 PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
+PROFILE_IMAGE_UPLOAD_PREFIX = "uploads/profile_pics/"
+PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
+PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
     {"label": "Leon", "filename": "images/players/leon_idle.png"},
     {"label": "Quite", "filename": "images/players/quite_idle.png"},
     {"label": "Duo", "filename": "images/quite_dual_good.png"},
+    {"label": "Leon Classic", "filename": "images/profile_presets/leon_classic.jpeg"},
+    {"label": "Leon Noir", "filename": "images/profile_presets/leon_profile_2.jpg"},
+    {"label": "Leon Agent", "filename": "images/profile_presets/leon_profile_3.jpg"},
+    {"label": "Quite Focus", "filename": "images/profile_presets/quite_pfp_1.jpg"},
+    {"label": "Quite Tactical", "filename": "images/profile_presets/quite_pfp_2.jpg"},
+    {"label": "Quite Chibi", "filename": "images/profile_presets/quite_pfp_3.jpg"},
 ]
 PROFILE_IMAGE_FILENAMES = {
     option["filename"]
@@ -186,12 +199,113 @@ def get_display_name(user):
     display_name = (user.display_name or "").strip()
     return display_name or user.username
 
+def normalize_profile_image_path(profile_image):
+    return (profile_image or "").strip().replace("\\", "/")
+
+def resolve_uploaded_profile_image(profile_image):
+    normalized_profile_image = normalize_profile_image_path(profile_image)
+
+    if not normalized_profile_image.startswith(PROFILE_IMAGE_UPLOAD_PREFIX):
+        return None
+
+    candidate_path = (Path(app.static_folder) / normalized_profile_image).resolve()
+    upload_root = PROFILE_IMAGE_UPLOAD_DIR.resolve()
+
+    try:
+        candidate_path.relative_to(upload_root)
+    except ValueError:
+        return None
+
+    return candidate_path
+
+def is_uploaded_profile_image(profile_image):
+    return resolve_uploaded_profile_image(profile_image) is not None
+
+def is_valid_profile_image(profile_image):
+    normalized_profile_image = normalize_profile_image_path(profile_image)
+
+    if normalized_profile_image in PROFILE_IMAGE_FILENAMES:
+        return True
+
+    uploaded_path = resolve_uploaded_profile_image(normalized_profile_image)
+    return uploaded_path is not None and uploaded_path.is_file()
+
+def is_selectable_profile_image_for_user(profile_image, user_id):
+    normalized_profile_image = normalize_profile_image_path(profile_image)
+
+    if normalized_profile_image in PROFILE_IMAGE_FILENAMES:
+        return True
+
+    uploaded_path = resolve_uploaded_profile_image(normalized_profile_image)
+    if uploaded_path is None or not uploaded_path.is_file():
+        return False
+
+    return uploaded_path.name.startswith(f"user_{user_id}_")
+
+def get_custom_profile_image(user):
+    if user is None:
+        return None
+
+    profile_image = normalize_profile_image_path(user.profile_image)
+    if is_uploaded_profile_image(profile_image) and is_valid_profile_image(profile_image):
+        return profile_image
+
+    return None
+
+def validate_uploaded_profile_image(file_storage):
+    filename = secure_filename(file_storage.filename or "")
+    extension = Path(filename).suffix.lower()
+
+    if extension not in PROFILE_IMAGE_ALLOWED_EXTENSIONS:
+        return "Upload a JPEG image (.jpg or .jpeg)."
+
+    file_storage.stream.seek(0)
+    header = file_storage.stream.read(3)
+    file_storage.stream.seek(0)
+
+    if header != b"\xff\xd8\xff":
+        return "Upload a valid JPEG image."
+
+    return None
+
+def save_uploaded_profile_image(file_storage, user_id):
+    stored_filename = f"user_{user_id}_{uuid4().hex}.jpg"
+    relative_path = f"{PROFILE_IMAGE_UPLOAD_PREFIX}{stored_filename}"
+    absolute_path = PROFILE_IMAGE_UPLOAD_DIR / stored_filename
+
+    try:
+        file_storage.save(absolute_path)
+    except OSError as error:
+        app.logger.warning(
+            "Profile image upload failed for user %s. %s",
+            user_id,
+            error
+        )
+        return None, "Profile image upload failed."
+
+    return relative_path, None
+
+def delete_uploaded_profile_image(profile_image):
+    uploaded_path = resolve_uploaded_profile_image(profile_image)
+
+    if uploaded_path is None or not uploaded_path.exists():
+        return
+
+    try:
+        uploaded_path.unlink()
+    except OSError as error:
+        app.logger.warning(
+            "Profile image cleanup failed for %s. %s",
+            profile_image,
+            error
+        )
+
 def get_profile_image(user):
     if user is None:
         return PROFILE_IMAGE_DEFAULT
 
-    profile_image = (user.profile_image or "").strip()
-    if profile_image in PROFILE_IMAGE_FILENAMES:
+    profile_image = normalize_profile_image_path(user.profile_image)
+    if is_valid_profile_image(profile_image):
         return profile_image
 
     return PROFILE_IMAGE_DEFAULT
@@ -832,11 +946,22 @@ def profile():
 
     error = None
     success = None
+    display_name_value = user.display_name or ""
+    bio_value = get_profile_bio(user)
+    selected_profile_image = get_profile_image(user)
+    custom_profile_image = get_custom_profile_image(user)
 
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
         bio = request.form.get("bio", "").strip()
-        profile_image = request.form.get("profile_image", get_profile_image(user))
+        profile_image = normalize_profile_image_path(
+            request.form.get("profile_image", selected_profile_image)
+        )
+        uploaded_profile_image = request.files.get("custom_profile_image")
+        has_uploaded_profile_image = bool(
+            uploaded_profile_image
+            and (uploaded_profile_image.filename or "").strip()
+        )
         current_password = request.form.get("current_password", "")
         new_password = request.form.get("new_password", "")
         confirm_password = request.form.get("confirm_password", "")
@@ -845,13 +970,22 @@ def profile():
             new_password,
             confirm_password,
         ])
+        new_uploaded_profile_image = None
 
-        if len(display_name) > 80:
+        display_name_value = display_name
+        bio_value = bio
+        selected_profile_image = profile_image
+
+        if (request.content_length or 0) > PROFILE_IMAGE_UPLOAD_MAX_BYTES:
+            error = "Profile image uploads must be 5MB or smaller."
+        elif len(display_name) > 80:
             error = "Display name must be 80 characters or fewer."
         elif len(bio) > BIO_MAX_LENGTH:
             error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
-        elif profile_image not in PROFILE_IMAGE_FILENAMES:
-            error = "Choose one of the available profile pictures."
+        elif has_uploaded_profile_image:
+            error = validate_uploaded_profile_image(uploaded_profile_image)
+        elif not is_selectable_profile_image_for_user(profile_image, user_id):
+            error = "Choose one of the available profile pictures or upload your own JPEG."
         elif wants_password_change:
             if not current_password or not new_password or not confirm_password:
                 error = "Fill in all password fields to change your password."
@@ -861,6 +995,21 @@ def profile():
                 error = "New passwords do not match."
 
         if error is None:
+            if has_uploaded_profile_image:
+                profile_image, upload_error = save_uploaded_profile_image(
+                    uploaded_profile_image,
+                    user_id
+                )
+
+                if upload_error is not None:
+                    error = upload_error
+                else:
+                    new_uploaded_profile_image = profile_image
+                    selected_profile_image = profile_image
+                    custom_profile_image = profile_image
+
+        if error is None:
+            previous_profile_image = normalize_profile_image_path(user.profile_image)
             user.display_name = display_name or None
             user.bio = bio or None
             user.profile_image = profile_image
@@ -875,8 +1024,16 @@ def profile():
                 db.session.commit()
                 session["display_name"] = get_display_name(user)
                 success = "Profile updated."
+                if previous_profile_image != user.profile_image:
+                    delete_uploaded_profile_image(previous_profile_image)
+                display_name_value = user.display_name or ""
+                bio_value = get_profile_bio(user)
+                selected_profile_image = get_profile_image(user)
+                custom_profile_image = get_custom_profile_image(user)
             except SQLAlchemyError as update_error:
                 db.session.rollback()
+                if new_uploaded_profile_image is not None:
+                    delete_uploaded_profile_image(new_uploaded_profile_image)
                 app.logger.warning(
                     "Profile update failed for user %s. %s",
                     user_id,
@@ -888,10 +1045,11 @@ def profile():
         "profile.html",
         username=get_display_name(user),
         login_username=user.username,
-        display_name=user.display_name or "",
-        bio=get_profile_bio(user),
+        display_name=display_name_value,
+        bio=bio_value,
         bio_max_length=BIO_MAX_LENGTH,
-        profile_image=get_profile_image(user),
+        profile_image=selected_profile_image,
+        custom_profile_image=custom_profile_image,
         profile_images=PROFILE_IMAGE_OPTIONS,
         error=error,
         success=success

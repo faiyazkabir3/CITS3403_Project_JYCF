@@ -2195,6 +2195,7 @@ body::before {
   background: rgba(0, 0, 0, 0.4);
   cursor: pointer;
   text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .profile-avatar-option input {
@@ -2223,6 +2224,58 @@ body::before {
 .profile-avatar-option input:checked + .profile-avatar-frame {
   border-color: #00ffcc;
   background: rgba(0, 255, 204, 0.12);
+}
+
+.profile-avatar-option:hover {
+  border-color: rgba(0, 255, 204, 0.55);
+}
+
+.profile-avatar-label {
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.profile-avatar-option input:checked + .profile-avatar-frame + .profile-avatar-label {
+  color: #00ffcc;
+}
+
+.profile-current-upload-note {
+  margin-bottom: 12px;
+}
+
+.profile-upload-panel {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.profile-form input[type="file"] {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+
+.profile-form input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border: 0;
+  background: var(--accent-blue);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.profile-form input[type="file"]::file-selector-button:hover {
+  background: var(--accent-blue-hover);
 }
 
 .profile-actions {
