@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customize Profile</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
+</head>
+<body class="achievements-page profile-page">
+  <div class="menu-container">
+    <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
+
+    <div class="top-bar">
+      <h1>Customize Profile</h1>
+    </div>
+
+    <div class="menu-content">
+      <form method="POST" action="{{ url_for('profile') }}" class="profile-form" enctype="multipart/form-data">
+        {% if error %}
+          <p class="profile-message profile-error">{{ error }}</p>
+        {% endif %}
+
+        {% if success %}
+          <p class="profile-message profile-success">{{ success }}</p>
+        {% endif %}
+
+        <section class="profile-section">
+          <h2>Operator</h2>
+
+          <label for="display-name">Display Name</label>
+          <input
+            type="text"
+            id="display-name"
+            name="display_name"
+            maxlength="80"
+            value="{{ display_name }}"
+            placeholder="{{ login_username }}"
+            autocomplete="nickname"
+          >
+
+          <p class="profile-meta">Login username: {{ login_username }}</p>
+        </section>
+
+        <section class="profile-section">
+          <h2>Bio</h2>
+
+          <label for="bio">About You</label>
+          <textarea
+            id="bio"
+            name="bio"
+            maxlength="{{ bio_max_length }}"
+            rows="5"
+            placeholder="Write a short profile bio."
+          >{{ bio }}</textarea>
+
+          <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
+        </section>
+
+        <section class="profile-section">
+          <h2>Profile Picture</h2>
+          <p class="profile-meta profile-current-upload-note">Choose a preset, or upload your own JPEG photo.</p>
+
+          <div class="profile-avatar-grid">
+            {% if custom_profile_image %}
+              <label class="profile-avatar-option">
+                <input
+                  type="radio"
+                  name="profile_image"
+                  value="{{ custom_profile_image }}"
+                  {% if custom_profile_image == profile_image %}checked{% endif %}
+                >
+                <span class="profile-avatar-frame">
+                  <img src="{{ url_for('static', filename=custom_profile_image) }}" alt="Uploaded profile photo">
+                </span>
+                <span class="profile-avatar-label">Uploaded Photo</span>
+              </label>
+            {% endif %}
+
+            {% for option in profile_images %}
+              <label class="profile-avatar-option">
+                <input
+                  type="radio"
+                  name="profile_image"
+                  value="{{ option.filename }}"
+                  {% if option.filename == profile_image %}checked{% endif %}
+                >
+                <span class="profile-avatar-frame">
+                  <img src="{{ url_for('static', filename=option.filename) }}" alt="{{ option.label }}">
+                </span>
+                <span class="profile-avatar-label">{{ option.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <div class="profile-upload-panel">
+            <label for="custom-profile-image">Upload Your Own JPEG</label>
+            <input
+              type="file"
+              id="custom-profile-image"
+              name="custom_profile_image"
+              accept=".jpg,.jpeg,image/jpeg"
+            >
+            <p class="profile-meta">
+              JPG and JPEG only, up to 5MB. Uploading a new photo will replace your current custom picture.
+            </p>
+          </div>
+        </section>
+
+        <section class="profile-section">
+          <h2>Password</h2>
+
+          <label for="current-password">Current Password</label>
+          <input
+            type="password"
+            id="current-password"
+            name="current_password"
+            autocomplete="current-password"
+          >
+
+          <label for="new-password">New Password</label>
+          <input
+            type="password"
+            id="new-password"
+            name="new_password"
+            autocomplete="new-password"
+          >
+
+          <label for="confirm-password">Confirm New Password</label>
+          <input
+            type="password"
+            id="confirm-password"
+            name="confirm_password"
+            autocomplete="new-password"
+          >
+        </section>
+
+        <div class="profile-actions">
+          <button type="submit">SAVE PROFILE</button>
+          <a href="{{ url_for('main_menu') }}" class="profile-cancel-btn">CANCEL</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
