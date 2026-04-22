@@ -43,13 +43,18 @@
         {% endif %}
       </div>
 
-      <div class="operator-bar">
-        <img src="{{ url_for('static', filename='images/Shadows.gif') }}" class="logo" alt="Game Logo">
-        <span class="operator-name">Operator: {{ username }}</span>
-        {% if is_guest %}
+      {% if is_guest %}
+        <div class="operator-bar">
+          <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
+          <span class="operator-name">Operator: {{ username }}</span>
           <span class="mode-chip">GUEST MODE</span>
-        {% endif %}
-      </div>
+        </div>
+      {% else %}
+        <a href="{{ url_for('profile') }}" class="operator-bar operator-link" aria-label="Customize profile">
+          <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
+          <span class="operator-name">Operator: {{ username }}</span>
+        </a>
+      {% endif %}
 
       <div class="version">v0.1</div>
     </div>

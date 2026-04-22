@@ -25,6 +25,18 @@ os.makedirs(app.instance_path, exist_ok=True)
 SAVE_FALLBACK_DIR = Path(app.instance_path) / "save_fallbacks"
 SAVE_FALLBACK_DIR.mkdir(exist_ok=True)
 
+PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
+PROFILE_IMAGE_OPTIONS = [
+    {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
+    {"label": "Leon", "filename": "images/players/leon_idle.png"},
+    {"label": "Quite", "filename": "images/players/quite_idle.png"},
+    {"label": "Duo", "filename": "images/quite_dual_good.png"},
+]
+PROFILE_IMAGE_FILENAMES = {
+    option["filename"]
+    for option in PROFILE_IMAGE_OPTIONS
+}
+
 SECRET_KEY_PLACEHOLDERS = {
     "change-me",
     "changeme",
@@ -65,6 +77,28 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 
+def ensure_user_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "user" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("user")}
+    required_columns = {
+        "display_name": 'ALTER TABLE "user" ADD COLUMN display_name VARCHAR(80)',
+        "profile_image": (
+            'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
+            f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
+        ),
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
 def ensure_save_data_schema():
     inspector = inspect(db.engine)
     table_names = set(inspector.get_table_names())
@@ -95,6 +129,7 @@ def ensure_save_data_schema():
 with app.app_context():
     try:
         db.create_all()
+        ensure_user_schema()
         ensure_save_data_schema()
     except SQLAlchemyError as error:
         db.session.rollback()
@@ -141,6 +176,23 @@ def get_empty_stats():
         "knife_uses": 0,
     }
 
+def get_display_name(user):
+    if user is None:
+        return ""
+
+    display_name = (user.display_name or "").strip()
+    return display_name or user.username
+
+def get_profile_image(user):
+    if user is None:
+        return PROFILE_IMAGE_DEFAULT
+
+    profile_image = (user.profile_image or "").strip()
+    if profile_image in PROFILE_IMAGE_FILENAMES:
+        return profile_image
+
+    return PROFILE_IMAGE_DEFAULT
+
 def calculate_leaderboard_score(stats):
     return (
         coerce_int(stats.get("kills"), 0)
@@ -158,6 +210,7 @@ def get_leaderboard(limit=5):
         rows = (
             db.session.query(
                 User.username.label("username"),
+                User.display_name.label("display_name"),
                 func.coalesce(func.sum(SaveData.kills), 0).label("kills"),
                 func.coalesce(func.sum(SaveData.damage_dealt), 0).label("damage_dealt"),
                 func.coalesce(func.sum(SaveData.damage_taken), 0).label("damage_taken"),
@@ -169,7 +222,7 @@ def get_leaderboard(limit=5):
             )
             .join(SaveData, SaveData.user_id == User.id)
             .filter(SaveData.has_started_game.is_(True))
-            .group_by(User.id, User.username)
+            .group_by(User.id, User.username, User.display_name)
             .all()
         )
     except SQLAlchemyError as error:
@@ -183,6 +236,7 @@ def get_leaderboard(limit=5):
     entries = []
 
     for row in rows:
+        display_name = (row.display_name or "").strip() or row.username
         stats = {
             "kills": row.kills,
             "damage_dealt": row.damage_dealt,
@@ -194,7 +248,7 @@ def get_leaderboard(limit=5):
             "knife_uses": row.knife_uses,
         }
         entries.append({
-            "username": row.username,
+            "username": display_name,
             "score": calculate_leaderboard_score(stats),
         })
 
@@ -552,6 +606,7 @@ def show_login():
         session.clear()
         session["user_id"] = user.id
         session["username"] = user.username
+        session["display_name"] = get_display_name(user)
         session["is_guest"] = False
 
         return redirect(url_for("main_menu"))
@@ -615,6 +670,7 @@ def main_menu():
     username = session.get("username")
     is_guest = bool(session.get("is_guest"))
     user_id = session.get("user_id")
+    profile_image = PROFILE_IMAGE_DEFAULT
 
     if not username:
         return redirect(url_for("show_login"))
@@ -632,7 +688,9 @@ def main_menu():
             session.clear()
             return redirect(url_for("show_login"))
 
-        username = user.username
+        username = get_display_name(user)
+        profile_image = get_profile_image(user)
+        session["display_name"] = username
         friends = get_friends(user_id)
 
     return render_template(
@@ -640,7 +698,86 @@ def main_menu():
         username=username,
         friends=friends,
         is_guest=is_guest,
+        profile_image=profile_image,
         leaderboard=get_leaderboard()
+    )
+
+
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    user_id = session.get("user_id")
+
+    if user_id is None or session.get("is_guest"):
+        if session.get("username"):
+            return redirect(url_for("main_menu"))
+
+        return redirect(url_for("show_login"))
+
+    user = User.query.get(user_id)
+
+    if user is None:
+        session.clear()
+        return redirect(url_for("show_login"))
+
+    error = None
+    success = None
+
+    if request.method == "POST":
+        display_name = request.form.get("display_name", "").strip()
+        profile_image = request.form.get("profile_image", get_profile_image(user))
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        wants_password_change = any([
+            current_password,
+            new_password,
+            confirm_password,
+        ])
+
+        if len(display_name) > 80:
+            error = "Display name must be 80 characters or fewer."
+        elif profile_image not in PROFILE_IMAGE_FILENAMES:
+            error = "Choose one of the available profile pictures."
+        elif wants_password_change:
+            if not current_password or not new_password or not confirm_password:
+                error = "Fill in all password fields to change your password."
+            elif not check_password_hash(user.password_hash, current_password):
+                error = "Current password is incorrect."
+            elif new_password != confirm_password:
+                error = "New passwords do not match."
+
+        if error is None:
+            user.display_name = display_name or None
+            user.profile_image = profile_image
+
+            if wants_password_change:
+                user.password_hash = generate_password_hash(
+                    new_password,
+                    method="pbkdf2:sha256"
+                )
+
+            try:
+                db.session.commit()
+                session["display_name"] = get_display_name(user)
+                success = "Profile updated."
+            except SQLAlchemyError as update_error:
+                db.session.rollback()
+                app.logger.warning(
+                    "Profile update failed for user %s. %s",
+                    user_id,
+                    getattr(update_error, "orig", update_error)
+                )
+                error = "Profile update failed."
+
+    return render_template(
+        "profile.html",
+        username=get_display_name(user),
+        login_username=user.username,
+        display_name=user.display_name or "",
+        profile_image=get_profile_image(user),
+        profile_images=PROFILE_IMAGE_OPTIONS,
+        error=error,
+        success=success
     )
 
 
@@ -663,15 +800,19 @@ def show_achievements():
         return redirect(url_for("show_login"))
 
     user_id = session.get("user_id")
+    username = session.get("username", "Player")
 
     if user_id is None or session.get("is_guest"):
         stats = get_empty_stats()
     else:
+        user = User.query.get(user_id)
+        if user is not None:
+            username = get_display_name(user)
         stats = get_user_stats(user_id)
 
     return render_template(
         "achievements.html",
-        username=session.get("username", "Player"),
+        username=username,
         achievements=[],
         stats=stats
     )
