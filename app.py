@@ -3,6 +3,7 @@ import random
 import json
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 try:
     from dotenv import load_dotenv
@@ -12,9 +13,10 @@ except ModuleNotFoundError:
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_socketio import SocketIO, join_room, leave_room
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 from models import db, User, SaveData, Friend, Message, FriendRequest
 
@@ -25,6 +27,30 @@ app = Flask(__name__, instance_relative_config=True)
 os.makedirs(app.instance_path, exist_ok=True)
 SAVE_FALLBACK_DIR = Path(app.instance_path) / "save_fallbacks"
 SAVE_FALLBACK_DIR.mkdir(exist_ok=True)
+PROFILE_IMAGE_UPLOAD_DIR = Path(app.static_folder) / "uploads" / "profile_pics"
+PROFILE_IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+BIO_MAX_LENGTH = 500
+PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
+PROFILE_IMAGE_UPLOAD_PREFIX = "uploads/profile_pics/"
+PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
+PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+PROFILE_IMAGE_OPTIONS = [
+    {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
+    {"label": "Leon", "filename": "images/players/leon_idle.png"},
+    {"label": "Quite", "filename": "images/players/quite_idle.png"},
+    {"label": "Duo", "filename": "images/quite_dual_good.png"},
+    {"label": "Leon Classic", "filename": "images/profile_presets/leon_classic.jpeg"},
+    {"label": "Leon Noir", "filename": "images/profile_presets/leon_profile_2.jpg"},
+    {"label": "Leon Agent", "filename": "images/profile_presets/leon_profile_3.jpg"},
+    {"label": "Quite Focus", "filename": "images/profile_presets/quite_pfp_1.jpg"},
+    {"label": "Quite Tactical", "filename": "images/profile_presets/quite_pfp_2.jpg"},
+    {"label": "Quite Chibi", "filename": "images/profile_presets/quite_pfp_3.jpg"},
+]
+PROFILE_IMAGE_FILENAMES = {
+    option["filename"]
+    for option in PROFILE_IMAGE_OPTIONS
+}
 
 SECRET_KEY_PLACEHOLDERS = {
     "change-me",
@@ -67,6 +93,29 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 socketio = SocketIO(app, async_mode="threading")
 
+def ensure_user_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "user" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("user")}
+    required_columns = {
+        "display_name": 'ALTER TABLE "user" ADD COLUMN display_name VARCHAR(80)',
+        "profile_image": (
+            'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
+            f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
+        ),
+        "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
 def ensure_save_data_schema():
     inspector = inspect(db.engine)
     table_names = set(inspector.get_table_names())
@@ -97,6 +146,7 @@ def ensure_save_data_schema():
 with app.app_context():
     try:
         db.create_all()
+        ensure_user_schema()
         ensure_save_data_schema()
     except SQLAlchemyError as error:
         db.session.rollback()
@@ -108,7 +158,8 @@ with app.app_context():
 def get_friends(user_id):
     friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
     friend_ids = [f.friend_id for f in friendships]
-    return User.query.filter(User.id.in_(friend_ids)).all()
+    friends = User.query.filter(User.id.in_(friend_ids)).all()
+    return sorted(friends, key=lambda user: get_display_name(user).lower())
 
 
 def get_accepted_friend(current_user_id, friend_id):
@@ -176,6 +227,304 @@ def get_empty_stats():
         "medkits": 0,
         "reloads": 0,
         "knife_uses": 0,
+    }
+
+def get_display_name(user):
+    if user is None:
+        return ""
+
+    display_name = (user.display_name or "").strip()
+    return display_name or user.username
+
+def normalize_profile_image_path(profile_image):
+    return (profile_image or "").strip().replace("\\", "/")
+
+def resolve_uploaded_profile_image(profile_image):
+    normalized_profile_image = normalize_profile_image_path(profile_image)
+
+    if not normalized_profile_image.startswith(PROFILE_IMAGE_UPLOAD_PREFIX):
+        return None
+
+    candidate_path = (Path(app.static_folder) / normalized_profile_image).resolve()
+    upload_root = PROFILE_IMAGE_UPLOAD_DIR.resolve()
+
+    try:
+        candidate_path.relative_to(upload_root)
+    except ValueError:
+        return None
+
+    return candidate_path
+
+def is_uploaded_profile_image(profile_image):
+    return resolve_uploaded_profile_image(profile_image) is not None
+
+def is_valid_profile_image(profile_image):
+    normalized_profile_image = normalize_profile_image_path(profile_image)
+
+    if normalized_profile_image in PROFILE_IMAGE_FILENAMES:
+        return True
+
+    uploaded_path = resolve_uploaded_profile_image(normalized_profile_image)
+    return uploaded_path is not None and uploaded_path.is_file()
+
+def is_selectable_profile_image_for_user(profile_image, user_id):
+    normalized_profile_image = normalize_profile_image_path(profile_image)
+
+    if normalized_profile_image in PROFILE_IMAGE_FILENAMES:
+        return True
+
+    uploaded_path = resolve_uploaded_profile_image(normalized_profile_image)
+    if uploaded_path is None or not uploaded_path.is_file():
+        return False
+
+    return uploaded_path.name.startswith(f"user_{user_id}_")
+
+def get_custom_profile_image(user):
+    if user is None:
+        return None
+
+    profile_image = normalize_profile_image_path(user.profile_image)
+    if is_uploaded_profile_image(profile_image) and is_valid_profile_image(profile_image):
+        return profile_image
+
+    return None
+
+def validate_uploaded_profile_image(file_storage):
+    filename = secure_filename(file_storage.filename or "")
+    extension = Path(filename).suffix.lower()
+
+    if extension not in PROFILE_IMAGE_ALLOWED_EXTENSIONS:
+        return "Upload a JPEG image (.jpg or .jpeg)."
+
+    file_storage.stream.seek(0)
+    header = file_storage.stream.read(3)
+    file_storage.stream.seek(0)
+
+    if header != b"\xff\xd8\xff":
+        return "Upload a valid JPEG image."
+
+    return None
+
+def save_uploaded_profile_image(file_storage, user_id):
+    stored_filename = f"user_{user_id}_{uuid4().hex}.jpg"
+    relative_path = f"{PROFILE_IMAGE_UPLOAD_PREFIX}{stored_filename}"
+    absolute_path = PROFILE_IMAGE_UPLOAD_DIR / stored_filename
+
+    try:
+        file_storage.save(absolute_path)
+    except OSError as error:
+        app.logger.warning(
+            "Profile image upload failed for user %s. %s",
+            user_id,
+            error
+        )
+        return None, "Profile image upload failed."
+
+    return relative_path, None
+
+def delete_uploaded_profile_image(profile_image):
+    uploaded_path = resolve_uploaded_profile_image(profile_image)
+
+    if uploaded_path is None or not uploaded_path.exists():
+        return
+
+    try:
+        uploaded_path.unlink()
+    except OSError as error:
+        app.logger.warning(
+            "Profile image cleanup failed for %s. %s",
+            profile_image,
+            error
+        )
+
+def get_profile_image(user):
+    if user is None:
+        return PROFILE_IMAGE_DEFAULT
+
+    profile_image = normalize_profile_image_path(user.profile_image)
+    if is_valid_profile_image(profile_image):
+        return profile_image
+
+    return PROFILE_IMAGE_DEFAULT
+
+def get_profile_bio(user):
+    if user is None:
+        return ""
+
+    return (user.bio or "").strip()
+
+def calculate_leaderboard_score(stats):
+    return (
+        coerce_int(stats.get("kills"), 0)
+        + coerce_int(stats.get("pistol_shots"), 0)
+        + coerce_int(stats.get("grenades_used"), 0)
+        + coerce_int(stats.get("medkits_used"), 0)
+        + coerce_int(stats.get("reloads"), 0)
+        + coerce_int(stats.get("knife_uses"), 0)
+        + (coerce_int(stats.get("damage_dealt"), 0) // 100)
+        + (coerce_int(stats.get("damage_taken"), 0) // 2)
+    )
+
+def get_leaderboard_entries(current_user_id=None, limit=None):
+    try:
+        rows = (
+            db.session.query(
+                User.id.label("user_id"),
+                User.username.label("username"),
+                User.display_name.label("display_name"),
+                func.coalesce(func.sum(SaveData.kills), 0).label("kills"),
+                func.coalesce(func.sum(SaveData.damage_dealt), 0).label("damage_dealt"),
+                func.coalesce(func.sum(SaveData.damage_taken), 0).label("damage_taken"),
+                func.coalesce(func.sum(SaveData.pistol_shots), 0).label("pistol_shots"),
+                func.coalesce(func.sum(SaveData.grenades_used), 0).label("grenades_used"),
+                func.coalesce(func.sum(SaveData.medkits_used), 0).label("medkits_used"),
+                func.coalesce(func.sum(SaveData.reloads), 0).label("reloads"),
+                func.coalesce(func.sum(SaveData.knife_uses), 0).label("knife_uses"),
+            )
+            .join(SaveData, SaveData.user_id == User.id)
+            .filter(SaveData.has_started_game.is_(True))
+            .group_by(User.id, User.username, User.display_name)
+            .all()
+        )
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Leaderboard query failed. %s",
+            getattr(error, "orig", error)
+        )
+        return []
+
+    entries = []
+
+    for row in rows:
+        display_name = (row.display_name or "").strip() or row.username
+        stats = {
+            "kills": row.kills,
+            "damage_dealt": row.damage_dealt,
+            "damage_taken": row.damage_taken,
+            "pistol_shots": row.pistol_shots,
+            "grenades_used": row.grenades_used,
+            "medkits_used": row.medkits_used,
+            "reloads": row.reloads,
+            "knife_uses": row.knife_uses,
+        }
+        entries.append({
+            "user_id": row.user_id,
+            "display_name": display_name,
+            "login_username": row.username,
+            "score": calculate_leaderboard_score(stats),
+        })
+
+    ranked_entries = sorted(
+        entries,
+        key=lambda entry: (-entry["score"], entry["display_name"].lower(), entry["login_username"])
+    )
+
+    for index, entry in enumerate(ranked_entries, start=1):
+        entry["rank"] = index
+        entry["is_current_user"] = entry["user_id"] == current_user_id
+
+    if limit is not None:
+        ranked_entries = ranked_entries[:limit]
+
+    return ranked_entries
+
+def get_leaderboard(limit=5, current_user_id=None):
+    return get_leaderboard_entries(
+        current_user_id=current_user_id,
+        limit=limit
+    )
+
+def get_leaderboard_entry_for_user(user_id, current_user_id=None):
+    for entry in get_leaderboard_entries(current_user_id=current_user_id):
+        if entry["user_id"] == user_id:
+            return entry
+
+    return None
+
+def get_accepted_friendship(user_id, friend_id):
+    return Friend.query.filter_by(
+        user_id=user_id,
+        friend_id=friend_id,
+        status="accepted"
+    ).first()
+
+def get_pending_friend_request(from_user_id, to_user_id):
+    return FriendRequest.query.filter_by(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id,
+        status="pending"
+    ).first()
+
+def ensure_accepted_friendship(user_id, friend_id):
+    if get_accepted_friendship(user_id, friend_id) is None:
+        db.session.add(Friend(
+            user_id=user_id,
+            friend_id=friend_id,
+            status="accepted"
+        ))
+
+def accept_pending_friend_request(friend_request):
+    friend_request.status = "accepted"
+    ensure_accepted_friendship(friend_request.from_user_id, friend_request.to_user_id)
+    ensure_accepted_friendship(friend_request.to_user_id, friend_request.from_user_id)
+
+def create_friend_request(from_user_id, to_user_id):
+    if from_user_id == to_user_id:
+        return False, "You can't send a friend request to yourself."
+
+    if get_accepted_friendship(from_user_id, to_user_id) is not None:
+        return False, "You are already friends."
+
+    if get_pending_friend_request(from_user_id, to_user_id) is not None:
+        return False, "Friend request already sent."
+
+    if get_pending_friend_request(to_user_id, from_user_id) is not None:
+        return False, "This user already sent you a friend request."
+
+    db.session.add(FriendRequest(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id,
+        status="pending"
+    ))
+    return True, "Friend request sent."
+
+def get_friend_action(current_user_id, profile_user_id):
+    if current_user_id == profile_user_id:
+        return {
+            "state": "self",
+            "label": "YOUR PROFILE",
+            "disabled": True,
+        }
+
+    if get_accepted_friendship(current_user_id, profile_user_id) is not None:
+        return {
+            "state": "friends",
+            "label": "FRIENDS",
+            "disabled": True,
+        }
+
+    if get_pending_friend_request(current_user_id, profile_user_id) is not None:
+        return {
+            "state": "outgoing_pending",
+            "label": "REQUEST SENT",
+            "disabled": True,
+        }
+
+    incoming_request = get_pending_friend_request(profile_user_id, current_user_id)
+    if incoming_request is not None:
+        return {
+            "state": "incoming_pending",
+            "label": "ACCEPT REQUEST",
+            "disabled": False,
+            "action": "accept_friend_request",
+        }
+
+    return {
+        "state": "add",
+        "label": "ADD FRIEND",
+        "disabled": False,
+        "action": "send_friend_request",
     }
 
 def make_guest_name():
@@ -518,6 +867,7 @@ def show_login():
         session.clear()
         session["user_id"] = user.id
         session["username"] = user.username
+        session["display_name"] = get_display_name(user)
         session["is_guest"] = False
 
         return redirect(url_for("main_menu"))
@@ -581,6 +931,7 @@ def main_menu():
     username = session.get("username")
     is_guest = bool(session.get("is_guest"))
     user_id = session.get("user_id")
+    profile_image = PROFILE_IMAGE_DEFAULT
 
     if not username:
         return redirect(url_for("show_login"))
@@ -598,7 +949,9 @@ def main_menu():
             session.clear()
             return redirect(url_for("show_login"))
 
-        username = user.username
+        username = get_display_name(user)
+        profile_image = get_profile_image(user)
+        session["display_name"] = username
         friends = get_friends(user_id)
 
     return render_template(
@@ -606,7 +959,201 @@ def main_menu():
         username=username,
         friends=friends,
         is_guest=is_guest,
-        user_id=user_id
+        user_id=user_id,
+        profile_image=profile_image,
+        leaderboard=get_leaderboard(current_user_id=user_id),
+        can_view_profiles=not is_guest
+    )
+
+
+@app.route("/profile", methods=["GET", "POST"])
+def profile():
+    user_id = session.get("user_id")
+
+    if user_id is None or session.get("is_guest"):
+        if session.get("username"):
+            return redirect(url_for("main_menu"))
+
+        return redirect(url_for("show_login"))
+
+    user = User.query.get(user_id)
+
+    if user is None:
+        session.clear()
+        return redirect(url_for("show_login"))
+
+    error = None
+    success = None
+    display_name_value = user.display_name or ""
+    bio_value = get_profile_bio(user)
+    selected_profile_image = get_profile_image(user)
+    custom_profile_image = get_custom_profile_image(user)
+
+    if request.method == "POST":
+        display_name = request.form.get("display_name", "").strip()
+        bio = request.form.get("bio", "").strip()
+        profile_image = normalize_profile_image_path(
+            request.form.get("profile_image", selected_profile_image)
+        )
+        uploaded_profile_image = request.files.get("custom_profile_image")
+        has_uploaded_profile_image = bool(
+            uploaded_profile_image
+            and (uploaded_profile_image.filename or "").strip()
+        )
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        wants_password_change = any([
+            current_password,
+            new_password,
+            confirm_password,
+        ])
+        new_uploaded_profile_image = None
+
+        display_name_value = display_name
+        bio_value = bio
+        selected_profile_image = profile_image
+
+        if (request.content_length or 0) > PROFILE_IMAGE_UPLOAD_MAX_BYTES:
+            error = "Profile image uploads must be 5MB or smaller."
+        elif len(display_name) > 80:
+            error = "Display name must be 80 characters or fewer."
+        elif len(bio) > BIO_MAX_LENGTH:
+            error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
+        elif has_uploaded_profile_image:
+            error = validate_uploaded_profile_image(uploaded_profile_image)
+        elif not is_selectable_profile_image_for_user(profile_image, user_id):
+            error = "Choose one of the available profile pictures or upload your own JPEG."
+        elif wants_password_change:
+            if not current_password or not new_password or not confirm_password:
+                error = "Fill in all password fields to change your password."
+            elif not check_password_hash(user.password_hash, current_password):
+                error = "Current password is incorrect."
+            elif new_password != confirm_password:
+                error = "New passwords do not match."
+
+        if error is None:
+            if has_uploaded_profile_image:
+                profile_image, upload_error = save_uploaded_profile_image(
+                    uploaded_profile_image,
+                    user_id
+                )
+
+                if upload_error is not None:
+                    error = upload_error
+                else:
+                    new_uploaded_profile_image = profile_image
+                    selected_profile_image = profile_image
+                    custom_profile_image = profile_image
+
+        if error is None:
+            previous_profile_image = normalize_profile_image_path(user.profile_image)
+            user.display_name = display_name or None
+            user.bio = bio or None
+            user.profile_image = profile_image
+
+            if wants_password_change:
+                user.password_hash = generate_password_hash(
+                    new_password,
+                    method="pbkdf2:sha256"
+                )
+
+            try:
+                db.session.commit()
+                session["display_name"] = get_display_name(user)
+                success = "Profile updated."
+                if previous_profile_image != user.profile_image:
+                    delete_uploaded_profile_image(previous_profile_image)
+                display_name_value = user.display_name or ""
+                bio_value = get_profile_bio(user)
+                selected_profile_image = get_profile_image(user)
+                custom_profile_image = get_custom_profile_image(user)
+            except SQLAlchemyError as update_error:
+                db.session.rollback()
+                if new_uploaded_profile_image is not None:
+                    delete_uploaded_profile_image(new_uploaded_profile_image)
+                app.logger.warning(
+                    "Profile update failed for user %s. %s",
+                    user_id,
+                    getattr(update_error, "orig", update_error)
+                )
+                error = "Profile update failed."
+
+    return render_template(
+        "profile.html",
+        username=get_display_name(user),
+        login_username=user.username,
+        display_name=display_name_value,
+        bio=bio_value,
+        bio_max_length=BIO_MAX_LENGTH,
+        profile_image=selected_profile_image,
+        custom_profile_image=custom_profile_image,
+        profile_images=PROFILE_IMAGE_OPTIONS,
+        error=error,
+        success=success
+    )
+
+
+@app.route("/profile/<int:user_id>", methods=["GET", "POST"])
+def view_profile(user_id):
+    current_user_id = session.get("user_id")
+
+    if current_user_id is None or session.get("is_guest"):
+        if session.get("username"):
+            return redirect(url_for("main_menu"))
+
+        return redirect(url_for("show_login"))
+
+    profile_user = User.query.get(user_id)
+    if profile_user is None:
+        flash("Profile not found.")
+        return redirect(url_for("main_menu"))
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        try:
+            if action == "send_friend_request":
+                _, message = create_friend_request(current_user_id, user_id)
+                flash(message)
+            elif action == "accept_friend_request":
+                incoming_request = get_pending_friend_request(user_id, current_user_id)
+
+                if incoming_request is None:
+                    flash("Friend request not found.")
+                else:
+                    accept_pending_friend_request(incoming_request)
+                    flash("Friend request accepted.")
+            else:
+                flash("Profile action not recognised.")
+
+            db.session.commit()
+        except SQLAlchemyError as error:
+            db.session.rollback()
+            app.logger.warning(
+                "Profile friend action failed for user %s and profile %s. %s",
+                current_user_id,
+                user_id,
+                getattr(error, "orig", error)
+            )
+            flash("Profile action failed.")
+
+        return redirect(url_for("view_profile", user_id=user_id))
+
+    leaderboard_entry = get_leaderboard_entry_for_user(
+        user_id,
+        current_user_id=current_user_id
+    )
+
+    return render_template(
+        "public_profile.html",
+        profile_user=profile_user,
+        display_name=get_display_name(profile_user),
+        profile_image=get_profile_image(profile_user),
+        bio=get_profile_bio(profile_user),
+        leaderboard_entry=leaderboard_entry,
+        friend_action=get_friend_action(current_user_id, user_id),
+        is_self=current_user_id == user_id
     )
 
 
@@ -629,15 +1176,19 @@ def show_achievements():
         return redirect(url_for("show_login"))
 
     user_id = session.get("user_id")
+    username = session.get("username", "Player")
 
     if user_id is None or session.get("is_guest"):
         stats = get_empty_stats()
     else:
+        user = User.query.get(user_id)
+        if user is not None:
+            username = get_display_name(user)
         stats = get_user_stats(user_id)
 
     return render_template(
         "achievements.html",
-        username=session.get("username", "Player"),
+        username=username,
         achievements=[],
         stats=stats
     )
@@ -759,13 +1310,26 @@ def add_friend(user_id):
     if not current_user or current_user == user_id:
         return redirect(url_for("main_menu"))
 
-    existing = Friend.query.filter_by(user_id=current_user, friend_id=user_id).first()
+    target_user = User.query.get(user_id)
+    if target_user is None:
+        flash("User not found.")
+        return redirect(url_for("main_menu"))
 
-    if not existing:
-        db.session.add(Friend(user_id=current_user, friend_id=user_id))
+    try:
+        _, message = create_friend_request(current_user, user_id)
         db.session.commit()
+        flash(message)
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Friend request failed for user %s and target %s. %s",
+            current_user,
+            user_id,
+            getattr(error, "orig", error)
+        )
+        flash("Friend request failed.")
 
-    return redirect(url_for("main_menu"))
+    return redirect(url_for("view_profile", user_id=user_id))
 
 
 @app.route('/friends', methods=['GET', 'POST'])
@@ -780,31 +1344,22 @@ def show_friends():
     if request.method == 'POST':
         from_user_id = session.get('user_id')
         friend_username = request.form['friend_username'].strip().lower()
-        
-        # Look up the friend
         friend = User.query.filter_by(username=friend_username).first()
+
         if friend:
-            # Prevent sending request to self
-            if friend.id == from_user_id:
-                flash("You can't send a friend request to yourself.")
-            else:
-                # Make sure no duplicate pending request
-                existing = FriendRequest.query.filter_by(
-                    from_user_id=from_user_id, 
-                    to_user_id=friend.id, 
-                    status='pending'
-                ).first()
-                
-                if not existing:
-                    new_request = FriendRequest(
-                        from_user_id=from_user_id,
-                        to_user_id=friend.id,
-                        status='pending'
-                    )
-                    db.session.add(new_request)
-                    db.session.commit()
-                else:
-                    flash("Friend request already sent.")
+            try:
+                _, message = create_friend_request(from_user_id, friend.id)
+                db.session.commit()
+                flash(message)
+            except SQLAlchemyError as error:
+                db.session.rollback()
+                app.logger.warning(
+                    "Friend request failed for user %s and target %s. %s",
+                    from_user_id,
+                    friend.id,
+                    getattr(error, "orig", error)
+                )
+                flash("Friend request failed.")
         else:
             flash('User not found.')
         
@@ -820,7 +1375,7 @@ def show_friends():
     
     return render_template(
         'friends_view.html',
-        username=current_user.username,
+        username=get_display_name(current_user),
         current_user=current_user,
         incoming_requests=incoming_requests,
         friends=friends
@@ -835,20 +1390,7 @@ def accept_friend(request_id):
 
     friend_request = FriendRequest.query.get(request_id)
     if friend_request and friend_request.to_user_id == current_user:
-        friend_request.status = "accepted"
-
-        # Add mutual friendship entries
-        db.session.add(Friend(
-            user_id=friend_request.from_user_id,
-            friend_id=friend_request.to_user_id,
-            status="accepted"
-        ))
-        db.session.add(Friend(
-            user_id=friend_request.to_user_id,
-            friend_id=friend_request.from_user_id,
-            status="accepted"
-        ))
-
+        accept_pending_friend_request(friend_request)
         db.session.commit()
 
     return redirect(url_for("show_friends"))

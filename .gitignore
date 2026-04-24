@@ -13,3 +13,5 @@ test-results/
 .vscode/*.code-workspace
 .vscode
 
+static/uploads/profile_pics/*
+!static/uploads/profile_pics/.gitkeep

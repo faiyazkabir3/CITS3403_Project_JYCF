@@ -34,7 +34,9 @@
             <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
             {% if friends %}
               {% for friend in friends %}
-                <a href="{{ url_for('chat', friend_id=friend.id) }}">{{ friend.username }}</a>
+                <a href="{{ url_for('view_profile', user_id=friend.id) }}">
+                  {{ friend.display_name or friend.username }}
+                </a>
               {% endfor %}
             {% else %}
               <span class="no-friends">No friends yet</span>
@@ -43,13 +45,18 @@
         {% endif %}
       </div>
 
-      <div class="operator-bar">
-        <img src="{{ url_for('static', filename='images/Shadows.gif') }}" class="logo" alt="Game Logo">
-        <span class="operator-name">Operator: {{ username }}</span>
-        {% if is_guest %}
+      {% if is_guest %}
+        <div class="operator-bar">
+          <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
+          <span class="operator-name">Operator: {{ username }}</span>
           <span class="mode-chip">GUEST MODE</span>
-        {% endif %}
-      </div>
+        </div>
+      {% else %}
+        <a href="{{ url_for('profile') }}" class="operator-bar operator-link" aria-label="Customize profile">
+          <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
+          <span class="operator-name">Operator: {{ username }}</span>
+        </a>
+      {% endif %}
 
       <div class="version">v0.1</div>
     </div>
@@ -58,11 +65,26 @@
       <div class="leaderboard">
         <h2>LEADERBOARD</h2>
         <ul>
-          <li>#1 PlayerX - 1200</li>
-          <li>#2 ZombieSlayer - 980</li>
-          <li>#3 Survivor99 - 870</li>
-          <li>#4 DeadShot - 820</li>
-          <li>#5 NightRun - 760</li>
+          {% if leaderboard %}
+            {% for entry in leaderboard %}
+              <li>
+                <span>#{{ entry.rank }}</span>
+                {% if can_view_profiles %}
+                  <a
+                    href="{{ url_for('view_profile', user_id=entry.user_id) }}"
+                    class="leaderboard-name{% if entry.is_current_user %} leaderboard-name-current{% endif %}"
+                  >
+                    {{ entry.display_name }}
+                  </a>
+                {% else %}
+                  <span class="leaderboard-name">{{ entry.display_name }}</span>
+                {% endif %}
+                <span>- {{ entry.score }}</span>
+              </li>
+            {% endfor %}
+          {% else %}
+            <li>No scores yet</li>
+          {% endif %}
         </ul>
       </div>
 
