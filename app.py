@@ -12,6 +12,7 @@ except ModuleNotFoundError:
         return False
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask_socketio import SocketIO, join_room, leave_room
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -90,6 +91,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:/
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
+socketio = SocketIO(app, async_mode="threading")
 
 def ensure_user_schema():
     inspector = inspect(db.engine)
@@ -158,6 +160,41 @@ def get_friends(user_id):
     friend_ids = [f.friend_id for f in friendships]
     friends = User.query.filter(User.id.in_(friend_ids)).all()
     return sorted(friends, key=lambda user: get_display_name(user).lower())
+
+
+def get_accepted_friend(current_user_id, friend_id):
+    friendship = Friend.query.filter_by(
+        user_id=current_user_id,
+        friend_id=friend_id,
+        status="accepted"
+    ).first()
+
+    if friendship is None:
+        return None
+
+    return User.query.get(friend_id)
+
+
+def build_chat_room_key(user_a_id, user_b_id):
+    first_id, second_id = sorted((int(user_a_id), int(user_b_id)))
+    return f"chat:{first_id}:{second_id}"
+
+
+def parse_friend_id(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def serialize_chat_message(message):
+    return {
+        "id": message.id,
+        "sender_id": message.sender_id,
+        "receiver_id": message.receiver_id,
+        "message": message.message,
+        "timestamp": message.timestamp.isoformat() if message.timestamp else None,
+    }
 
 def get_user_stats(user_id):
     all_saves = SaveData.query.filter_by(user_id=user_id).all()
@@ -922,6 +959,7 @@ def main_menu():
         username=username,
         friends=friends,
         is_guest=is_guest,
+        user_id=user_id,
         profile_image=profile_image,
         leaderboard=get_leaderboard(current_user_id=user_id),
         can_view_profiles=not is_guest
@@ -1374,19 +1412,26 @@ def reject_friend(request_id):
 def chat(friend_id):
     current_user = session.get("user_id")
 
-    if not current_user:
+    if current_user is None or session.get("is_guest"):
         return redirect(url_for("show_login"))
 
+    friend = get_accepted_friend(current_user, friend_id)
+
+    if friend is None:
+        flash("You can only chat with users in your friends list.")
+        return redirect(url_for("show_friends"))
+
     if request.method == "POST":
-        msg = request.form.get("message")
+        msg = request.form.get("message", "").strip()
 
         if msg:
-            db.session.add(Message(
+            message = Message(
                 sender_id=session["user_id"],
                 receiver_id=friend_id,
                 message=msg,
                 timestamp=datetime.utcnow()
-            ))
+            )
+            db.session.add(message)
             db.session.commit()
             return redirect(url_for("chat", friend_id=friend_id))
 
@@ -1395,14 +1440,102 @@ def chat(friend_id):
         ((Message.sender_id == friend_id) & (Message.receiver_id == current_user))
     ).order_by(Message.timestamp).all()
 
-    friend = User.query.get(friend_id)
-
     return render_template(
         "chat.html",
         messages=messages,
         friend=friend,
         current_user=session["user_id"]
     )
+
+
+@socketio.on("connect")
+def handle_socket_connect():
+    if session.get("user_id") is None or session.get("is_guest"):
+        return False
+
+
+@socketio.on("chat:join")
+def handle_chat_join(data):
+    current_user = session.get("user_id")
+    friend_id = parse_friend_id((data or {}).get("friend_id"))
+
+    if current_user is None or session.get("is_guest"):
+        return {"ok": False, "message": "Please log in to use chat."}
+
+    if friend_id is None:
+        socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
+        return {"ok": False, "message": "Chat user is invalid."}
+
+    friend = get_accepted_friend(current_user, friend_id)
+    if friend is None:
+        socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
+        return {"ok": False, "message": "You can only chat with accepted friends."}
+
+    room_key = build_chat_room_key(current_user, friend_id)
+    join_room(room_key)
+    return {
+        "ok": True,
+        "room": room_key,
+        "friend": {
+            "id": friend.id,
+            "username": friend.username,
+        },
+    }
+
+
+@socketio.on("chat:leave")
+def handle_chat_leave(data):
+    current_user = session.get("user_id")
+    friend_id = parse_friend_id((data or {}).get("friend_id"))
+
+    if current_user is None or friend_id is None:
+        return {"ok": False}
+
+    leave_room(build_chat_room_key(current_user, friend_id))
+    return {"ok": True}
+
+
+@socketio.on("chat:send")
+def handle_chat_send(data):
+    current_user = session.get("user_id")
+    friend_id = parse_friend_id((data or {}).get("friend_id"))
+    message_text = str((data or {}).get("message", "")).strip()
+
+    if current_user is None or session.get("is_guest"):
+        socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
+        return {"ok": False, "message": "Please log in to use chat."}
+
+    if friend_id is None:
+        socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
+        return {"ok": False, "message": "Chat user is invalid."}
+
+    if get_accepted_friend(current_user, friend_id) is None:
+        socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
+        return {"ok": False, "message": "You can only chat with accepted friends."}
+
+    if message_text == "":
+        socketio.emit("chat:error", {"message": "Message cannot be empty."}, to=request.sid)
+        return {"ok": False, "message": "Message cannot be empty."}
+
+    room_key = build_chat_room_key(current_user, friend_id)
+    join_room(room_key)
+
+    message = Message(
+        sender_id=current_user,
+        receiver_id=friend_id,
+        message=message_text,
+        timestamp=datetime.utcnow()
+    )
+    db.session.add(message)
+    db.session.commit()
+
+    payload = serialize_chat_message(message)
+    socketio.emit("chat:new", payload, to=room_key)
+
+    return {
+        "ok": True,
+        "message": payload,
+    }
 
 @app.route("/friend-stats/<int:friend_id>")
 def friend_stats(friend_id):
@@ -1436,4 +1569,4 @@ def friend_stats(friend_id):
     )
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
