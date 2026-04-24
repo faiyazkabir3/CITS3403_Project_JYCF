@@ -1,8 +1,63 @@
 # Realtime Chat Documentation
 
-Updated: 22 April 2026
+Updated: 24 April 2026
 
 This document explains the realtime chat update, why it is better than the previous chat flow, and how the new implementation works. If this file and the code ever disagree, the code is the source of truth.
+
+## Branch Comparison: `chat_update` vs `main`
+
+This comparison was made from the current branch, `chat_update`, against the `main` branch versions of the chat-related files.
+
+### `main` branch chat system
+
+The `main` branch uses a standard Flask form workflow:
+
+- `app.py` handles `GET` and `POST` in `/chat/<friend_id>`.
+- A submitted message is saved to the `Message` table.
+- Flask redirects back to the same chat route after saving.
+- The browser reloads the page to show the updated conversation.
+- `templates/chat.html` renders existing messages and a normal HTML form.
+- There is no `static/js/chat.js` file in `main`.
+- There is no Socket.IO server setup in `main`.
+- The app starts with `app.run(debug=True)`.
+
+The `main` version is simpler and still persists messages, but it is not realtime. The other user only sees new messages after refreshing or reopening the chat page.
+
+### Current `chat_update` chat system
+
+The current branch keeps the same database-backed chat history, but adds a realtime layer:
+
+- `app.py` imports and initializes `Flask-SocketIO`.
+- `/chat/<friend_id>` still supports the normal server-rendered page and `POST` fallback.
+- The HTTP chat route now checks that the target user is an accepted friend.
+- Socket events validate login state, guest mode, friend ID parsing, accepted-friend access, and empty messages.
+- `templates/chat.html` adds `data-*` attributes so the browser knows the current user and friend IDs.
+- `templates/chat.html` loads the Socket.IO client and `static/js/chat.js`.
+- `static/js/chat.js` joins a private room, sends messages through `chat:send`, and appends incoming `chat:new` events without refreshing.
+- The app starts with `socketio.run(app, debug=True)`.
+
+The current version therefore keeps the reliable persistence behavior from `main`, but adds live delivery and stricter access control.
+
+### Important code differences
+
+| Area | `main` | Current `chat_update` |
+| --- | --- | --- |
+| Server startup | `app.run(debug=True)` | `socketio.run(app, debug=True)` |
+| Realtime library | None | `Flask-SocketIO` |
+| Client JavaScript | None | `static/js/chat.js` |
+| Message send path | HTML form `POST` only | Socket.IO first, HTML form fallback |
+| Page update | Full page reload | Append new message in-place |
+| Conversation room | None | `chat:<smaller_user_id>:<larger_user_id>` |
+| Friend validation | Login check, then loads `User.query.get(friend_id)` | Accepted-friend check before page access and socket access |
+| Guest handling | Only checks missing login in chat route | Blocks guests in chat route and socket connection |
+| Empty message handling | Saves if `msg` is truthy | Trims whitespace and rejects empty socket messages |
+| Duplicate handling | Not needed because the page reloads | Uses `data-message-id` and `seenMessageIds` |
+
+### Practical effect
+
+In `main`, sending a message is reliable but feels like a traditional web form. In the current branch, sending a message feels like a live chat app because both participants receive the saved message immediately through the shared Socket.IO room.
+
+The current branch is also safer because typing another user's ID into `/chat/<friend_id>` is not enough to open a chat. The target must already be an accepted friend, and the same rule is repeated in the socket events so bypassing the page route does not bypass the permission check.
 
 ## 1. What Changed
 
