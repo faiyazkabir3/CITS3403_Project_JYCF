@@ -1410,6 +1410,29 @@ body::before {
   scrollbar-gutter: stable;
 }
 
+.play-page .shop-inventory-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 7, 11, 0.55);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+
+.play-page .shop-inventory-summary span,
+.play-page .shop-resource-line {
+  overflow-wrap: anywhere;
+}
+
+.play-page .shop-resource-line {
+  opacity: 0.95;
+}
+
 .play-page .shop-box .choice-buttons {
   gap: 12px;
 }

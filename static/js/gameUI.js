@@ -987,6 +987,7 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   const shopBox = $("#shop-box");
   const buyButtons = $("#shop-buy-buttons");
   const sellButtons = $("#shop-sell-buttons");
+  const inventorySummary = $("#shop-inventory-summary");
   const continueBtn = $("#shop-continue-btn");
   if (!shopBox || !buyButtons || !sellButtons || !continueBtn) return;
 
@@ -997,14 +998,29 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
     shopBox.style.display = "none";
     buyButtons.innerHTML = "";
     sellButtons.innerHTML = "";
+    if (inventorySummary) {
+      inventorySummary.innerHTML = "";
+    }
     return;
   }
 
   const coins = engine.state.inventory.coins;
+  const { inventory, pistol, rifle } = engine.state;
+  const pistolTotalAmmo = pistol.ammoInGun + pistol.ammoInBag;
+  const rifleTotalAmmo = rifle.ammoInGun + rifle.ammoInBag;
   gameMain?.classList.add("shop-open");
   shopBox.style.display = "flex";
   buyButtons.innerHTML = "";
   sellButtons.innerHTML = "";
+
+  if (inventorySummary) {
+    inventorySummary.innerHTML = `
+      <span>Total pistol ammo with you: ${pistolTotalAmmo}</span>
+      <span>Total rifle ammo with you: ${rifle.owned ? rifleTotalAmmo : "no rifle"}</span>
+      <span>Grenades with you: ${inventory.grenades}</span>
+      <span>Medkits with you: ${inventory.medKits}</span>
+    `;
+  }
 
   engine.getShopInventory().forEach((item) => {
     const button = document.createElement("button");
@@ -1014,6 +1030,7 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
     button.innerHTML = `
       <span class="choice-title">${item.label} - ${item.cost}C</span>
       <span class="choice-desc">${item.description}</span>
+      ${item.resourceLine ? `<span class="choice-desc shop-resource-line">${item.resourceLine}</span>` : ""}
     `;
     button.addEventListener("click", () => onBuy(item.id));
     buyButtons.appendChild(button);

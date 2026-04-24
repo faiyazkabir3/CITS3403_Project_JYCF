@@ -339,6 +339,40 @@ function getSellValue(cost) {
   return Math.max(1, Math.round(cost * 0.6));
 }
 
+function getTotalWeaponAmmo(weapon) {
+  return (weapon.ammoInGun || 0) + (weapon.ammoInBag || 0);
+}
+
+function getShopResourceLine(item, state) {
+  if (item.id === "medkit") {
+    return `Current: ${state.inventory.medKits} medkit${state.inventory.medKits === 1 ? "" : "s"}.`;
+  }
+
+  if (item.id === "pistolAmmo") {
+    return (
+      `Current: ${getTotalWeaponAmmo(state.pistol)} pistol ammo ` +
+      `(${state.pistol.ammoInGun}/${state.pistol.magCapacity} loaded, ${state.pistol.ammoInBag} reserve).`
+    );
+  }
+
+  if (item.id === "rifle") {
+    return state.rifle.owned
+      ? `Current: rifle owned with ${getTotalWeaponAmmo(state.rifle)} total ammo.`
+      : "Current: no rifle owned.";
+  }
+
+  if (item.id === "rifleAmmo") {
+    return state.rifle.owned
+      ? (
+          `Current: ${getTotalWeaponAmmo(state.rifle)} rifle ammo ` +
+          `(${state.rifle.ammoInGun}/${state.rifle.magCapacity} loaded, ${state.rifle.ammoInBag} reserve).`
+        )
+      : "Current: buy the rifle before stocking rifle mags.";
+  }
+
+  return "";
+}
+
 export function createNewGameState({ difficulty = "EASY", seed, character = "leon" } = {}) {
   const rng = createRng(seed);
   const diff = difficulty.toUpperCase();
@@ -1819,6 +1853,7 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
           id: item.id,
           label: item.label,
           description: item.description,
+          resourceLine: getShopResourceLine(item, state),
           cost: item.cost,
           sellValue: getSellValue(item.cost),
           disabled: !item.canBuy(state)
