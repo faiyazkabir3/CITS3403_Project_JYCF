@@ -1184,6 +1184,37 @@ body::before {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 32px var(--battle-edge-glow);
 }
 
+.play-page .mission-feed-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.play-page .mission-skip-btn {
+  flex: 0 0 auto;
+  min-width: 112px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f7fa;
+  font-family: "Silkscreen", monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.play-page .mission-skip-btn:hover:not(:disabled),
+.play-page .mission-skip-btn.is-fast-forwarding {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.play-page .mission-skip-btn:disabled {
+  cursor: default;
+  opacity: 0.36;
+}
+
 .play-page .story-text {
   max-width: 100%;
   margin-top: 4px;
