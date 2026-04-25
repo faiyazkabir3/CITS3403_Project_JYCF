@@ -26,7 +26,7 @@
 
         <div class="chat-heading">
           <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
-          <p class="chat-status" data-chat-status>Connecting live chat...</p>
+          <p class="chat-status" data-chat-status data-i18n="chat.status.connecting">Connecting live chat...</p>
           <p class="flash-message chat-alert" data-chat-alert hidden></p>
         </div>
       </div>
@@ -51,8 +51,8 @@
             required
             class="input-text"
             data-chat-input
-          >
-          <button type="submit" class="primary-btn" data-chat-submit>Send</button>
+            data-i18n-placeholder="chat.input.placeholder">
+          <button type="submit" class="primary-btn" data-chat-submit data-i18n="chat.send">Send</button>
         </form>
       </div>
     </section>
@@ -63,5 +63,7 @@
     crossorigin="anonymous"
   ></script>
   <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
+
 </body>
 </html>

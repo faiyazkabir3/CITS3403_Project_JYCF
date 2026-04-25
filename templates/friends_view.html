@@ -28,41 +28,41 @@
       {% endwith %}
 
       <section class="selected-character-box">
-        <h2>Friend Requests</h2>
+        <h2 data-i18n="friends.friendRequests">Friend Requests</h2>
         <ul>
           {% for req in incoming_requests %}
             <li>
               <a class="friend-name-link" href="{{ url_for('view_profile', user_id=req.from_user.id) }}">
                 {{ req.from_user.display_name or req.from_user.username }}
               </a>
-              <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}">Accept</a>
-              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}">Reject</a>
+              <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}" data-i18n="friends.accept">Accept</a>
+              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}" data-i18n="friends.reject">Reject</a>
             </li>
           {% else %}
-            <li>No pending requests</li>
+            <li data-i18n="friends.noPendingRequests">No pending requests</li>
           {% endfor %}
         </ul>
       </section>
 
       <section class="selected-character-box">
-        <h2>Your Friends</h2>
+        <h2 data-i18n="friends.yourFriends">Your Friends</h2>
         <ul>
           {% for f in friends %}
             <li>
               <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
                 {{ f.display_name or f.username }}
               </a>
-              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
-              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}" data-i18n="friends.chat">Chat</a>
+              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}" data-i18n="friends.viewStats">View Stats</a>
             </li>
           {% else %}
-            <li>No friends yet</li>
+            <li data-i18n="friends.noFriendsYet">No friends yet</li>
           {% endfor %}
         </ul>
       </section>
 
       <section class="selected-character-box">
-        <h2>Add a Friend</h2>
+        <h2 data-i18n="friends.addFriend">Add a Friend</h2>
         <form method="POST" class="button-stack" data-friend-form>
           <input
             type="text"
@@ -71,14 +71,17 @@
             required
             class="input-text"
             data-friend-username
+            data-i18n-placeholder="friends.usernamePlaceholder"
+
           >
 
-          <button type="submit" class="primary-btn">Send Request</button>
+          <button type="submit" class="primary-btn" data-i18n="friends.sendRequest">Send Request</button>
         </form>
       </section>
     </section>
   </div>
 
   <script src="{{ url_for('static', filename='js/friends-page.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>
 </html>

@@ -32,9 +32,26 @@ export function applyTranslations() {
     const text =
       translations[key] ||
       fallbackTranslations[key] ||
+      el.textContent ||
       key;
 
-    el.textContent = text;
+    if (el.tagName === "TITLE") {
+      document.title = text;
+    } else {
+      el.textContent = text;
+    }
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+
+    const text =
+      translations[key] ||
+      fallbackTranslations[key] ||
+      el.getAttribute("placeholder") ||
+      key;
+
+    el.placeholder = text;
   });
 }
 

@@ -25,42 +25,42 @@
     <div class="menu-content">
 
       <div class="achievement-box">
-        <div class="achievement-title">Total Kills</div>
+        <div class="achievement-title" data-i18n="achievements.totalKills">Total Kills</div>
         <div class="stat-value">{{ stats.kills }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Damage Dealt</div>
+        <div class="achievement-title" data-i18n="achievements.damageDealt">Damage Dealt</div>
         <div class="stat-value">{{ stats.damage_dealt }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Damage Taken</div>
+        <div class="achievement-title" data-i18n="achievements.damageTaken">Damage Taken</div>
         <div class="stat-value">{{ stats.damage_taken }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Pistol Shots</div>
+        <div class="achievement-title" data-i18n="achievements.pistolShots">Pistol Shots</div>
         <div class="stat-value">{{ stats.pistol_shots }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Grenades Used</div>
+        <div class="achievement-title" data-i18n="achievements.grenadesUsed">Grenades Used</div>
         <div class="stat-value">{{ stats.grenades }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Knife Uses</div>
+        <div class="achievement-title" data-i18n="achievements.knifeUses">Knife Uses</div>
         <div class="stat-value">{{ stats.knife_uses }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Medkits Used</div>
+        <div class="achievement-title" data-i18n="achievements.medkitsUsed">Medkits Used</div>
         <div class="stat-value">{{ stats.medkits }}</div>
       </div>
 
       <div class="achievement-box">
-        <div class="achievement-title">Reload Count</div>
+        <div class="achievement-title" data-i18n="achievements.reloadCount">Reload Count</div>
         <div class="stat-value">{{ stats.reloads }}</div>
       </div>
 
@@ -68,5 +68,7 @@
 
   </div>
 
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
+  
 </body>
 </html>
