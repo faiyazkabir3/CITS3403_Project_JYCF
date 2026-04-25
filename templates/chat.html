@@ -13,33 +13,55 @@
   <!-- Global CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body class="play-page">
+<body
+  class="play-page chat-page"
+  data-current-user-id="{{ current_user }}"
+  data-friend-id="{{ friend.id }}"
+  data-friend-username="{{ friend.username }}"
+>
   <div class="screen-wrap">
-    <section class="panel active">
-      <!-- Top back arrow -->
-      <a href="{{ url_for('show_friends') }}" class="back-arrow">←</a>
+    <section class="panel active chat-panel">
+      <div class="chat-topbar">
+        <a href="{{ url_for('show_friends') }}" class="back-arrow">←</a>
 
-      <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
+        <div class="chat-heading">
+          <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
+          <p class="chat-status" data-chat-status>Connecting live chat...</p>
+          <p class="flash-message chat-alert" data-chat-alert hidden></p>
+        </div>
+      </div>
 
-      <!-- Chat Messages -->
       <div class="chat-container">
-        <div class="chat-messages">
+        <div class="chat-messages" data-chat-messages>
           {% for msg in messages %}
             {% if msg.sender_id == current_user %}
-              <div class="chat-message outgoing">{{ msg.message }}</div>
+              <div class="chat-message outgoing" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
             {% else %}
-              <div class="chat-message incoming">{{ msg.message }}</div>
+              <div class="chat-message incoming" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
             {% endif %}
           {% endfor %}
         </div>
 
         <!-- Chat Input -->
-        <form method="POST" class="chat-form">
-          <input type="text" name="message" placeholder="Type a message..." required class="input-text">
-          <button type="submit" class="primary-btn">Send</button>
+        <form method="POST" class="chat-form" data-chat-form>
+          <input
+            type="text"
+            name="message"
+            placeholder="Type a message..."
+            required
+            class="input-text"
+            data-chat-input
+          >
+          <button type="submit" class="primary-btn" data-chat-submit>Send</button>
         </form>
       </div>
     </section>
   </div>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+    integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+    crossorigin="anonymous"
+  ></script>
+  <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>

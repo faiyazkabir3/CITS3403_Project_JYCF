@@ -112,4 +112,5 @@ For frontend debugging, set breakpoints in the browser-loaded JS modules. Node i
 
 - [Level Design](LEVEL_DESIGN.md)
 - [Combat Engine](COMBAT_ENGINE.md)
+- [Realtime Chat](REALTIME_CHAT.md)
 - [Sanity Checks Guide](SANITY_CHECKS.md)
