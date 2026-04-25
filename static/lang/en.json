@@ -1,0 +1,15 @@
+{
+  "achievements.pageTitle": "Achievements",
+  "achievements.totalKills": "Total Kills",
+  "achievements.damageDealt": "Damage Dealt",
+  "achievements.damageTaken": "Damage Taken",
+  "achievements.pistolShots": "Pistol Shots",
+  "achievements.grenadesUsed": "Grenades Used",
+  "achievements.knifeUses": "Knife Uses",
+  "achievements.medkitsUsed": "Medkits Used",
+  "achievements.reloadCount": "Reload Count",
+  "settings.language": "LANGUAGE",
+  "settings.changeLanguage": "CHANGE LANGUAGE",
+  "language.title": "CHANGE LANGUAGE",
+  "language.confirm": "CONFIRM"
+}

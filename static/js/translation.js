@@ -52,3 +52,9 @@ export function t(key, vars = {}) {
 
   return text;
 }
+
+// Auto-run on every page
+document.addEventListener("DOMContentLoaded", () => {
+  const savedLang = localStorage.getItem("lang") || "en";
+  loadLanguage(savedLang);
+});

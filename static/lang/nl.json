@@ -1,0 +1,15 @@
+{
+  "achievements.pageTitle": "Prestaties",
+  "achievements.totalKills": "Totaal Aantal Kills",
+  "achievements.damageDealt": "Aangerichte Schade",
+  "achievements.damageTaken": "Ontvangen Schade",
+  "achievements.pistolShots": "Pistoolschoten",
+  "achievements.grenadesUsed": "Gebruikte Granaten",
+  "achievements.knifeUses": "Mesgebruik",
+  "achievements.medkitsUsed": "Gebruikte Medkits",
+  "achievements.reloadCount": "Aantal Herlaadacties",
+  "settings.language": "TAAL",
+  "settings.changeLanguage": "TAAL WIJZIGEN",
+  "language.title": "TAAL WIJZIGEN",
+  "language.confirm": "BEVESTIGEN"
+}

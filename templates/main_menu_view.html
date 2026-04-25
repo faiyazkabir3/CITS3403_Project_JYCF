@@ -127,11 +127,37 @@
           </label>
           <span id="mute-status">OFF</span>
         </div>
+
+        <div class="settings-row">
+          <span data-i18n="settings.language">LANGUAGE</span>
+          <button type="button" id="open-language-btn" class="settings-language-btn">
+            <span data-i18n="settings.changeLanguage">CHANGE LANGUAGE</span>
+          </button>
+          <span id="current-language-label">EN</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
+  <div id="language-modal" class="settings-modal" hidden aria-hidden="true">
+    <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="language-title">
+      <div class="settings-modal-header">
+        <h2 id="language-title" data-i18n="language.title">CHANGE LANGUAGE</h2>
+        <button type="button" id="close-language-btn" class="settings-close-btn" aria-label="Close language menu">X</button>
+      </div>
+
+      <div class="language-list">
+        <button type="button" class="language-option" data-lang-option="en">English</button>
+        <button type="button" class="language-option" data-lang-option="nl">Nederlands</button>
+      </div>
+
+      <button type="button" id="confirm-language-btn" class="primary-btn language-confirm-btn" data-i18n="language.confirm">
+        CONFIRM
+      </button>
+    </div>
+  </div> 
+
+  <script type="module" src="{{ url_for('static', filename='js/settings.js') }}"></script>
 
 
   <audio id="menu-theme-audio" preload="auto" loop>
