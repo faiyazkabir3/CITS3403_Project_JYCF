@@ -634,7 +634,7 @@ def add_friend(user_id):
 
     if current_user == user_id:
         flash("You cannot add yourself.")
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("show_friends"))
 
     current_user_record = User.query.get(current_user)
     if current_user_record is None:
@@ -644,7 +644,7 @@ def add_friend(user_id):
     target_user = User.query.get(user_id)
     if target_user is None:
         flash("User not found.")
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("show_friends"))
 
     try:
         _, message = create_friend_request(current_user, user_id)
