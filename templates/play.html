@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Play Game</title>
+  <title data-i18n="play.pageTitle">Play Game</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,12 +19,12 @@
         ←
       </a>
 
-      <h1>PLAY GAME</h1>
-      <p class="subtitle">Choose how you want to begin.</p>
+      <h1 data-i18n="play.title">PLAY GAME</h1>
+      <p class="subtitle" data-i18n="play.startSubtitle">Choose how you want to begin.</p>
 
       <div class="button-stack">
-        <button type="button" id="new-game-btn" class="primary-btn">NEW GAME</button>
-        <button type="button" id="load-game-btn" class="secondary-btn">LOAD GAME</button>
+        <button type="button" id="new-game-btn" class="primary-btn" data-i18n="play.newGame">NEW GAME</button>
+        <button type="button" id="load-game-btn" class="secondary-btn" data-i18n="play.loadGame">LOAD GAME</button>
       </div>
     </section>
 
@@ -33,16 +33,16 @@
         ←
       </button>
 
-      <h1>SELECT CHARACTER</h1>
-      <p class="subtitle">Choose who you want to play as.</p>
+      <h1 data-i18n="play.selectCharacter">SELECT CHARACTER</h1>
+      <p class="subtitle" data-i18n="play.characterSubtitle">Choose who you want to play as.</p>
 
       <div class="character-grid">
         <button type="button" class="character-card" data-character="leon">
           <img src="{{ url_for('static', filename='images/players/leon_idle.png') }}" alt="Leon character">
           <span class="character-name">LEON</span>
           <div class="character-desc">
-            <strong>TACTICAL SPECIALIST</strong>
-            <p>Reliable ranged fighter with stronger pistol shots and better shield defense.</p>
+            <strong data-i18n="play.leonRole">TACTICAL SPECIALIST</strong>
+            <p data-i18n="play.leonDesc">Reliable ranged fighter with stronger pistol shots and better shield defense.</p>
           </div>
         </button>
 
@@ -50,8 +50,8 @@
           <img src="{{ url_for('static', filename='images/players/quite_idle.png') }}" alt="Quite character">
           <span class="character-name">QUITE</span>
           <div class="character-desc">
-            <strong>AGILE SURVIVOR</strong>
-            <p>Fast and evasive fighter with stronger dodges and better medkit recovery.</p>
+            <strong data-i18n="play.quiteRole">AGILE SURVIVOR</strong>
+            <p data-i18n="play.quiteDesc">Fast and evasive fighter with stronger dodges and better medkit recovery.</p>
           </div>
         </button>
       </div>
@@ -62,17 +62,17 @@
         ←
       </button>
 
-      <h1>SELECT DIFFICULTY</h1>
-      <p class="subtitle">Choose your challenge level.</p>
+      <h1 data-i18n="play.selectDifficulty">SELECT DIFFICULTY</h1>
+      <p class="subtitle" data-i18n="play.difficultySubtitle">Choose your challenge level.</p>
 
       <div class="selected-character-box">
-        SELECTED CHARACTER:
+        <span data-i18n="play.selectedCharacter">SELECTED CHARACTER:</span>
         <span id="selected-character-display">LEON</span>
       </div>
 
       <div class="button-stack">
-        <button type="button" class="primary-btn difficulty-btn" data-difficulty="Easy">EASY</button>
-        <button type="button" class="danger-btn difficulty-btn" data-difficulty="Hard">HARD</button>
+        <button type="button" class="primary-btn difficulty-btn" data-difficulty="Easy" data-i18n="play.easy">EASY</button>
+        <button type="button" class="danger-btn difficulty-btn" data-difficulty="Hard" data-i18n="play.hard">HARD</button>
       </div>
     </section>
 
@@ -81,18 +81,18 @@
         ←
       </button>
 
-      <h1>LOAD GAME</h1>
-      <p class="subtitle">Load your latest saved game.</p>
+      <h1 data-i18n="play.loadTitle">LOAD GAME</h1>
+      <p class="subtitle" data-i18n="play.loadSubtitle">Load your latest saved game.</p>
 
       <div class="load-save-box">
-        <div id="save-preview" class="save-preview">
+        <div id="save-preview" class="save-preview" data-i18n="play.noSaveData">
           NO SAVE DATA FOUND
         </div>
 
         <div class="button-stack">
-          <button type="button" id="load-latest-save-btn" class="primary-btn">LOAD LATEST SAVE</button>
-          <button type="button" id="load-leon-save-btn" class="secondary-btn">LOAD LEON SAVE</button>
-          <button type="button" id="load-quite-save-btn" class="secondary-btn">LOAD QUITE SAVE</button>
+          <button type="button" id="load-latest-save-btn" class="primary-btn" data-i18n="play.loadLatestSave">LOAD LATEST SAVE</button>
+          <button type="button" id="load-leon-save-btn" class="secondary-btn" data-i18n="play.loadLeonSave">LOAD LEON SAVE</button>
+          <button type="button" id="load-quite-save-btn" class="secondary-btn" data-i18n="play.loadQuiteSave">LOAD QUITE SAVE</button>
         </div>
       </div>
     </section>
@@ -103,9 +103,12 @@
       </a>
 
       <div class="game-topbar">
-        <div class="top-left">LEVEL 1</div>
+        <div class="top-left" data-i18n="play.level">LEVEL 1</div>
         <div class="top-right">
-          <span class="difficulty-label">DIFFICULTY: <span id="difficulty-display">EASY</span></span>
+          <span class="difficulty-label">
+            <span data-i18n="play.difficultyLabel">DIFFICULTY:</span>
+            <span id="difficulty-display">EASY</span>
+          </span>
           <button type="button" id="game-settings-btn" class="game-settings-btn" aria-label="Open settings">
             <img src="{{ url_for('static', filename='images/icons/settings.svg') }}" alt="" aria-hidden="true">
           </button>
@@ -115,30 +118,30 @@
       <div id="game-settings-modal" class="settings-modal" hidden aria-hidden="true">
         <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="game-settings-title">
           <div class="settings-modal-header">
-            <h2 id="game-settings-title">SETTINGS</h2>
+            <h2 id="game-settings-title" data-i18n="play.settings">SETTINGS</h2>
             <button type="button" id="game-close-settings-btn" class="settings-close-btn" aria-label="Close settings">X</button>
           </div>
 
           <div class="settings-modal-body">
             <div class="settings-row">
-              <label for="game-music-volume">MUSIC VOLUME</label>
+              <label for="game-music-volume" data-i18n="settings.musicVolume">MUSIC VOLUME</label>
               <input type="range" id="game-music-volume" min="0" max="100" value="50">
               <span id="game-music-volume-value">50</span>
             </div>
 
             <div class="settings-row">
-              <label for="game-sfx-volume">SFX VOLUME</label>
+              <label for="game-sfx-volume" data-i18n="settings.sfxVolume">SFX VOLUME</label>
               <input type="range" id="game-sfx-volume" min="0" max="100" value="50">
               <span id="game-sfx-volume-value">50</span>
             </div>
 
             <div class="settings-row settings-checkbox-row">
-              <span>MUTE</span>
+              <span data-i18n="settings.mute">MUTE</span>
               <label for="game-mute-audio" class="settings-checkbox-label">
                 <input type="checkbox" id="game-mute-audio">
-                <span>Mute all audio</span>
+                <span data-i18n="settings.muteAll">Mute all audio</span>
               </label>
-              <span id="game-mute-status">OFF</span>
+              <span id="game-mute-status" data-i18n="settings.off">OFF</span>
             </div>
           </div>
         </div>
@@ -154,7 +157,7 @@
               <div id="battle-hud" class="battle-hud">
                 <section class="battle-status battle-status-player" aria-label="Player battle status">
                   <div class="battle-status-heading">
-                    <span class="battle-status-label">OPERATOR</span>
+                    <span class="battle-status-label" data-i18n="play.operator">OPERATOR</span>
                     <strong id="battle-player-name">LEON</strong>
                   </div>
                   <div class="battle-bar battle-bar-player">
@@ -172,7 +175,7 @@
                           class="battle-resource-icon"
                         >
                       </span>
-                      <span class="battle-resource-label">HP</span>
+                      <span class="battle-resource-label" data-i18n="play.hp">HP</span>
                       <strong id="battle-player-health-text" class="battle-resource-value">100/100</strong>
                     </div>
                     <div id="battle-player-shield-row" class="battle-resource-row battle-resource-row-shield">
@@ -183,8 +186,8 @@
                           class="battle-resource-icon"
                         >
                       </span>
-                      <span class="battle-resource-label">SHIELD</span>
-                      <strong id="battle-player-shield-text" class="battle-resource-value">NONE</strong>
+                      <span class="battle-resource-label" data-i18n="play.shield">SHIELD</span>
+                      <strong id="battle-player-shield-text" class="battle-resource-value" data-i18n="play.none">NONE</strong>
                     </div>
                     <div id="battle-player-loadout" class="battle-player-loadout" aria-label="Player loadout"></div>
                   </div>
@@ -192,13 +195,13 @@
 
                 <section class="battle-status battle-status-enemy" aria-label="Enemy battle status">
                   <div class="battle-status-heading">
-                    <span class="battle-status-label">THREAT</span>
-                    <strong id="battle-enemy-name">NO CONTACT</strong>
+                    <span class="battle-status-label" data-i18n="play.threat">THREAT</span>
+                    <strong id="battle-enemy-name" data-i18n="play.noContact">NO CONTACT</strong>
                   </div>
                   <div class="battle-bar battle-bar-enemy">
                     <span id="battle-enemy-health-fill"></span>
                   </div>
-                  <p id="battle-enemy-meta" class="battle-status-meta">SCAN ONLINE</p>
+                  <p id="battle-enemy-meta" class="battle-status-meta" data-i18n="play.scanOnline">SCAN ONLINE</p>
                   <div id="battle-enemy-tags" class="battle-enemy-tags"></div>
                 </section>
               </div>
@@ -216,7 +219,7 @@
 
                 <div id="battle-enemy" class="battle-actor battle-enemy">
                   <img id="battle-enemy-image" class="battle-actor-image" alt="Enemy portrait">
-                  <div id="battle-enemy-fallback" class="battle-actor-fallback" hidden>NO CONTACT</div>
+                  <div id="battle-enemy-fallback" class="battle-actor-fallback" hidden data-i18n="play.noContact">NO CONTACT</div>
                 </div>
               </div>
 
@@ -224,8 +227,8 @@
                 <div id="battle-tags" class="battle-tags"></div>
 
                 <div class="battle-caption">
-                  <span class="battle-caption-label">MISSION FEED</span>
-                  <div id="story-text" class="story-text">Mission starting...</div>
+                  <span class="battle-caption-label" data-i18n="play.missionFeed">MISSION FEED</span>
+                  <div id="story-text" class="story-text" data-i18n="play.missionStarting">Mission starting...</div>
                 </div>
               </div>
             </div>
@@ -234,88 +237,88 @@
         </div>
 
         <div id="emergency-box" class="path-choice-box emergency-box" style="display: none;">
-          <h2 id="emergency-title">EMERGENCY EVENT</h2>
+          <h2 id="emergency-title" data-i18n="play.emergencyEvent">EMERGENCY EVENT</h2>
           <p id="emergency-prompt" class="emergency-prompt"></p>
           <div class="emergency-meta">
-            <span>KEY: <strong id="emergency-key">X</strong></span>
-            <span>TIME LEFT: <strong id="emergency-timer">0.0s</strong></span>
-            <span>PROGRESS: <strong id="emergency-progress">0/0</strong></span>
+            <span><span data-i18n="play.key">KEY:</span> <strong id="emergency-key">X</strong></span>
+            <span><span data-i18n="play.timeLeft">TIME LEFT:</span> <strong id="emergency-timer">0.0s</strong></span>
+            <span><span data-i18n="play.progress">PROGRESS:</span> <strong id="emergency-progress">0/0</strong></span>
           </div>
           <div class="button-stack emergency-stack">
-            <button type="button" id="emergency-action-btn" class="primary-btn">MASH KEY / CLICK</button>
-            <button type="button" id="emergency-fail-btn" class="secondary-btn">ABORT EVENT</button>
+            <button type="button" id="emergency-action-btn" class="primary-btn" data-i18n="play.mashKey">MASH KEY / CLICK</button>
+            <button type="button" id="emergency-fail-btn" class="secondary-btn" data-i18n="play.abortEvent">ABORT EVENT</button>
           </div>
         </div>
 
         <div id="path-choice-box" class="path-choice-box" style="display: none;">
-          <h2>CHOOSE YOUR PATH</h2>
+          <h2 data-i18n="play.choosePath">CHOOSE YOUR PATH</h2>
           <div id="path-choice-buttons" class="choice-buttons"></div>
         </div>
 
         <div id="shop-box" class="path-choice-box shop-box" style="display: none;">
           <div class="shop-header">
-            <h2>SHOP TERMINAL</h2>
-            <button type="button" id="shop-continue-btn" class="secondary-btn">CONTINUE</button>
+            <h2 data-i18n="play.shopTerminal">SHOP TERMINAL</h2>
+            <button type="button" id="shop-continue-btn" class="secondary-btn" data-i18n="play.continue">CONTINUE</button>
           </div>
           <div class="shop-dialogue">
-            <span class="battle-caption-label">MISSION FEED</span>
-            <div id="shop-story-text" class="story-text">Mission starting...</div>
+            <span class="battle-caption-label" data-i18n="play.missionFeed">MISSION FEED</span>
+            <div id="shop-story-text" class="story-text" data-i18n="play.missionStarting">Mission starting...</div>
           </div>
           <div class="shop-grid">
             <div>
-              <h3>BUY</h3>
+              <h3 data-i18n="play.buy">BUY</h3>
               <div id="shop-buy-buttons" class="choice-buttons"></div>
             </div>
             <div>
-              <h3>SELL</h3>
+              <h3 data-i18n="play.sell">SELL</h3>
               <div id="shop-sell-buttons" class="choice-buttons"></div>
             </div>
           </div>
         </div>
 
         <div id="continue-box" class="path-choice-box" style="display: none;">
-          <h2>NEXT LEVEL READY</h2>
+          <h2 data-i18n="play.nextLevelReady">NEXT LEVEL READY</h2>
           <div class="button-stack">
-            <button type="button" id="continue-level-btn" class="primary-btn">CONTINUE TO NEXT LEVEL</button>
+            <button type="button" id="continue-level-btn" class="primary-btn" data-i18n="play.continueNextLevel">CONTINUE TO NEXT LEVEL</button>
           </div>
         </div>
 
         <div class="game-bottom">
           <div class="todo-box">
-            <h2 id="action-panel-title">ACTIONS</h2>
+            <h2 id="action-panel-title" data-i18n="play.actions">ACTIONS</h2>
 
             <div class="todo-buttons action-panel-grid action-panel-grid-main" id="main-actions">
-              <button type="button" class="action-btn" id="attack-btn">ATTACK</button>
-              <button type="button" class="action-btn" id="defend-btn">DEFEND</button>
-              <button type="button" class="action-btn" id="inventory-btn">INVENTORY</button>
-              <button type="button" class="action-btn" id="stats-btn">STATS</button>
-              <button type="button" class="action-btn action-btn-wide" id="save-btn">SAVE GAME</button>
+              <button type="button" class="action-btn" id="attack-btn" data-i18n="play.attack">ATTACK</button>
+              <button type="button" class="action-btn" id="defend-btn" data-i18n="play.defend">DEFEND</button>
+              <button type="button" class="action-btn" id="inventory-btn" data-i18n="play.inventory">INVENTORY</button>
+              <button type="button" class="action-btn" id="stats-btn" data-i18n="play.stats">STATS</button>
+              <button type="button" class="action-btn action-btn-wide" id="save-btn" data-i18n="play.saveGame">SAVE GAME</button>
             </div>
 
             <div class="todo-buttons action-panel-grid action-panel-grid-submenu" id="attack-actions" style="display: none;">
-              <button type="button" class="action-btn" id="pistol-btn">PISTOL</button>
-              <button type="button" class="action-btn" id="rifle-btn" style="display: none;">RIFLE</button>
-              <button type="button" class="action-btn" id="knife-btn">KNIFE</button>
-              <button type="button" class="action-btn" id="grenade-btn">GRENADE</button>
-              <button type="button" class="action-btn action-btn-wide" id="attack-back-btn">BACK</button>
+              <button type="button" class="action-btn" id="pistol-btn" data-i18n="play.pistol">PISTOL</button>
+              <button type="button" class="action-btn" id="rifle-btn" style="display: none;" data-i18n="play.rifle">RIFLE</button>
+              <button type="button" class="action-btn" id="knife-btn" data-i18n="play.knife">KNIFE</button>
+              <button type="button" class="action-btn" id="grenade-btn" data-i18n="play.grenade">GRENADE</button>
+              <button type="button" class="action-btn action-btn-wide" id="attack-back-btn" data-i18n="play.back">BACK</button>
             </div>
 
             <div class="todo-buttons action-panel-grid action-panel-grid-submenu" id="inventory-actions" style="display: none;">
-              <button type="button" class="action-btn" id="reload-btn">RELOAD PISTOL</button>
-              <button type="button" class="action-btn" id="reload-rifle-btn" style="display: none;">RELOAD RIFLE</button>
-              <button type="button" class="action-btn" id="medkit-btn">USE MEDKIT</button>
-              <button type="button" class="action-btn" id="shield-btn">TOGGLE SHIELD</button>
-              <button type="button" class="action-btn action-btn-wide" id="inventory-back-btn">BACK</button>
+              <button type="button" class="action-btn" id="reload-btn" data-i18n="play.reloadPistol">RELOAD PISTOL</button>
+              <button type="button" class="action-btn" id="reload-rifle-btn" style="display: none;" data-i18n="play.reloadRifle">RELOAD RIFLE</button>
+              <button type="button" class="action-btn" id="medkit-btn" data-i18n="play.useMedkit">USE MEDKIT</button>
+              <button type="button" class="action-btn" id="shield-btn" data-i18n="play.toggleShield">TOGGLE SHIELD</button>
+              <button type="button" class="action-btn action-btn-wide" id="inventory-back-btn" data-i18n="play.back">BACK</button>
             </div>
 
             <div class="todo-buttons stats-actions player-stats-panel" id="stats-actions" style="display: none;">
               <div id="player-stats-grid" class="player-stats-grid" aria-live="polite"></div>
-              <button type="button" class="action-btn action-btn-wide" id="stats-back-btn">BACK</button>
+              <button type="button" class="action-btn action-btn-wide" id="stats-back-btn" data-i18n="play.back">BACK</button>
             </div>
           </div>
 
           <div class="combat-log-box">
-            <h2>COMBAT LOG</h2>
+            <h2 data-i18n="play.combatLog">COMBAT LOG</h2>
             <div id="combat-log-list" class="combat-log-list"></div>
           </div>
         </div>
@@ -332,5 +335,8 @@
   <script src="{{ url_for('static', filename='js/play-settings.js') }}" defer></script>
 
   <script type="module" src="{{ url_for('static', filename='js/play.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
+  
 </body>
 </html>
