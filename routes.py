@@ -7,6 +7,7 @@ MIN_USERNAME_LENGTH = 3
 MAX_USERNAME_LENGTH = 80
 MIN_PASSWORD_LENGTH = 6
 MAX_PASSWORD_LENGTH = 255
+MAX_CHAT_MESSAGE_LENGTH = 1000
 USERNAME_PATTERN = re.compile(r"^[a-z0-9_]+$")
 
 
@@ -41,6 +42,24 @@ def validate_auth_password(password, *, field_name="password"):
 
     if len(password) > MAX_PASSWORD_LENGTH:
         return f"{label} must be {MAX_PASSWORD_LENGTH} characters or fewer."
+
+    return None
+
+
+def validate_friend_username(username):
+    return validate_auth_username(username)
+
+
+def normalize_chat_message(message):
+    return str(message or "").strip()
+
+
+def validate_chat_message(message):
+    if message == "":
+        return "Message cannot be empty."
+
+    if len(message) > MAX_CHAT_MESSAGE_LENGTH:
+        return f"Message must be {MAX_CHAT_MESSAGE_LENGTH} characters or fewer."
 
     return None
 
@@ -517,8 +536,20 @@ def load_game():
 def add_friend(user_id):
     current_user = session.get("user_id")
 
-    if not current_user or current_user == user_id:
+    if session.get("is_guest"):
         return redirect(url_for("main_menu"))
+
+    if not current_user:
+        return redirect(url_for("show_login"))
+
+    if current_user == user_id:
+        flash("You cannot add yourself.")
+        return redirect(url_for("main_menu"))
+
+    current_user_record = User.query.get(current_user)
+    if current_user_record is None:
+        session.clear()
+        return redirect(url_for("show_login"))
 
     target_user = User.query.get(user_id)
     if target_user is None:
@@ -549,11 +580,22 @@ def show_friends():
 
     current_user = User.query.get(session.get('user_id'))
     if current_user is None:
+        session.clear()
         return redirect(url_for('show_login'))
     
     if request.method == 'POST':
         from_user_id = session.get('user_id')
-        friend_username = request.form['friend_username'].strip().lower()
+        friend_username = normalize_auth_username(request.form.get('friend_username', ''))
+        friend_username_error = validate_friend_username(friend_username)
+
+        if friend_username_error is not None:
+            flash(friend_username_error)
+            return redirect(url_for('show_friends'))
+
+        if friend_username == current_user.username:
+            flash("You cannot add yourself.")
+            return redirect(url_for('show_friends'))
+
         friend = User.query.filter_by(username=friend_username).first()
 
         if friend:
@@ -632,18 +674,22 @@ def chat(friend_id):
         return redirect(url_for("show_friends"))
 
     if request.method == "POST":
-        msg = request.form.get("message", "").strip()
+        msg = normalize_chat_message(request.form.get("message", ""))
+        message_error = validate_chat_message(msg)
 
-        if msg:
-            message = Message(
-                sender_id=session["user_id"],
-                receiver_id=friend_id,
-                message=msg,
-                timestamp=datetime.utcnow()
-            )
-            db.session.add(message)
-            db.session.commit()
+        if message_error is not None:
+            flash(message_error)
             return redirect(url_for("chat", friend_id=friend_id))
+
+        message = Message(
+            sender_id=session["user_id"],
+            receiver_id=friend_id,
+            message=msg,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(message)
+        db.session.commit()
+        return redirect(url_for("chat", friend_id=friend_id))
 
     messages = Message.query.filter(
         ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
@@ -709,7 +755,7 @@ def handle_chat_leave(data):
 def handle_chat_send(data):
     current_user = session.get("user_id")
     friend_id = parse_friend_id((data or {}).get("friend_id"))
-    message_text = str((data or {}).get("message", "")).strip()
+    message_text = normalize_chat_message((data or {}).get("message", ""))
 
     if current_user is None or session.get("is_guest"):
         socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
@@ -723,9 +769,10 @@ def handle_chat_send(data):
         socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
         return {"ok": False, "message": "You can only chat with accepted friends."}
 
-    if message_text == "":
-        socketio.emit("chat:error", {"message": "Message cannot be empty."}, to=request.sid)
-        return {"ok": False, "message": "Message cannot be empty."}
+    message_error = validate_chat_message(message_text)
+    if message_error is not None:
+        socketio.emit("chat:error", {"message": message_error}, to=request.sid)
+        return {"ok": False, "message": message_error}
 
     room_key = build_chat_room_key(current_user, friend_id)
     join_room(room_key)
