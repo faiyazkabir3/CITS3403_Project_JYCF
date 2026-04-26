@@ -27,7 +27,13 @@
         <div class="chat-heading">
           <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
           <p class="chat-status" data-chat-status>Connecting live chat...</p>
-          <p class="flash-message chat-alert" data-chat-alert hidden></p>
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <p class="flash-message chat-alert" data-chat-alert>{{ messages[-1] }}</p>
+            {% else %}
+              <p class="flash-message chat-alert" data-chat-alert hidden></p>
+            {% endif %}
+          {% endwith %}
         </div>
       </div>
 
