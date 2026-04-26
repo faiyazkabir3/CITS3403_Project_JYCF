@@ -64,6 +64,95 @@ def validate_chat_message(message):
     return None
 
 
+def coerce_bounded_int(value, default=0, minimum=0, maximum=None):
+    number = coerce_int(value, default)
+
+    if number < minimum:
+        return minimum
+
+    if maximum is not None and number > maximum:
+        return maximum
+
+    return number
+
+
+def normalize_save_token(value, default, *, max_length=20, transform="preserve"):
+    token = str(value if value is not None else default).strip()
+
+    if transform == "lower":
+        token = token.lower()
+    elif transform == "upper":
+        token = token.upper()
+
+    if not token:
+        return default
+
+    if len(token) > max_length:
+        return default
+
+    if not USERNAME_PATTERN.fullmatch(token.replace("-", "_")):
+        return default
+
+    return token
+
+
+def sanitize_save_request_payload(data):
+    if not isinstance(data, dict) or not data:
+        return None
+
+    difficulty = normalize_save_token(
+        data.get("difficulty"),
+        "EASY",
+        max_length=20,
+        transform="upper"
+    )
+
+    if difficulty not in {"EASY", "NORMAL", "HARD"}:
+        difficulty = "EASY"
+
+    run_state = data.get("run_state")
+    if run_state is not None and not isinstance(run_state, dict):
+        run_state = None
+
+    return {
+        "difficulty": difficulty,
+        "character_id": normalize_save_token(
+            data.get("character_id"),
+            "leon",
+            max_length=20,
+            transform="lower"
+        ),
+        "health": coerce_bounded_int(data.get("health"), 100, minimum=0, maximum=100),
+        "medkits": coerce_bounded_int(data.get("medkits"), 0, minimum=0, maximum=99),
+        "grenades": coerce_bounded_int(data.get("grenades"), 0, minimum=0, maximum=99),
+        "ammo_in_gun": coerce_bounded_int(data.get("ammo_in_gun"), 0, minimum=0, maximum=999),
+        "ammo_in_bag": coerce_bounded_int(data.get("ammo_in_bag"), 0, minimum=0, maximum=999),
+        "mag_capacity": coerce_bounded_int(data.get("mag_capacity"), 8, minimum=0, maximum=999),
+        "laser_upgrade": coerce_bool(data.get("laser_upgrade"), False),
+        "shield_owned": coerce_bool(data.get("shield_owned"), False),
+        "shield_on": coerce_bool(data.get("shield_on"), False),
+        "current_level_id": normalize_save_token(
+            data.get("current_level_id"),
+            "1",
+            max_length=20,
+            transform="preserve"
+        ),
+        "enemies_remaining": coerce_bounded_int(data.get("enemies_remaining"), 0, minimum=0, maximum=999),
+        "level_complete": coerce_bool(data.get("level_complete"), False),
+        "awaiting_choice": coerce_bool(data.get("awaiting_choice"), False),
+        "game_won": coerce_bool(data.get("game_won"), False),
+        "kills": coerce_bounded_int(data.get("kills"), 0, minimum=0, maximum=100000),
+        "damage_dealt": coerce_bounded_int(data.get("damage_dealt"), 0, minimum=0, maximum=1000000),
+        "damage_taken": coerce_bounded_int(data.get("damage_taken"), 0, minimum=0, maximum=1000000),
+        "pistol_shots": coerce_bounded_int(data.get("pistol_shots"), 0, minimum=0, maximum=100000),
+        "grenades_used": coerce_bounded_int(data.get("grenades_used"), 0, minimum=0, maximum=100000),
+        "medkits_used": coerce_bounded_int(data.get("medkits_used"), 0, minimum=0, maximum=100000),
+        "reloads": coerce_bounded_int(data.get("reloads"), 0, minimum=0, maximum=100000),
+        "knife_uses": coerce_bounded_int(data.get("knife_uses"), 0, minimum=0, maximum=100000),
+        "run_state": run_state,
+    }
+
+
 @app.route("/")
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
@@ -432,21 +521,22 @@ def save_game():
         }), 401
 
     data = request.get_json(silent=True)
+    sanitized_data = sanitize_save_request_payload(data)
 
-    if not data:
+    if sanitized_data is None:
         return jsonify({
             "ok": False,
-            "message": "No save data received."
+            "message": "Invalid save data received."
         }), 400
 
-    character_id = str(data.get("character_id", "leon")).lower()
+    character_id = sanitized_data["character_id"]
     session["selected_character"] = character_id
 
-    fallback_payload = build_save_payload_from_request(data)
+    fallback_payload = build_save_payload_from_request(sanitized_data)
 
     try:
         save_data = get_user_save(character_id=character_id, create=True)
-        update_save_data(save_data, data)
+        update_save_data(save_data, sanitized_data)
         db.session.commit()
     except SQLAlchemyError as error:
         db.session.rollback()
