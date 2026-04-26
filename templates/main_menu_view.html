@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Main Menu</title>
+  <title data-i18n="menu.pageTitle">Main Menu</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
     <div class="top-bar">
       <div class="friends-menu" data-friends-menu>
         {% if is_guest %}
-          <button type="button" class="friends-btn" disabled title="Friends are only available for registered players.">
+          <button type="button" class="friends-btn" disabled title="Friends are only available for registered players." data-i18n="menu.friends">
             FRIENDS
           </button>
         {% else %}
@@ -27,11 +27,12 @@
             aria-haspopup="true"
             aria-expanded="false"
             aria-controls="friends-dropdown"
+            data-i18n="menu.friends"
           >
             FRIENDS &#9662;
           </button>
           <div id="friends-dropdown" class="friends-dropdown" data-friends-dropdown>
-            <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
+            <a href="{{ url_for('show_friends') }}" class="friends-hub-link" data-i18n="menu.manageFriends">Manage Friends</a>
             {% if friends %}
               {% for friend in friends %}
                 <a href="{{ url_for('view_profile', user_id=friend.id) }}">
@@ -39,7 +40,7 @@
                 </a>
               {% endfor %}
             {% else %}
-              <span class="no-friends">No friends yet</span>
+              <span class="no-friends" data-i18n="menu.noFriends">No friends yet</span>
             {% endif %}
           </div>
         {% endif %}
@@ -48,8 +49,8 @@
       {% if is_guest %}
         <div class="operator-bar">
           <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
-          <span class="operator-name">Operator: {{ username }}</span>
-          <span class="mode-chip">GUEST MODE</span>
+          <span class="operator-name" data-i18n="menu.operator">Operator: {{ username }}</span>
+          <span class="mode-chip" data-i18n="menu.guestMode">GUEST MODE</span>
         </div>
       {% else %}
         <a href="{{ url_for('profile') }}" class="operator-bar operator-link" aria-label="Customize profile">
@@ -63,7 +64,7 @@
 
     <div class="menu-content">
       <div class="leaderboard">
-        <h2>LEADERBOARD</h2>
+        <h2 data-i18n="menu.leaderboard">LEADERBOARD</h2>
         <ul>
           {% if leaderboard %}
             {% for entry in leaderboard %}
@@ -83,16 +84,16 @@
               </li>
             {% endfor %}
           {% else %}
-            <li>No scores yet</li>
+            <li data-i18n="menu.noScores">No scores yet</li>
           {% endif %}
         </ul>
       </div>
 
       <div class="menu-buttons">
-        <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
-        <button type="button" id="open-settings-btn">SETTINGS</button>
-        <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
-        <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
+        <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button" data-i18n="menu.play">PLAY GAME</button></a>
+        <button type="button" id="open-settings-btn" data-i18n="menu.settings">SETTINGS</button>
+        <a href="{{ url_for('show_achievements') }}"><button type="button" data-i18n="menu.achievements">ACHIEVEMENTS</button></a>
+        <a href="{{ url_for('logout') }}"><button type="button" data-i18n="menu.logout">LOG OUT</button></a>
       </div>
     </div>
   </div>
@@ -102,30 +103,30 @@
   <div id="settings-modal" class="settings-modal" hidden aria-hidden="true">
     <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div class="settings-modal-header">
-        <h2 id="settings-title">SETTINGS</h2>
+        <h2 id="settings-title" data-i18n="settings.title">SETTINGS</h2>
         <button type="button" id="close-settings-btn" class="settings-close-btn" aria-label="Close settings">X</button>
       </div>
 
       <div class="settings-modal-body">
         <div class="settings-row">
-          <label for="music-volume">MUSIC VOLUME</label>
+          <label for="music-volume" data-i18n="settings.musicVolume">MUSIC VOLUME</label>
           <input type="range" id="music-volume" min="0" max="100" value="50">
           <span id="music-volume-value">50</span>
         </div>
 
         <div class="settings-row">
-          <label for="sfx-volume">SFX VOLUME</label>
+          <label for="sfx-volume" data-i18n="settings.sfxVolume">SFX VOLUME</label>
           <input type="range" id="sfx-volume" min="0" max="100" value="50">
           <span id="sfx-volume-value">50</span>
         </div>
 
         <div class="settings-row settings-checkbox-row">
-          <span>MUTE</span>
+          <span data-i18n="settings.mute">MUTE</span>
           <label for="mute-audio" class="settings-checkbox-label">
             <input type="checkbox" id="mute-audio">
-            <span>Mute all audio</span>
+            <span data-i18n="settings.muteAll">Mute all audio</span>
           </label>
-          <span id="mute-status">OFF</span>
+          <span id="mute-status" data-i18n="settings.off">OFF</span>
         </div>
 
         <div class="settings-row">
