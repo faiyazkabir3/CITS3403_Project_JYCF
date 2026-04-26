@@ -21,13 +21,40 @@
 
     <form id="register-form" method="POST" action="/register">
       <label for="username">Username</label>
-      <input type="text" id="username" name="username" placeholder="Choose a username" />
+      <input
+        type="text"
+        id="username"
+        name="username"
+        placeholder="Choose a username"
+        required
+        minlength="3"
+        maxlength="80"
+        autocomplete="username"
+      />
 
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="Create a password" />
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Create a password"
+        required
+        minlength="6"
+        maxlength="255"
+        autocomplete="new-password"
+      />
 
       <label for="confirm-password">Confirm Password</label>
-      <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm your password" />
+      <input
+        type="password"
+        id="confirm-password"
+        name="confirm-password"
+        placeholder="Confirm your password"
+        required
+        minlength="6"
+        maxlength="255"
+        autocomplete="new-password"
+      />
 
       <button type="submit" class="signup-btn">Register</button>
     </form>
