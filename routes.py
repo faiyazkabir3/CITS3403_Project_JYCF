@@ -1,18 +1,64 @@
+import re
 from app import *
+
+
+
+MIN_USERNAME_LENGTH = 3
+MAX_USERNAME_LENGTH = 80
+MIN_PASSWORD_LENGTH = 6
+MAX_PASSWORD_LENGTH = 255
+USERNAME_PATTERN = re.compile(r"^[a-z0-9_]+$")
+
+
+def normalize_auth_username(username):
+    return str(username or "").strip().lower()
+
+
+def validate_auth_username(username):
+    if username == "":
+        return "Please enter a username."
+
+    if len(username) < MIN_USERNAME_LENGTH:
+        return f"Username must be at least {MIN_USERNAME_LENGTH} characters."
+
+    if len(username) > MAX_USERNAME_LENGTH:
+        return f"Username must be {MAX_USERNAME_LENGTH} characters or fewer."
+
+    if not USERNAME_PATTERN.fullmatch(username):
+        return "Username can only use lowercase letters, numbers, and underscores."
+
+    return None
+
+
+def validate_auth_password(password, *, field_name="password"):
+    label = field_name.capitalize()
+
+    if password == "":
+        return f"Please enter a {field_name}."
+
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return f"{label} must be at least {MIN_PASSWORD_LENGTH} characters."
+
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return f"{label} must be {MAX_PASSWORD_LENGTH} characters or fewer."
+
+    return None
 
 
 @app.route("/")
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
     if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
+        username = normalize_auth_username(request.form.get("username", ""))
+        password = str(request.form.get("password", ""))
 
-        if username == "":
-            return render_template("login.html", error="Please enter your username.")
+        username_error = validate_auth_username(username)
+        if username_error is not None:
+            return render_template("login.html", error=username_error)
 
-        if password == "":
-            return render_template("login.html", error="Please enter your password.")
+        password_error = validate_auth_password(password)
+        if password_error is not None:
+            return render_template("login.html", error=password_error)
 
         user = User.query.filter_by(username=username).first()
 
@@ -36,15 +82,21 @@ def show_login():
 @app.route("/register", methods=["GET", "POST"])
 def show_register():
     if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm-password", "")
+        username = normalize_auth_username(request.form.get("username", ""))
+        password = str(request.form.get("password", ""))
+        confirm = str(request.form.get("confirm-password", ""))
 
-        if username == "":
-            return render_template("register.html", error="Please enter a username.")
+        username_error = validate_auth_username(username)
+        if username_error is not None:
+            return render_template("register.html", error=username_error)
 
-        if password == "":
-            return render_template("register.html", error="Please enter a password.")
+        password_error = validate_auth_password(password)
+        if password_error is not None:
+            return render_template("register.html", error=password_error)
+
+        confirm_error = validate_auth_password(confirm, field_name="confirm password")
+        if confirm_error is not None:
+            return render_template("register.html", error=confirm_error)
 
         if password != confirm:
             return render_template("register.html", error="Passwords do not match.")
