@@ -69,6 +69,12 @@
             name="friend_username"
             placeholder="Enter username"
             required
+            minlength="3"
+            maxlength="80"
+            pattern="[a-z0-9_]+"
+            title="Use lowercase letters, numbers, and underscores only."
+            autocomplete="off"
+            spellcheck="false"
             class="input-text"
             data-friend-username
           >

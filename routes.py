@@ -1,18 +1,172 @@
+import re
 from app import *
+
+
+
+MIN_USERNAME_LENGTH = 3
+MAX_USERNAME_LENGTH = 80
+MIN_PASSWORD_LENGTH = 6
+MAX_PASSWORD_LENGTH = 255
+MAX_CHAT_MESSAGE_LENGTH = 1000
+USERNAME_PATTERN = re.compile(r"^[a-z0-9_]+$")
+
+
+def normalize_auth_username(username):
+    return str(username or "").strip().lower()
+
+
+def validate_auth_username(username):
+    if username == "":
+        return "Please enter a username."
+
+    if len(username) < MIN_USERNAME_LENGTH:
+        return f"Username must be at least {MIN_USERNAME_LENGTH} characters."
+
+    if len(username) > MAX_USERNAME_LENGTH:
+        return f"Username must be {MAX_USERNAME_LENGTH} characters or fewer."
+
+    if not USERNAME_PATTERN.fullmatch(username):
+        return "Username can only use lowercase letters, numbers, and underscores."
+
+    return None
+
+
+def validate_auth_password(password, *, field_name="password"):
+    label = field_name.capitalize()
+
+    if password == "":
+        return f"Please enter a {field_name}."
+
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return f"{label} must be at least {MIN_PASSWORD_LENGTH} characters."
+
+    if len(password) > MAX_PASSWORD_LENGTH:
+        return f"{label} must be {MAX_PASSWORD_LENGTH} characters or fewer."
+
+    return None
+
+
+def validate_friend_username(username):
+    return validate_auth_username(username)
+
+
+def normalize_chat_message(message):
+    return str(message or "").strip()
+
+
+def validate_chat_message(message):
+    if message == "":
+        return "Message cannot be empty."
+
+    if len(message) > MAX_CHAT_MESSAGE_LENGTH:
+        return f"Message must be {MAX_CHAT_MESSAGE_LENGTH} characters or fewer."
+
+    return None
+
+
+def coerce_bounded_int(value, default=0, minimum=0, maximum=None):
+    number = coerce_int(value, default)
+
+    if number < minimum:
+        return minimum
+
+    if maximum is not None and number > maximum:
+        return maximum
+
+    return number
+
+
+def normalize_save_token(value, default, *, max_length=20, transform="preserve"):
+    token = str(value if value is not None else default).strip()
+
+    if transform == "lower":
+        token = token.lower()
+    elif transform == "upper":
+        token = token.upper()
+
+    if not token:
+        return default
+
+    if len(token) > max_length:
+        return default
+
+    if not USERNAME_PATTERN.fullmatch(token.replace("-", "_")):
+        return default
+
+    return token
+
+
+def sanitize_save_request_payload(data):
+    if not isinstance(data, dict) or not data:
+        return None
+
+    difficulty = normalize_save_token(
+        data.get("difficulty"),
+        "EASY",
+        max_length=20,
+        transform="upper"
+    )
+
+    if difficulty not in {"EASY", "NORMAL", "HARD"}:
+        difficulty = "EASY"
+
+    run_state = data.get("run_state")
+    if run_state is not None and not isinstance(run_state, dict):
+        run_state = None
+
+    return {
+        "difficulty": difficulty,
+        "character_id": normalize_save_token(
+            data.get("character_id"),
+            "leon",
+            max_length=20,
+            transform="lower"
+        ),
+        "health": coerce_bounded_int(data.get("health"), 100, minimum=0, maximum=100),
+        "medkits": coerce_bounded_int(data.get("medkits"), 0, minimum=0, maximum=99),
+        "grenades": coerce_bounded_int(data.get("grenades"), 0, minimum=0, maximum=99),
+        "ammo_in_gun": coerce_bounded_int(data.get("ammo_in_gun"), 0, minimum=0, maximum=999),
+        "ammo_in_bag": coerce_bounded_int(data.get("ammo_in_bag"), 0, minimum=0, maximum=999),
+        "mag_capacity": coerce_bounded_int(data.get("mag_capacity"), 8, minimum=0, maximum=999),
+        "laser_upgrade": coerce_bool(data.get("laser_upgrade"), False),
+        "shield_owned": coerce_bool(data.get("shield_owned"), False),
+        "shield_on": coerce_bool(data.get("shield_on"), False),
+        "current_level_id": normalize_save_token(
+            data.get("current_level_id"),
+            "1",
+            max_length=20,
+            transform="preserve"
+        ),
+        "enemies_remaining": coerce_bounded_int(data.get("enemies_remaining"), 0, minimum=0, maximum=999),
+        "level_complete": coerce_bool(data.get("level_complete"), False),
+        "awaiting_choice": coerce_bool(data.get("awaiting_choice"), False),
+        "game_won": coerce_bool(data.get("game_won"), False),
+        "kills": coerce_bounded_int(data.get("kills"), 0, minimum=0, maximum=100000),
+        "damage_dealt": coerce_bounded_int(data.get("damage_dealt"), 0, minimum=0, maximum=1000000),
+        "damage_taken": coerce_bounded_int(data.get("damage_taken"), 0, minimum=0, maximum=1000000),
+        "pistol_shots": coerce_bounded_int(data.get("pistol_shots"), 0, minimum=0, maximum=100000),
+        "grenades_used": coerce_bounded_int(data.get("grenades_used"), 0, minimum=0, maximum=100000),
+        "medkits_used": coerce_bounded_int(data.get("medkits_used"), 0, minimum=0, maximum=100000),
+        "reloads": coerce_bounded_int(data.get("reloads"), 0, minimum=0, maximum=100000),
+        "knife_uses": coerce_bounded_int(data.get("knife_uses"), 0, minimum=0, maximum=100000),
+        "run_state": run_state,
+    }
 
 
 @app.route("/")
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
     if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
+        username = normalize_auth_username(request.form.get("username", ""))
+        password = str(request.form.get("password", ""))
 
-        if username == "":
-            return render_template("login.html", error="Please enter your username.")
+        username_error = validate_auth_username(username)
+        if username_error is not None:
+            return render_template("login.html", error=username_error)
 
-        if password == "":
-            return render_template("login.html", error="Please enter your password.")
+        password_error = validate_auth_password(password)
+        if password_error is not None:
+            return render_template("login.html", error=password_error)
 
         user = User.query.filter_by(username=username).first()
 
@@ -36,15 +190,21 @@ def show_login():
 @app.route("/register", methods=["GET", "POST"])
 def show_register():
     if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm-password", "")
+        username = normalize_auth_username(request.form.get("username", ""))
+        password = str(request.form.get("password", ""))
+        confirm = str(request.form.get("confirm-password", ""))
 
-        if username == "":
-            return render_template("register.html", error="Please enter a username.")
+        username_error = validate_auth_username(username)
+        if username_error is not None:
+            return render_template("register.html", error=username_error)
 
-        if password == "":
-            return render_template("register.html", error="Please enter a password.")
+        password_error = validate_auth_password(password)
+        if password_error is not None:
+            return render_template("register.html", error=password_error)
+
+        confirm_error = validate_auth_password(confirm, field_name="confirm password")
+        if confirm_error is not None:
+            return render_template("register.html", error=confirm_error)
 
         if password != confirm:
             return render_template("register.html", error="Passwords do not match.")
@@ -361,21 +521,22 @@ def save_game():
         }), 401
 
     data = request.get_json(silent=True)
+    sanitized_data = sanitize_save_request_payload(data)
 
-    if not data:
+    if sanitized_data is None:
         return jsonify({
             "ok": False,
-            "message": "No save data received."
+            "message": "Invalid save data received."
         }), 400
 
-    character_id = str(data.get("character_id", "leon")).lower()
+    character_id = sanitized_data["character_id"]
     session["selected_character"] = character_id
 
-    fallback_payload = build_save_payload_from_request(data)
+    fallback_payload = build_save_payload_from_request(sanitized_data)
 
     try:
         save_data = get_user_save(character_id=character_id, create=True)
-        update_save_data(save_data, data)
+        update_save_data(save_data, sanitized_data)
         db.session.commit()
     except SQLAlchemyError as error:
         db.session.rollback()
@@ -465,13 +626,25 @@ def load_game():
 def add_friend(user_id):
     current_user = session.get("user_id")
 
-    if not current_user or current_user == user_id:
+    if session.get("is_guest"):
         return redirect(url_for("main_menu"))
+
+    if not current_user:
+        return redirect(url_for("show_login"))
+
+    if current_user == user_id:
+        flash("You cannot add yourself.")
+        return redirect(url_for("show_friends"))
+
+    current_user_record = User.query.get(current_user)
+    if current_user_record is None:
+        session.clear()
+        return redirect(url_for("show_login"))
 
     target_user = User.query.get(user_id)
     if target_user is None:
         flash("User not found.")
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("show_friends"))
 
     try:
         _, message = create_friend_request(current_user, user_id)
@@ -497,11 +670,22 @@ def show_friends():
 
     current_user = User.query.get(session.get('user_id'))
     if current_user is None:
+        session.clear()
         return redirect(url_for('show_login'))
     
     if request.method == 'POST':
         from_user_id = session.get('user_id')
-        friend_username = request.form['friend_username'].strip().lower()
+        friend_username = normalize_auth_username(request.form.get('friend_username', ''))
+        friend_username_error = validate_friend_username(friend_username)
+
+        if friend_username_error is not None:
+            flash(friend_username_error)
+            return redirect(url_for('show_friends'))
+
+        if friend_username == current_user.username:
+            flash("You cannot add yourself.")
+            return redirect(url_for('show_friends'))
+
         friend = User.query.filter_by(username=friend_username).first()
 
         if friend:
@@ -580,18 +764,22 @@ def chat(friend_id):
         return redirect(url_for("show_friends"))
 
     if request.method == "POST":
-        msg = request.form.get("message", "").strip()
+        msg = normalize_chat_message(request.form.get("message", ""))
+        message_error = validate_chat_message(msg)
 
-        if msg:
-            message = Message(
-                sender_id=session["user_id"],
-                receiver_id=friend_id,
-                message=msg,
-                timestamp=datetime.utcnow()
-            )
-            db.session.add(message)
-            db.session.commit()
+        if message_error is not None:
+            flash(message_error)
             return redirect(url_for("chat", friend_id=friend_id))
+
+        message = Message(
+            sender_id=session["user_id"],
+            receiver_id=friend_id,
+            message=msg,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(message)
+        db.session.commit()
+        return redirect(url_for("chat", friend_id=friend_id))
 
     messages = Message.query.filter(
         ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
@@ -657,7 +845,7 @@ def handle_chat_leave(data):
 def handle_chat_send(data):
     current_user = session.get("user_id")
     friend_id = parse_friend_id((data or {}).get("friend_id"))
-    message_text = str((data or {}).get("message", "")).strip()
+    message_text = normalize_chat_message((data or {}).get("message", ""))
 
     if current_user is None or session.get("is_guest"):
         socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
@@ -671,9 +859,10 @@ def handle_chat_send(data):
         socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
         return {"ok": False, "message": "You can only chat with accepted friends."}
 
-    if message_text == "":
-        socketio.emit("chat:error", {"message": "Message cannot be empty."}, to=request.sid)
-        return {"ok": False, "message": "Message cannot be empty."}
+    message_error = validate_chat_message(message_text)
+    if message_error is not None:
+        socketio.emit("chat:error", {"message": message_error}, to=request.sid)
+        return {"ok": False, "message": message_error}
 
     room_key = build_chat_room_key(current_user, friend_id)
     join_room(room_key)
