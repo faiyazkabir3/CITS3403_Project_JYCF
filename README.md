@@ -18,16 +18,24 @@ pip install -r requirements.txt
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-4. Add the generated value to your local `.env` file:
+4. Generate separate local encryption keys:
+
+```powershell
+python -c "import base64, secrets; print(secrets.token_urlsafe(32)); print('v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+5. Add the generated values to your local `.env` file:
 
 ```text
 SECRET_KEY=paste_the_generated_value_here
+SQLCIPHER_DATABASE_KEY=paste_the_sqlcipher_value_here
+SAVE_PAYLOAD_KEYS=v1:paste_the_save_payload_key_here
 DATABASE_URL=sqlite:///project.db
 ```
 
 Do not use placeholder values like `replace_me`, and do not commit `.env`.
 
-5. Run the Flask app:
+6. Run the Flask app:
 
 ```powershell
 python app.py

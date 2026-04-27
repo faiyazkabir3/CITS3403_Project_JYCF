@@ -1,8 +1,11 @@
 import os
 import random
 import json
+import base64
+import sys
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 from uuid import uuid4
 
 try:
@@ -13,12 +16,23 @@ except ModuleNotFoundError:
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 from flask_socketio import SocketIO, join_room, leave_room
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models import db, User, SaveData, Friend, Message, FriendRequest
+
+try:
+    import sqlcipher3
+    import sqlcipher3.dbapi2 as sqlcipher_dbapi
+except ModuleNotFoundError:
+    sqlcipher3 = None
+else:
+    sys.modules.setdefault("pysqlcipher3", sqlcipher3)
+    sys.modules.setdefault("pysqlcipher3.dbapi2", sqlcipher_dbapi)
 
 load_dotenv()
 
@@ -84,14 +98,82 @@ def load_required_secret_key():
     return secret_key
 
 
+def load_required_env_secret(name, minimum_length=32):
+    value = os.environ.get(name, "").strip()
+
+    if not value:
+        raise RuntimeError(f"{name} is missing. Add it to your .env file.")
+
+    if len(value) < minimum_length:
+        raise RuntimeError(f"{name} is too short. Use at least {minimum_length} random characters.")
+
+    return value
+
+
+def configure_sqlcipher_database_uri(database_url, sqlcipher_key):
+    if sqlcipher3 is None:
+        raise RuntimeError("sqlcipher3-binary is required for encrypted SQLite databases.")
+
+    if database_url.startswith("sqlite+pysqlcipher://"):
+        return database_url
+
+    if not database_url.startswith("sqlite:///"):
+        raise RuntimeError("Only SQLite database URLs are supported for SQLCipher encryption.")
+
+    database_path = database_url.removeprefix("sqlite:///")
+    quoted_key = quote(sqlcipher_key, safe="")
+    return f"sqlite+pysqlcipher://:{quoted_key}@/{database_path}"
+
+
+def parse_save_payload_key_ring(raw_key_ring):
+    if not raw_key_ring.strip():
+        raise RuntimeError("SAVE_PAYLOAD_KEYS is missing. Add at least one key like v1:<base64-32-byte-key>.")
+
+    key_ring = {}
+    active_key_id = None
+
+    for entry in raw_key_ring.split(","):
+        key_id, separator, encoded_key = entry.strip().partition(":")
+        if not separator or not key_id or not encoded_key:
+            raise RuntimeError("SAVE_PAYLOAD_KEYS entries must use key_id:base64_key format.")
+
+        try:
+            key = base64.urlsafe_b64decode(encoded_key + "=" * (-len(encoded_key) % 4))
+        except ValueError as error:
+            raise RuntimeError(f"SAVE_PAYLOAD_KEYS entry {key_id} is not valid base64.") from error
+
+        if len(key) != 32:
+            raise RuntimeError(f"SAVE_PAYLOAD_KEYS entry {key_id} must decode to 32 bytes.")
+
+        key_ring[key_id] = key
+        active_key_id = active_key_id or key_id
+
+    return active_key_id, key_ring
+
+
 secret_key = load_required_secret_key()
+sqlcipher_database_key = load_required_env_secret("SQLCIPHER_DATABASE_KEY")
+SAVE_PAYLOAD_ACTIVE_KEY_ID, SAVE_PAYLOAD_KEY_RING = parse_save_payload_key_ring(
+    os.environ.get("SAVE_PAYLOAD_KEYS", "")
+)
+ALLOW_PLAINTEXT_SAVE_FALLBACKS = os.environ.get("ALLOW_PLAINTEXT_SAVE_FALLBACKS", "").lower() in {"1", "true", "yes"}
 
 app.config["SECRET_KEY"] = secret_key
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///project.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = configure_sqlcipher_database_uri(
+    os.environ.get("DATABASE_URL", "sqlite:///project.db"),
+    sqlcipher_database_key
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 socketio = SocketIO(app, async_mode="threading")
+
+def verify_sqlcipher_database():
+    cipher_version = db.session.execute(text("PRAGMA cipher_version")).scalar()
+    if not cipher_version:
+        raise RuntimeError("SQLCipher is not active for the configured SQLite database.")
+
+    db.session.execute(text("SELECT count(*) FROM sqlite_master")).scalar()
 
 def ensure_user_schema():
     inspector = inspect(db.engine)
@@ -145,6 +227,7 @@ def ensure_save_data_schema():
 
 with app.app_context():
     try:
+        verify_sqlcipher_database()
         db.create_all()
         ensure_user_schema()
         ensure_save_data_schema()
@@ -635,9 +718,48 @@ def get_fallback_save_path(user_id, character_id):
     return SAVE_FALLBACK_DIR / f"user_{user_id}_{safe_character}.json"
 
 
+def encrypt_save_payload(payload):
+    nonce = os.urandom(12)
+    key = SAVE_PAYLOAD_KEY_RING[SAVE_PAYLOAD_ACTIVE_KEY_ID]
+    plaintext = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
+
+    return {
+        "encrypted": True,
+        "version": 1,
+        "key_id": SAVE_PAYLOAD_ACTIVE_KEY_ID,
+        "nonce": base64.urlsafe_b64encode(nonce).decode("ascii").rstrip("="),
+        "ciphertext": base64.urlsafe_b64encode(ciphertext).decode("ascii").rstrip("="),
+    }
+
+
+def decode_envelope_value(value):
+    return base64.urlsafe_b64decode(str(value) + "=" * (-len(str(value)) % 4))
+
+
+def decrypt_save_payload(envelope):
+    if not isinstance(envelope, dict) or not envelope.get("encrypted"):
+        if ALLOW_PLAINTEXT_SAVE_FALLBACKS:
+            return envelope
+        return None
+
+    key_id = envelope.get("key_id")
+    key = SAVE_PAYLOAD_KEY_RING.get(key_id)
+    if key is None:
+        return None
+
+    try:
+        nonce = decode_envelope_value(envelope.get("nonce", ""))
+        ciphertext = decode_envelope_value(envelope.get("ciphertext", ""))
+        plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
+        return json.loads(plaintext.decode("utf-8"))
+    except (InvalidTag, OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def write_fallback_save(user_id, character_id, payload):
     path = get_fallback_save_path(user_id, character_id)
-    path.write_text(json.dumps(payload), encoding="utf-8")
+    path.write_text(json.dumps(encrypt_save_payload(payload), separators=(",", ":")), encoding="utf-8")
 
 
 def read_fallback_save(user_id, character_id):
@@ -647,7 +769,8 @@ def read_fallback_save(user_id, character_id):
         return None
 
     try:
-        return normalize_save_payload(json.loads(path.read_text(encoding="utf-8")))
+        envelope = json.loads(path.read_text(encoding="utf-8"))
+        return normalize_save_payload(decrypt_save_payload(envelope))
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -658,7 +781,8 @@ def list_fallback_save_payloads(user_id):
 
     for path in SAVE_FALLBACK_DIR.glob(pattern):
         try:
-            payload = normalize_save_payload(json.loads(path.read_text(encoding="utf-8")))
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+            payload = normalize_save_payload(decrypt_save_payload(envelope))
         except (OSError, json.JSONDecodeError):
             continue
 
