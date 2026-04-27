@@ -6,40 +6,131 @@ A collaborative full-stack web application built using Flask, SQLAlchemy, and Bo
 ### Python
 
 1. Create and activate a virtual environment.
-2. Install Python dependencies:
+
+macOS/Linux:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+2. Install Python dependencies inside the activated virtual environment:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-3. Generate a strong local `SECRET_KEY`:
+If you see an import error like `ModuleNotFoundError: No module named 'flask_socketio'`, you are either not inside the virtual environment or the dependencies were not installed in that environment.
+
+### Environment Variables
+
+Create a local `.env` file in the project root. This file is loaded by `app.py` when the server starts.
+
+The app needs these values:
+
+```text
+SECRET_KEY=required for Flask login/session cookies
+SQLCIPHER_DATABASE_KEY=required to unlock the encrypted SQLite database
+SAVE_PAYLOAD_KEYS=required to encrypt fallback save JSON files
+DATABASE_URL=the SQLite database location
+```
+
+Do not commit `.env`, and do not use placeholder values like `replace_me` or `your_generated_sqlcipher_key`.
+
+Generate a strong `SECRET_KEY`:
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-4. Generate separate local encryption keys:
-
-```powershell
-python -c "import base64, secrets; print(secrets.token_urlsafe(32)); print('v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
-```
-
-5. Add the generated values to your local `.env` file:
+Use the output like this:
 
 ```text
-SECRET_KEY=paste_the_generated_value_here
-SQLCIPHER_DATABASE_KEY=paste_the_sqlcipher_value_here
-SAVE_PAYLOAD_KEYS=v1:paste_the_save_payload_key_here
+SECRET_KEY=paste_generated_secret_key_here
+```
+
+`SECRET_KEY` is only for Flask sessions. It signs browser cookies so users stay logged in securely.
+
+Generate a separate SQLCipher database key:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Use the output like this:
+
+```text
+SQLCIPHER_DATABASE_KEY=paste_generated_sqlcipher_key_here
+```
+
+`SQLCIPHER_DATABASE_KEY` encrypts and unlocks the SQLite database file. Keep this value stable for your local DB. If you change it later, the app will not be able to open the old encrypted database.
+
+Generate the save-payload key ring:
+
+```powershell
+python -c "import base64, secrets; print('v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+Use the full output, including `v1:`, like this:
+
+```text
+SAVE_PAYLOAD_KEYS=v1:paste_generated_save_payload_key_here
+```
+
+`SAVE_PAYLOAD_KEYS` encrypts fallback save files in `instance/save_fallbacks/`. The `v1:` prefix is a key ID. If you ever rotate keys, put the new key first and keep old keys after it so older fallback saves can still be read:
+
+```text
+SAVE_PAYLOAD_KEYS=v2:new_key_here,v1:old_key_here
+```
+
+Set the database location:
+
+```text
 DATABASE_URL=sqlite:///project.db
 ```
 
-Do not use placeholder values like `replace_me`, and do not commit `.env`.
+Your finished `.env` should look like this:
 
-6. Run the Flask app:
+```text
+SECRET_KEY=generated_flask_session_key
+SQLCIPHER_DATABASE_KEY=generated_sqlcipher_database_key
+SAVE_PAYLOAD_KEYS=v1:generated_save_payload_key
+DATABASE_URL=sqlite:///project.db
+```
+
+You can also generate all three secret lines quickly:
+
+```powershell
+python -c "import base64, secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32)); print('SQLCIPHER_DATABASE_KEY=' + secrets.token_urlsafe(32)); print('SAVE_PAYLOAD_KEYS=v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+3. Run the Flask app:
 
 ```powershell
 python app.py
 ```
+
+Then open:
+
+```text
+http://127.0.0.1:5000
+```
+
+If you already have an old plaintext `project.db`, SQLCipher may reject it because this branch expects a fresh encrypted database. For local development, rename the old file and let the app create a new encrypted one:
+
+```powershell
+mv project.db project.plaintext.backup.db
+python app.py
+```
+
+If you see `RuntimeError: SQLCIPHER_DATABASE_KEY is missing`, your `.env` file is missing that line or the server was started from a terminal that cannot see the `.env` file.
 
 ### JavaScript Tooling
 
