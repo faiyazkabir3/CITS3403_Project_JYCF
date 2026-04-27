@@ -671,6 +671,12 @@ body::before {
   min-height: 0;
 }
 
+.play-page .game-main.shop-choice-scroll {
+  overflow-y: auto;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
+}
+
 .play-page .top-game-row {
   display: grid;
   grid-template-columns: 1fr;
@@ -1184,6 +1190,37 @@ body::before {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 32px var(--battle-edge-glow);
 }
 
+.play-page .mission-feed-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.play-page .mission-skip-btn {
+  flex: 0 0 auto;
+  min-width: 112px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f4f7fa;
+  font-family: "Silkscreen", monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.play-page .mission-skip-btn:hover:not(:disabled),
+.play-page .mission-skip-btn.is-fast-forwarding {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.play-page .mission-skip-btn:disabled {
+  cursor: default;
+  opacity: 0.36;
+}
+
 .play-page .story-text {
   max-width: 100%;
   margin-top: 4px;
@@ -1410,6 +1447,29 @@ body::before {
   scrollbar-gutter: stable;
 }
 
+.play-page .shop-inventory-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 7, 11, 0.55);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+
+.play-page .shop-inventory-summary span,
+.play-page .shop-resource-line {
+  overflow-wrap: anywhere;
+}
+
+.play-page .shop-resource-line {
+  opacity: 0.95;
+}
+
 .play-page .shop-box .choice-buttons {
   gap: 12px;
 }
@@ -1456,6 +1516,20 @@ body::before {
   overflow: hidden;
   background: linear-gradient(180deg, rgba(8, 10, 15, 0.82), rgba(3, 4, 8, 0.9));
   backdrop-filter: blur(4px);
+}
+
+.play-page .game-main.shop-choice-scroll .top-game-row,
+.play-page .game-main.shop-choice-scroll .path-choice-box,
+.play-page .game-main.shop-choice-scroll .shop-box {
+  flex: 0 0 auto;
+}
+
+.play-page .game-main.shop-choice-scroll .graphics-area {
+  height: clamp(220px, 32vh, 280px);
+}
+
+.play-page .game-main.shop-choice-scroll .shop-box {
+  overflow: visible;
 }
 
 .play-page .emergency-prompt {

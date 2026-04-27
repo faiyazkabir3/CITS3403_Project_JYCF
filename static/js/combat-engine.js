@@ -35,6 +35,7 @@ const RULES = {
   quiteSidearmDamage: [28, 34],
   rifleDamage: [33, 39],
   knifePercentOfBaseHp: 0.34,
+  fastZombieKnifeBonusDamage: 4,
   knifeSelfDamage: 3,
   leonAxeTriggerChance: 0.33,
   leonAxeSelfDamage: 4,
@@ -337,6 +338,40 @@ const SHOP_ITEMS = [
 
 function getSellValue(cost) {
   return Math.max(1, Math.round(cost * 0.6));
+}
+
+function getTotalWeaponAmmo(weapon) {
+  return (weapon.ammoInGun || 0) + (weapon.ammoInBag || 0);
+}
+
+function getShopResourceLine(item, state) {
+  if (item.id === "medkit") {
+    return `Current: ${state.inventory.medKits} medkit${state.inventory.medKits === 1 ? "" : "s"}.`;
+  }
+
+  if (item.id === "pistolAmmo") {
+    return (
+      `Current: ${getTotalWeaponAmmo(state.pistol)} pistol ammo ` +
+      `(${state.pistol.ammoInGun}/${state.pistol.magCapacity} loaded, ${state.pistol.ammoInBag} reserve).`
+    );
+  }
+
+  if (item.id === "rifle") {
+    return state.rifle.owned
+      ? `Current: rifle owned with ${getTotalWeaponAmmo(state.rifle)} total ammo.`
+      : "Current: no rifle owned.";
+  }
+
+  if (item.id === "rifleAmmo") {
+    return state.rifle.owned
+      ? (
+          `Current: ${getTotalWeaponAmmo(state.rifle)} rifle ammo ` +
+          `(${state.rifle.ammoInGun}/${state.rifle.magCapacity} loaded, ${state.rifle.ammoInBag} reserve).`
+        )
+      : "Current: buy the rifle before stocking rifle mags.";
+  }
+
+  return "";
 }
 
 export function createNewGameState({ difficulty = "EASY", seed, character = "leon" } = {}) {
@@ -986,6 +1021,10 @@ function resolveWeaponHit(state, rng, weaponKey, baseDamage) {
 
   if (weaponKey === "knife" && enemy.lightDamageResistance < 1) {
     damage *= enemy.lightDamageResistance;
+  }
+
+  if (weaponKey === "knife" && enemy.type === "fast") {
+    damage += RULES.fastZombieKnifeBonusDamage;
   }
 
   let crit = false;
@@ -1819,6 +1858,7 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
           id: item.id,
           label: item.label,
           description: item.description,
+          resourceLine: getShopResourceLine(item, state),
           cost: item.cost,
           sellValue: getSellValue(item.cost),
           disabled: !item.canBuy(state)
