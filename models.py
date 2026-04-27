@@ -81,5 +81,7 @@ class Message(db.Model):
     nonce = db.Column(db.String(64), nullable=True)
     sender_key_id = db.Column(db.String(64), nullable=True)
     sender_public_key = db.Column(db.Text, nullable=True)
+    recipient_key_id = db.Column(db.String(64), nullable=True)
+    recipient_public_key = db.Column(db.Text, nullable=True)
     encryption_version = db.Column(db.Integer, nullable=False, default=1)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)

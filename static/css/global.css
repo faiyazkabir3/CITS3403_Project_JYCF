@@ -2708,6 +2708,11 @@ body::before {
     font-family: var(--font-display); /* match site font */
 }
 
+.chat-message[data-locked="true"] {
+    opacity: 0.72;
+    font-style: italic;
+}
+
 /* Chat input form styled like primary buttons */
 .chat-form {
     display: flex;

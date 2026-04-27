@@ -242,6 +242,8 @@ def ensure_message_schema():
         "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
         "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
         "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
+        "recipient_key_id": "ALTER TABLE message ADD COLUMN recipient_key_id VARCHAR(64)",
+        "recipient_public_key": "ALTER TABLE message ADD COLUMN recipient_public_key TEXT",
         "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
     }
 
@@ -307,6 +309,8 @@ def serialize_chat_message(message):
         "nonce": message.nonce,
         "sender_key_id": message.sender_key_id,
         "sender_public_key": message.sender_public_key,
+        "recipient_key_id": message.recipient_key_id,
+        "recipient_public_key": message.recipient_public_key,
         "encryption_version": message.encryption_version,
         "timestamp": message.timestamp.isoformat() if message.timestamp else None,
     }
@@ -336,6 +340,8 @@ def validate_encrypted_chat_payload(payload):
     nonce = str(payload.get("nonce", "")).strip()
     sender_public_key = str(payload.get("sender_public_key", "")).strip()
     sender_key_id = str(payload.get("sender_key_id", "")).strip()
+    recipient_public_key = str(payload.get("recipient_public_key", "")).strip()
+    recipient_key_id = str(payload.get("recipient_key_id", "")).strip()
 
     if not ciphertext or not nonce or not sender_public_key or not sender_key_id:
         return None
@@ -343,11 +349,16 @@ def validate_encrypted_chat_payload(payload):
     if sender_key_id != build_chat_key_id(sender_public_key):
         return None
 
+    if recipient_public_key and recipient_key_id != build_chat_key_id(recipient_public_key):
+        return None
+
     return {
         "ciphertext": ciphertext,
         "nonce": nonce,
         "sender_public_key": sender_public_key,
         "sender_key_id": sender_key_id,
+        "recipient_public_key": recipient_public_key or None,
+        "recipient_key_id": recipient_key_id or None,
         "encryption_version": coerce_int(payload.get("encryption_version"), 1),
     }
 
@@ -1658,6 +1669,8 @@ def chat(friend_id):
             "nonce": request.form.get("nonce"),
             "sender_public_key": request.form.get("sender_public_key"),
             "sender_key_id": request.form.get("sender_key_id"),
+            "recipient_public_key": request.form.get("recipient_public_key"),
+            "recipient_key_id": request.form.get("recipient_key_id"),
             "encryption_version": request.form.get("encryption_version"),
         })
 
