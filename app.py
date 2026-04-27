@@ -113,7 +113,7 @@ def load_required_env_secret(name, minimum_length=32):
 
 def configure_sqlcipher_database_uri(database_url, sqlcipher_key):
     if sqlcipher3 is None:
-        raise RuntimeError("sqlcipher3-binary is required for encrypted SQLite databases.")
+        raise RuntimeError("sqlcipher3 is required for encrypted SQLite databases.")
 
     if database_url.startswith("sqlite+pysqlcipher://"):
         return database_url
