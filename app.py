@@ -1,8 +1,10 @@
 import os
 import random
 import json
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 
 try:
@@ -64,6 +66,65 @@ SECRET_KEY_PLACEHOLDERS = {
     "super-secret-key",
     "your-secret-key",
 }
+
+
+@dataclass
+class ChatMessagePayload:
+    id: int
+    sender_id: int
+    receiver_id: int
+    message: str
+    timestamp: Optional[str]
+
+
+@dataclass
+class PlayerStats:
+    kills: int = 0
+    damage_dealt: int = 0
+    damage_taken: int = 0
+    pistol_shots: int = 0
+    grenades: int = 0
+    medkits: int = 0
+    reloads: int = 0
+    knife_uses: int = 0
+
+
+@dataclass
+class LeaderboardStats:
+    kills: int = 0
+    damage_dealt: int = 0
+    damage_taken: int = 0
+    pistol_shots: int = 0
+    grenades_used: int = 0
+    medkits_used: int = 0
+    reloads: int = 0
+    knife_uses: int = 0
+
+
+@dataclass
+class LeaderboardEntry:
+    user_id: int
+    display_name: str
+    login_username: str
+    score: int
+    rank: int = 0
+    is_current_user: bool = False
+
+
+@dataclass
+class FriendAction:
+    state: str
+    label: str
+    disabled: bool
+    action: Optional[str] = None
+
+
+def friend_action_to_dict(friend_action):
+    return {
+        key: value
+        for key, value in asdict(friend_action).items()
+        if value is not None
+    }
 
 
 def load_required_secret_key():
@@ -188,13 +249,13 @@ def parse_friend_id(value):
 
 
 def serialize_chat_message(message):
-    return {
-        "id": message.id,
-        "sender_id": message.sender_id,
-        "receiver_id": message.receiver_id,
-        "message": message.message,
-        "timestamp": message.timestamp.isoformat() if message.timestamp else None,
-    }
+    return asdict(ChatMessagePayload(
+        id=message.id,
+        sender_id=message.sender_id,
+        receiver_id=message.receiver_id,
+        message=message.message,
+        timestamp=message.timestamp.isoformat() if message.timestamp else None,
+    ))
 
 def get_user_stats(user_id):
     all_saves = SaveData.query.filter_by(user_id=user_id).all()
@@ -206,28 +267,19 @@ def get_user_stats(user_id):
     def total(field):
         return sum((payload.get(field) or 0) for payload in payloads if payload)
 
-    return {
-        "kills": total("kills"),
-        "damage_dealt": total("damage_dealt"),
-        "damage_taken": total("damage_taken"),
-        "pistol_shots": total("pistol_shots"),
-        "grenades": total("grenades_used"),
-        "medkits": total("medkits_used"),
-        "reloads": total("reloads"),
-        "knife_uses": total("knife_uses"),
-    }
+    return asdict(PlayerStats(
+        kills=total("kills"),
+        damage_dealt=total("damage_dealt"),
+        damage_taken=total("damage_taken"),
+        pistol_shots=total("pistol_shots"),
+        grenades=total("grenades_used"),
+        medkits=total("medkits_used"),
+        reloads=total("reloads"),
+        knife_uses=total("knife_uses"),
+    ))
 
 def get_empty_stats():
-    return {
-        "kills": 0,
-        "damage_dealt": 0,
-        "damage_taken": 0,
-        "pistol_shots": 0,
-        "grenades": 0,
-        "medkits": 0,
-        "reloads": 0,
-        "knife_uses": 0,
-    }
+    return asdict(PlayerStats())
 
 def get_display_name(user):
     if user is None:
@@ -354,6 +406,9 @@ def get_profile_bio(user):
     return (user.bio or "").strip()
 
 def calculate_leaderboard_score(stats):
+    if isinstance(stats, LeaderboardStats):
+        stats = asdict(stats)
+
     return (
         coerce_int(stats.get("kills"), 0)
         + coerce_int(stats.get("pistol_shots"), 0)
@@ -398,36 +453,36 @@ def get_leaderboard_entries(current_user_id=None, limit=None):
 
     for row in rows:
         display_name = (row.display_name or "").strip() or row.username
-        stats = {
-            "kills": row.kills,
-            "damage_dealt": row.damage_dealt,
-            "damage_taken": row.damage_taken,
-            "pistol_shots": row.pistol_shots,
-            "grenades_used": row.grenades_used,
-            "medkits_used": row.medkits_used,
-            "reloads": row.reloads,
-            "knife_uses": row.knife_uses,
-        }
-        entries.append({
-            "user_id": row.user_id,
-            "display_name": display_name,
-            "login_username": row.username,
-            "score": calculate_leaderboard_score(stats),
-        })
+        stats = LeaderboardStats(
+            kills=row.kills,
+            damage_dealt=row.damage_dealt,
+            damage_taken=row.damage_taken,
+            pistol_shots=row.pistol_shots,
+            grenades_used=row.grenades_used,
+            medkits_used=row.medkits_used,
+            reloads=row.reloads,
+            knife_uses=row.knife_uses,
+        )
+        entries.append(LeaderboardEntry(
+            user_id=row.user_id,
+            display_name=display_name,
+            login_username=row.username,
+            score=calculate_leaderboard_score(stats),
+        ))
 
     ranked_entries = sorted(
         entries,
-        key=lambda entry: (-entry["score"], entry["display_name"].lower(), entry["login_username"])
+        key=lambda entry: (-entry.score, entry.display_name.lower(), entry.login_username)
     )
 
     for index, entry in enumerate(ranked_entries, start=1):
-        entry["rank"] = index
-        entry["is_current_user"] = entry["user_id"] == current_user_id
+        entry.rank = index
+        entry.is_current_user = entry.user_id == current_user_id
 
     if limit is not None:
         ranked_entries = ranked_entries[:limit]
 
-    return ranked_entries
+    return [asdict(entry) for entry in ranked_entries]
 
 def get_leaderboard(limit=5, current_user_id=None):
     return get_leaderboard_entries(
@@ -491,41 +546,41 @@ def create_friend_request(from_user_id, to_user_id):
 
 def get_friend_action(current_user_id, profile_user_id):
     if current_user_id == profile_user_id:
-        return {
-            "state": "self",
-            "label": "YOUR PROFILE",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="self",
+            label="YOUR PROFILE",
+            disabled=True,
+        ))
 
     if get_accepted_friendship(current_user_id, profile_user_id) is not None:
-        return {
-            "state": "friends",
-            "label": "FRIENDS",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="friends",
+            label="FRIENDS",
+            disabled=True,
+        ))
 
     if get_pending_friend_request(current_user_id, profile_user_id) is not None:
-        return {
-            "state": "outgoing_pending",
-            "label": "REQUEST SENT",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="outgoing_pending",
+            label="REQUEST SENT",
+            disabled=True,
+        ))
 
     incoming_request = get_pending_friend_request(profile_user_id, current_user_id)
     if incoming_request is not None:
-        return {
-            "state": "incoming_pending",
-            "label": "ACCEPT REQUEST",
-            "disabled": False,
-            "action": "accept_friend_request",
-        }
+        return friend_action_to_dict(FriendAction(
+            state="incoming_pending",
+            label="ACCEPT REQUEST",
+            disabled=False,
+            action="accept_friend_request",
+        ))
 
-    return {
-        "state": "add",
-        "label": "ADD FRIEND",
-        "disabled": False,
-        "action": "send_friend_request",
-    }
+    return friend_action_to_dict(FriendAction(
+        state="add",
+        label="ADD FRIEND",
+        disabled=False,
+        action="send_friend_request",
+    ))
 
 def make_guest_name():
     num = random.randint(10000, 99999)
