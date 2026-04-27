@@ -12,6 +12,9 @@ class User(db.Model):
     profile_image = db.Column(db.String(255), nullable=False, default="images/Shadows.gif")
     bio = db.Column(db.Text, nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    chat_public_key = db.Column(db.Text, nullable=True)
+    chat_key_id = db.Column(db.String(64), nullable=True)
+    chat_key_created_at = db.Column(db.DateTime, nullable=True)
     save_data = db.relationship("SaveData", backref="user", lazy=True)
 
 
@@ -73,5 +76,10 @@ class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    message = db.Column(db.Text, nullable=False)
+    message = db.Column(db.Text, nullable=True)
+    ciphertext = db.Column(db.Text, nullable=True)
+    nonce = db.Column(db.String(64), nullable=True)
+    sender_key_id = db.Column(db.String(64), nullable=True)
+    sender_public_key = db.Column(db.Text, nullable=True)
+    encryption_version = db.Column(db.Integer, nullable=False, default=1)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)

@@ -2,6 +2,7 @@ import os
 import random
 import json
 import base64
+import hashlib
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -190,6 +191,9 @@ def ensure_user_schema():
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
         "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
+        "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
+        "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
     }
 
     for column_name, statement in required_columns.items():
@@ -225,12 +229,36 @@ def ensure_save_data_schema():
     db.session.commit()
 
 
+def ensure_message_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "message" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("message")}
+    required_columns = {
+        "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
+        "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
+        "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
+        "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
+        "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+
 with app.app_context():
     try:
         verify_sqlcipher_database()
         db.create_all()
         ensure_user_schema()
         ensure_save_data_schema()
+        ensure_message_schema()
     except SQLAlchemyError as error:
         db.session.rollback()
         app.logger.warning(
@@ -275,8 +303,52 @@ def serialize_chat_message(message):
         "id": message.id,
         "sender_id": message.sender_id,
         "receiver_id": message.receiver_id,
-        "message": message.message,
+        "ciphertext": message.ciphertext,
+        "nonce": message.nonce,
+        "sender_key_id": message.sender_key_id,
+        "sender_public_key": message.sender_public_key,
+        "encryption_version": message.encryption_version,
         "timestamp": message.timestamp.isoformat() if message.timestamp else None,
+    }
+
+
+def build_chat_key_id(public_key):
+    return hashlib.sha256(public_key.encode("utf-8")).hexdigest()[:32]
+
+
+def serialize_chat_public_key(user):
+    if user is None or not user.chat_public_key or not user.chat_key_id:
+        return None
+
+    return {
+        "user_id": user.id,
+        "public_key": user.chat_public_key,
+        "key_id": user.chat_key_id,
+        "created_at": user.chat_key_created_at.isoformat() if user.chat_key_created_at else None,
+    }
+
+
+def validate_encrypted_chat_payload(payload):
+    if not isinstance(payload, dict):
+        return None
+
+    ciphertext = str(payload.get("ciphertext", "")).strip()
+    nonce = str(payload.get("nonce", "")).strip()
+    sender_public_key = str(payload.get("sender_public_key", "")).strip()
+    sender_key_id = str(payload.get("sender_key_id", "")).strip()
+
+    if not ciphertext or not nonce or not sender_public_key or not sender_key_id:
+        return None
+
+    if sender_key_id != build_chat_key_id(sender_public_key):
+        return None
+
+    return {
+        "ciphertext": ciphertext,
+        "nonce": nonce,
+        "sender_public_key": sender_public_key,
+        "sender_key_id": sender_key_id,
+        "encryption_version": coerce_int(payload.get("encryption_version"), 1),
     }
 
 def get_user_stats(user_id):
@@ -1532,6 +1604,41 @@ def reject_friend(request_id):
 
     return redirect(url_for("show_friends"))
 
+
+@app.route("/chat/keys/<int:friend_id>", methods=["GET", "POST"])
+def chat_keys(friend_id):
+    current_user_id = session.get("user_id")
+
+    if current_user_id is None or session.get("is_guest"):
+        return jsonify({"ok": False, "message": "Please log in to use chat."}), 401
+
+    friend = get_accepted_friend(current_user_id, friend_id)
+    if friend is None:
+        return jsonify({"ok": False, "message": "You can only chat with accepted friends."}), 403
+
+    current_user = User.query.get(current_user_id)
+    if current_user is None:
+        return jsonify({"ok": False, "message": "Current user not found."}), 404
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        public_key = str(data.get("public_key", "")).strip()
+
+        if not public_key:
+            return jsonify({"ok": False, "message": "Chat public key is required."}), 400
+
+        current_user.chat_public_key = public_key
+        current_user.chat_key_id = build_chat_key_id(public_key)
+        current_user.chat_key_created_at = datetime.utcnow()
+        db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "current_user_key": serialize_chat_public_key(current_user),
+        "friend_key": serialize_chat_public_key(friend),
+    })
+
+
 @app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
 def chat(friend_id):
     current_user = session.get("user_id")
@@ -1546,18 +1653,27 @@ def chat(friend_id):
         return redirect(url_for("show_friends"))
 
     if request.method == "POST":
-        msg = request.form.get("message", "").strip()
+        encrypted_payload = validate_encrypted_chat_payload({
+            "ciphertext": request.form.get("ciphertext"),
+            "nonce": request.form.get("nonce"),
+            "sender_public_key": request.form.get("sender_public_key"),
+            "sender_key_id": request.form.get("sender_key_id"),
+            "encryption_version": request.form.get("encryption_version"),
+        })
 
-        if msg:
+        if encrypted_payload:
             message = Message(
                 sender_id=session["user_id"],
                 receiver_id=friend_id,
-                message=msg,
+                message=None,
+                **encrypted_payload,
                 timestamp=datetime.utcnow()
             )
             db.session.add(message)
             db.session.commit()
             return redirect(url_for("chat", friend_id=friend_id))
+
+        flash("Message encryption failed.")
 
     messages = Message.query.filter(
         ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
@@ -1567,6 +1683,7 @@ def chat(friend_id):
     return render_template(
         "chat.html",
         messages=messages,
+        chat_messages=[serialize_chat_message(message) for message in messages],
         friend=friend,
         current_user=session["user_id"]
     )
@@ -1623,7 +1740,7 @@ def handle_chat_leave(data):
 def handle_chat_send(data):
     current_user = session.get("user_id")
     friend_id = parse_friend_id((data or {}).get("friend_id"))
-    message_text = str((data or {}).get("message", "")).strip()
+    encrypted_payload = validate_encrypted_chat_payload((data or {}).get("message"))
 
     if current_user is None or session.get("is_guest"):
         socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
@@ -1637,9 +1754,9 @@ def handle_chat_send(data):
         socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
         return {"ok": False, "message": "You can only chat with accepted friends."}
 
-    if message_text == "":
-        socketio.emit("chat:error", {"message": "Message cannot be empty."}, to=request.sid)
-        return {"ok": False, "message": "Message cannot be empty."}
+    if encrypted_payload is None:
+        socketio.emit("chat:error", {"message": "Message encryption failed."}, to=request.sid)
+        return {"ok": False, "message": "Message encryption failed."}
 
     room_key = build_chat_room_key(current_user, friend_id)
     join_room(room_key)
@@ -1647,7 +1764,8 @@ def handle_chat_send(data):
     message = Message(
         sender_id=current_user,
         receiver_id=friend_id,
-        message=message_text,
+        message=None,
+        **encrypted_payload,
         timestamp=datetime.utcnow()
     )
     db.session.add(message)

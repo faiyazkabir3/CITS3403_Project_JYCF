@@ -32,15 +32,7 @@
       </div>
 
       <div class="chat-container">
-        <div class="chat-messages" data-chat-messages>
-          {% for msg in messages %}
-            {% if msg.sender_id == current_user %}
-              <div class="chat-message outgoing" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
-            {% else %}
-              <div class="chat-message incoming" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
-            {% endif %}
-          {% endfor %}
-        </div>
+        <div class="chat-messages" data-chat-messages></div>
 
         <!-- Chat Input -->
         <form method="POST" class="chat-form" data-chat-form>
@@ -52,11 +44,17 @@
             class="input-text"
             data-chat-input
           >
+          <input type="hidden" name="ciphertext" data-chat-ciphertext>
+          <input type="hidden" name="nonce" data-chat-nonce>
+          <input type="hidden" name="sender_public_key" data-chat-sender-public-key>
+          <input type="hidden" name="sender_key_id" data-chat-sender-key-id>
+          <input type="hidden" name="encryption_version" value="1">
           <button type="submit" class="primary-btn" data-chat-submit>Send</button>
         </form>
       </div>
     </section>
   </div>
+  <script type="application/json" data-chat-history>{{ chat_messages | tojson }}</script>
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
     integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
