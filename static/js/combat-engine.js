@@ -35,6 +35,7 @@ const RULES = {
   quiteSidearmDamage: [28, 34],
   rifleDamage: [33, 39],
   knifePercentOfBaseHp: 0.34,
+  fastZombieKnifeBonusDamage: 4,
   knifeSelfDamage: 3,
   leonAxeTriggerChance: 0.33,
   leonAxeSelfDamage: 4,
@@ -1020,6 +1021,10 @@ function resolveWeaponHit(state, rng, weaponKey, baseDamage) {
 
   if (weaponKey === "knife" && enemy.lightDamageResistance < 1) {
     damage *= enemy.lightDamageResistance;
+  }
+
+  if (weaponKey === "knife" && enemy.type === "fast") {
+    damage += RULES.fastZombieKnifeBonusDamage;
   }
 
   let crit = false;

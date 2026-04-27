@@ -1544,6 +1544,13 @@ export function bootGameUI({
 
   function renderAll() {
     const interactionLocked = isInteractionLocked();
+    const bothShopAndChoicesOpen = engine.isShopOpen() && engine.hasChoices();
+    const gameMain = document.querySelector(".game-main");
+
+    if (gameMain) {
+      gameMain.classList.toggle("shop-choice-scroll", bothShopAndChoicesOpen);
+    }
+
     renderStats(engine);
     renderBattleScene(engine, battleSceneState);
     renderWeaponVisibility(engine);
@@ -1752,6 +1759,45 @@ export function bootGameUI({
     });
   }
 
+  function isEditableTarget(target) {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target?.isContentEditable
+    );
+  }
+
+  const shiftSkipState = {
+    active: false,
+    startedAt: 0
+  };
+
+  function handleMissionSkipKeydown(event) {
+    if (event.code !== "ShiftLeft") return;
+    if (event.repeat || isEditableTarget(event.target) || !textPlaybackController.active) return;
+
+    event.preventDefault();
+    shiftSkipState.active = true;
+    shiftSkipState.startedAt = performance.now();
+    textPlaybackController.setFastForwarding(true);
+    updateMissionSkipControls();
+  }
+
+  function handleMissionSkipKeyup(event) {
+    if (event.code !== "ShiftLeft" || !shiftSkipState.active) return;
+
+    event.preventDefault();
+    shiftSkipState.active = false;
+    textPlaybackController.setFastForwarding(false);
+
+    if (textPlaybackController.active && performance.now() - shiftSkipState.startedAt <= 180) {
+      textPlaybackController.requestSkip();
+    }
+
+    updateMissionSkipControls();
+  }
+
   const attackBtn = $("#attack-btn");
   const defendBtn = $("#defend-btn");
   const inventoryBtn = $("#inventory-btn");
@@ -1874,6 +1920,8 @@ export function bootGameUI({
   }
 
   window.addEventListener("keydown", handleEmergencyKeydown);
+  window.addEventListener("keydown", handleMissionSkipKeydown);
+  window.addEventListener("keyup", handleMissionSkipKeyup);
 
   async function startGame() {
     showMainActions();
