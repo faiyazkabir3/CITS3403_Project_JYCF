@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 test.use({ viewport: { width: 1366, height: 768 } });
+
+const INSTANCE_DIR = path.join(process.cwd(), "instance");
+const PLAYWRIGHT_DB_PATH = path.join(INSTANCE_DIR, "playwright_smoke.db");
+const FALLBACK_SAVE_DIR = path.join(INSTANCE_DIR, "save_fallbacks");
 
 function uniqueCredentials() {
   const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -465,6 +471,24 @@ test("registered user can view achievements, save, and load a run", async ({ pag
 
   await page.locator("#save-btn").click();
   await expect(page.locator("#story-text")).toContainText("Game saved successfully.", { timeout: 15_000 });
+
+  const rawDb = readFileSync(PLAYWRIGHT_DB_PATH);
+  expect(rawDb.includes(Buffer.from(credentials.username))).toBe(false);
+  expect(rawDb.includes(Buffer.from("save_data"))).toBe(false);
+
+  const fallbackFile = readdirSync(FALLBACK_SAVE_DIR)
+    .filter((fileName) => fileName.endsWith("_leon.json"))
+    .sort((first, second) => (
+      statSync(path.join(FALLBACK_SAVE_DIR, second)).mtimeMs -
+      statSync(path.join(FALLBACK_SAVE_DIR, first)).mtimeMs
+    ))
+    .at(0);
+  expect(fallbackFile).toBeTruthy();
+  const fallbackSave = readFileSync(path.join(FALLBACK_SAVE_DIR, fallbackFile), "utf8");
+  expect(fallbackSave).toContain('"encrypted":true');
+  expect(fallbackSave).not.toContain("run_state");
+  expect(fallbackSave).not.toContain("difficulty");
+  expect(fallbackSave).not.toContain("LEON");
 
   await page.locator("#game-back-btn").click();
   await expect(page).toHaveURL(/\/main[-_]menu$/, { timeout: 10_000 });
