@@ -63,7 +63,7 @@ async function acceptFriendRequest(page, username) {
   await goToFriendsPage(page);
   const requestItem = page.locator("li", { hasText: username }).first();
   await expect(requestItem).toBeVisible();
-  await requestItem.getByRole("link", { name: "Accept" }).click();
+  await requestItem.getByRole("button", { name: "Accept" }).click();
   await expect(page).toHaveURL(/\/friends$/);
 }
 
@@ -210,9 +210,10 @@ test("chat access is denied for non-friends and socket auth rejects unauthentica
     await expect(page).toHaveURL(/\/friends$/);
     await expect(page.locator("[data-flash-message]")).toContainText("You can only chat with users in your friends list.");
 
-    const unauthenticatedPage = await secondContext.newPage();
+    const unauthenticatedContext = await browser.newContext();
+    const unauthenticatedPage = await unauthenticatedContext.newPage();
     try {
-      await unauthenticatedPage.goto("/logout");
+      await unauthenticatedPage.goto("/login");
       await expect(unauthenticatedPage).toHaveURL(/\/login$/);
 
       const unauthenticatedSocketAttempt = await attemptSocketConnection(unauthenticatedPage);
@@ -226,6 +227,7 @@ test("chat access is denied for non-friends and socket auth rejects unauthentica
       expect(guestSocketAttempt.connected).toBe(false);
     } finally {
       await unauthenticatedPage.close();
+      await unauthenticatedContext.close();
     }
   } finally {
     await secondContext.close();

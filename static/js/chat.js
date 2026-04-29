@@ -12,6 +12,7 @@ const senderPublicKeyInput = document.querySelector("[data-chat-sender-public-ke
 const senderKeyIdInput = document.querySelector("[data-chat-sender-key-id]");
 const recipientPublicKeyInput = document.querySelector("[data-chat-recipient-public-key]");
 const recipientKeyIdInput = document.querySelector("[data-chat-recipient-key-id]");
+const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
 
 const currentUserId = Number(chatPage?.dataset.currentUserId || 0);
 const friendId = Number(chatPage?.dataset.friendId || 0);
@@ -229,11 +230,17 @@ function setSubmitPending(isPending) {
   chatSubmitButton.textContent = isPending ? "Sending..." : "Send";
 }
 
+function getCsrfToken() {
+  return csrfTokenMeta?.content || "";
+}
+
 async function fetchChatKeys(method = "GET") {
+  const csrfToken = getCsrfToken();
   const response = await fetch(`/chat/keys/${friendId}`, {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...(method === "POST" && csrfToken ? { "X-CSRFToken": csrfToken } : {}),
     },
     body: method === "POST" ? JSON.stringify({ public_key: ownKeyRecord.publicKey }) : undefined,
   });

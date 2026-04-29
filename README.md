@@ -1,6 +1,23 @@
 # CITS3403_Project_JYCF
 A collaborative full-stack web application built using Flask, SQLAlchemy, and Bootstrap. Developed using Agile methodologies to deliver a user-centric, data-persistent platform. Created by JYCF
 
+## Documentation
+
+- [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
+- [Realtime Chat](REALTIME_CHAT.md)
+- [Security Upgrade](SECURITY_UPGRADE.md)
+
+## Security Lecture Compliance
+
+The app follows the CITS3403/CITS5505 security requirements for the group project:
+
+- Registered-user authentication is handled with Flask-Login and signed Flask sessions.
+- Passwords are stored with Werkzeug password hashes, which include a random per-password salt.
+- POST forms and JSON fetches are protected with Flask-WTF CSRF tokens.
+- Mutating account and friend actions use POST requests instead of GET links.
+- User-input database access uses SQLAlchemy query APIs; raw SQL is limited to static SQLCipher/schema checks.
+- HTTPS certificates and token/JWT authentication are deployment concerns and are not required for the local project setup.
+
 ## Local Setup
 
 ### Python
@@ -26,6 +43,8 @@ python -m venv .venv
 ```powershell
 pip install -r requirements.txt
 ```
+
+This installs Flask-Login, Flask-WTF, Flask-Migrate, SQLAlchemy, SQLCipher support, and the other Flask runtime dependencies used by the app.
 
 If you see an import error like `ModuleNotFoundError: No module named 'flask_socketio'`, you are either not inside the virtual environment or the dependencies were not installed in that environment.
 
@@ -131,6 +150,67 @@ python app.py
 ```
 
 If you see `RuntimeError: SQLCIPHER_DATABASE_KEY is missing`, your `.env` file is missing that line or the server was started from a terminal that cannot see the `.env` file.
+
+### Database Migrations
+
+This project uses Flask-Migrate/Alembic for database migrations. Run migration commands from the project root so `app.py` can load `.env` before connecting to SQLCipher.
+
+Set the Flask app module first:
+
+```bash
+export FLASK_APP=app.py
+```
+
+On Windows PowerShell, use:
+
+```powershell
+$env:FLASK_APP = "app.py"
+```
+
+Initialize Alembic only once, and only if the `migrations/` folder does not already exist:
+
+```bash
+flask db init
+```
+
+Create a migration script after changing models:
+
+```bash
+flask db migrate -m "initial migration"
+```
+
+Review the generated migration file before committing or applying it. Alembic autogenerate is helpful, but it can miss or misread schema details.
+
+Apply the migration to the configured encrypted database:
+
+```bash
+flask db upgrade
+```
+
+Roll back one migration if needed:
+
+```bash
+flask db downgrade
+```
+
+Check the current migration version:
+
+```bash
+flask db current
+```
+
+For a fresh encrypted database, the usual setup flow is:
+
+```bash
+export FLASK_APP=app.py
+flask db init
+flask db migrate -m "initial migration"
+flask db upgrade
+```
+
+Warning: this fresh-database flow assumes the target database is empty or disposable. If you already have an existing populated encrypted database, do not blindly apply a table-creating initial migration to it. Use a baseline/stamp workflow instead.
+
+The migration commands still require `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS`. If any of those values are missing, the app should fail instead of creating a plaintext database by accident.
 
 ### JavaScript Tooling
 

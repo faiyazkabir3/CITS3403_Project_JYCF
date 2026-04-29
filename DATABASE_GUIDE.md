@@ -21,14 +21,17 @@ So if someone asks, “what is the database doing in this project?”, the short
 The database side of the project uses:
 
 - **SQLite** as the actual database
+- **SQLCipher** to encrypt the SQLite database file at rest
 - **Flask-SQLAlchemy** to define and access the tables
 - **Flask** as the backend web framework
 
-For local development, the app uses a SQLite database file.
+For local development, the app uses an encrypted SQLite database file.
 
 By default, the app points to:
 
 `sqlite:///project.db`
+
+At startup, `app.py` converts that SQLite URL into a SQLCipher-backed SQLAlchemy URL using `SQLCIPHER_DATABASE_KEY` from `.env`. Do not open or migrate the database without the SQLCipher key.
 
 In practice, the project also has an `instance/project.db` file during development.
 
@@ -79,12 +82,14 @@ Every real player who signs up gets one row in this table.
 - `id` is the **primary key (PK)**, which means it uniquely identifies each user
 - `username` is also unique, so two users cannot register the same username
 - passwords are **not** stored as plain text
+- `password_hash` stores the hashing method, random salt, and derived password hash together
+- Werkzeug creates the salt automatically, so there is no separate `salt` column
 
 ### Example
 
 | id | username | password_hash |
 |---|---|---|
-| 1 | leonplayer | scrypt:32768:8:1$... |
+| 1 | leonplayer | pbkdf2:sha256:...$random_salt$... |
 
 ### What this table is used for
 

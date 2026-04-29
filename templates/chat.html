@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat with {{ friend.display_name or friend.username }}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Google font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,6 +37,7 @@
 
         <!-- Chat Input -->
         <form method="POST" class="chat-form" data-chat-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input
             type="text"
             name="message"

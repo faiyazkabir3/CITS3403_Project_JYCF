@@ -319,10 +319,12 @@ async function saveShopState(page) {
       run_state: state,
     };
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
     const response = await fetch("/save-game", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
       },
       body: JSON.stringify(payload),
     });

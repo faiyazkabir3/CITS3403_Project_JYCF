@@ -279,9 +279,14 @@ body::before {
 }
 
 .menu-page .menu-buttons a,
+.menu-page .menu-buttons form,
 .achievements-page .menu-content a {
   display: block;
   text-decoration: none;
+}
+
+.menu-page .menu-buttons form {
+  margin: 0;
 }
 
 .menu-page button,
@@ -2537,6 +2542,32 @@ body::before {
   cursor: pointer;
   text-decoration: none;
   transition: 0.15s ease;
+}
+
+.friends-page .friend-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.friends-page .inline-action-form {
+  margin: 0;
+}
+
+.friends-page .danger-btn {
+  padding: 12px 18px;
+  border: var(--panel-border);
+  background: #f05d5e;
+  color: #000000;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.friends-page .danger-btn:hover {
+  background: #000000;
+  color: #ffffff;
 }
 
 .friends-page .primary-btn:hover {

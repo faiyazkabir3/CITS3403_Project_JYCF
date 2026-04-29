@@ -73,6 +73,7 @@
           </button>
         {% else %}
           <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="{{ friend_action.action }}">
             <button type="submit" class="public-profile-action-btn">
               {{ friend_action.label }}

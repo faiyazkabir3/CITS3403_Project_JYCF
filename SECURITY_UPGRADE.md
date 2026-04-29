@@ -23,6 +23,42 @@ After this upgrade:
 
 This does not replace normal app security. Password hashing, route authorization, CSRF-aware forms, safe file uploads, and browser security still matter.
 
+## CITS3403/CITS5505 Lecture Compliance
+
+| Lecture requirement | Status | Project method |
+| --- | --- | --- |
+| Salted password hashing | Yes | Werkzeug `generate_password_hash()` stores the method, salt, and derived hash in `user.password_hash`. |
+| Secret keys outside source | Yes | `.env` provides `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS`; startup fails if they are missing. |
+| Session authentication | Upgraded | Flask-Login manages registered-user login state with `login_user()`, `logout_user()`, `current_user`, and protected routes. |
+| Guest access kept separate | Yes | Guest mode uses its own session flag and does not create an authenticated `User` row. |
+| CSRF protection | Upgraded | Flask-WTF `CSRFProtect` checks POST/PUT/PATCH/DELETE requests; forms include `csrf_token`, and JS fetches send `X-CSRFToken`. |
+| Mutating GET routes avoided | Upgraded | Logout, accepting/rejecting friend requests, and direct friend-request actions are POST-only. |
+| SQLAlchemy-safe queries | Yes | User-input lookups use SQLAlchemy query APIs; raw SQL is static SQLCipher/schema maintenance code. |
+| Jinja escaping | Yes | User-controlled template values are rendered through normal Jinja expressions so autoescaping applies. |
+| HTTPS/SSL | Deployment responsibility | The lecture does not require local certificate setup, but production deployments should use HTTPS. |
+| Token/JWT auth | Not required | The project uses session-based authentication, matching the lecture expectation. |
+
+## Password Hashing
+
+Registered user passwords are not stored as plaintext.
+
+The app uses Werkzeug's `generate_password_hash()` in the registration and password-change flows. New password hashes use:
+
+- PBKDF2-HMAC-SHA256
+- a random per-password salt
+
+Werkzeug stores the method, salt, and derived hash together in the `user.password_hash` field. That means there is no separate salt column in the database. Two users with the same password should still have different stored hashes because each hash gets its own random salt.
+
+Login and password-change checks use Werkzeug's `check_password_hash()`, which reads the stored method and salt from the hash string. Existing valid password hashes remain compatible.
+
+## Session Authentication And CSRF
+
+Registered users are authenticated with Flask-Login. Successful login calls `login_user(user)`, logout calls `logout_user()`, and registered-only routes use `@login_required`.
+
+Guest mode remains separate from registered authentication. A guest can use guest-supported menu and game flows, but registered-only features such as profiles, friends, saves, and chat require a real authenticated `User`.
+
+CSRF protection is provided by Flask-WTF. Normal POST forms include a hidden `csrf_token` field, while JavaScript POST requests, such as `/save-game` and `/chat/keys/<friend_id>`, read the token from the page and send it in the `X-CSRFToken` header. Missing-token mutating requests should fail.
+
 ## Required Environment Variables
 
 The app requires these values in `.env`:
@@ -102,9 +138,10 @@ The startup flow in `app.py` is:
 1. Load `.env`.
 2. Require `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS`.
 3. Convert a normal SQLite URL such as `sqlite:///project.db` into a SQLCipher-compatible SQLAlchemy URL.
-4. Initialize SQLAlchemy.
-5. Run `PRAGMA cipher_version` to confirm SQLCipher is active.
-6. Run `db.create_all()` and schema compatibility helpers.
+4. Initialize SQLAlchemy, Flask-Migrate/Alembic, Flask-Login, CSRF protection, and Socket.IO.
+5. During normal app startup, run `PRAGMA cipher_version` to confirm SQLCipher is active.
+6. During normal app startup, run `db.create_all()` and schema compatibility helpers.
+7. During `flask db ...` migration commands, skip the legacy schema helpers so Alembic can compare the models against the real database state.
 
 The key behavior is deliberate: the app should fail early if the SQLCipher key is missing or SQLCipher is not available.
 
