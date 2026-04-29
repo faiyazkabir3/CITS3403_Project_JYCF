@@ -1,67 +1,74 @@
-# Hybrid Security Upgrade
+# Security Upgrade Guide
 
-This document explains the security changes on the `db_security` branch: what they protect, how the keys work, how encrypted saves are stored, and how direct-chat E2EE works.
+Updated: 30 April 2026
 
-The upgrade has three layers:
+This document is the security reference for the `db_security` branch. It explains what the project protects, how each security layer works, which files are involved, how to verify the behavior, and what risks still remain.
 
-- SQLCipher encrypts the SQLite database file at rest.
-- AES-GCM encrypts fallback save files at the app layer.
-- Browser-side Web Crypto encrypts direct-chat messages before Flask receives them.
+The project is still a Flask game application, but the security model now has several separate layers:
 
-The important idea is that different kinds of data use different keys. Flask sessions, the database file, fallback saves, and chat messages are not all protected by the same secret.
+- Flask-Login for registered-user session authentication.
+- Flask-WTF CSRF tokens for mutating HTTP requests.
+- Werkzeug password hashing with a per-password salt.
+- Required `.env` secrets instead of hardcoded keys.
+- SQLCipher-backed SQLite database encryption at rest.
+- AES-GCM encryption for fallback save files.
+- Browser-side Web Crypto end-to-end encryption for direct chat.
+- SQLAlchemy query APIs for user-input database access.
+- Jinja/browser escaping patterns for user-controlled text.
+- File-upload validation for profile pictures.
+- Flask-Migrate/Alembic support for safer schema changes.
 
-## What This Protects
+The important design rule is that different security jobs use different secrets. Flask session signing, SQLCipher database encryption, fallback save encryption, and browser chat encryption are intentionally separate.
 
-Before this upgrade, someone who copied local storage files could inspect a normal SQLite DB or fallback JSON file with common tools and read user data, save data, and chat message text.
+## Security Goals
 
-After this upgrade:
+This branch is designed to protect against these realistic project threats:
 
-- A raw SQLite file should not be readable with normal `sqlite3`.
-- Fallback save files should contain only an encrypted envelope.
-- Direct chat rows should store ciphertext instead of plaintext message text.
-- Flask can still check logins, friendships, rooms, and database records, but it should not need plaintext chat messages.
+- Someone copies the local SQLite database file and tries to read user, save, or chat data.
+- Someone copies fallback save files from `instance/save_fallbacks/`.
+- A malicious website tries to trigger a logged-in user's POST action through CSRF.
+- A logged-out user or guest tries to access registered-only features.
+- A user submits SQL-like text into usernames, profile fields, friend search, or chat-related routes.
+- A user uploads an unsafe profile image path or non-JPEG file.
+- The app is started without required secrets and accidentally creates weak or plaintext local state.
+- Direct chat text is stored on the Flask server in plaintext.
 
-This does not replace normal app security. Password hashing, route authorization, CSRF-aware forms, safe file uploads, and browser security still matter.
+This branch does not claim to solve every security problem. HTTPS certificates, production server hardening, key backup UI, multi-device chat key sync, rate limiting, and formal cryptographic verification are outside the current project scope.
 
-## CITS3403/CITS5505 Lecture Compliance
+## Lecture Compliance Summary
 
-| Lecture requirement | Status | Project method |
+| Requirement | Status | Implementation |
 | --- | --- | --- |
-| Salted password hashing | Yes | Werkzeug `generate_password_hash()` stores the method, salt, and derived hash in `user.password_hash`. |
-| Secret keys outside source | Yes | `.env` provides `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS`; startup fails if they are missing. |
-| Session authentication | Upgraded | Flask-Login manages registered-user login state with `login_user()`, `logout_user()`, `current_user`, and protected routes. |
-| Guest access kept separate | Yes | Guest mode uses its own session flag and does not create an authenticated `User` row. |
-| CSRF protection | Upgraded | Flask-WTF `CSRFProtect` checks POST/PUT/PATCH/DELETE requests; forms include `csrf_token`, and JS fetches send `X-CSRFToken`. |
-| Mutating GET routes avoided | Upgraded | Logout, accepting/rejecting friend requests, and direct friend-request actions are POST-only. |
-| SQLAlchemy-safe queries | Yes | User-input lookups use SQLAlchemy query APIs; raw SQL is static SQLCipher/schema maintenance code. |
-| Jinja escaping | Yes | User-controlled template values are rendered through normal Jinja expressions so autoescaping applies. |
-| HTTPS/SSL | Deployment responsibility | The lecture does not require local certificate setup, but production deployments should use HTTPS. |
-| Token/JWT auth | Not required | The project uses session-based authentication, matching the lecture expectation. |
+| Salted password hashing | Yes | Werkzeug `generate_password_hash()` stores the method, salt, and derived hash in `User.password_hash`. |
+| Secret keys outside source | Yes | `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS` are loaded from `.env`. |
+| Session authentication | Yes | Flask-Login handles registered-user sessions with `login_user()`, `logout_user()`, `current_user`, and `@login_required`. |
+| Guest separation | Yes | Guest mode uses `session["is_guest"]` and does not create an authenticated `User` row. |
+| CSRF protection | Yes | Flask-WTF `CSRFProtect` checks mutating HTTP requests. Forms include `csrf_token`; JS fetches send `X-CSRFToken`. |
+| Mutating GET routes avoided | Yes | Logout and friend-request mutations are POST-only. |
+| SQLAlchemy-safe user queries | Yes | User-controlled database lookups use SQLAlchemy query APIs. Raw SQL is static schema/SQLCipher setup. |
+| Jinja escaping | Yes | User-controlled template values use normal Jinja expressions with autoescaping. |
+| HTTPS/SSL | Deployment responsibility | Local course setup does not require certificates, but production must use HTTPS. |
+| Token/JWT auth | Not required | The app uses session authentication, matching the lecture expectation. |
 
-## Password Hashing
+## Key Files
 
-Registered user passwords are not stored as plaintext.
-
-The app uses Werkzeug's `generate_password_hash()` in the registration and password-change flows. New password hashes use:
-
-- PBKDF2-HMAC-SHA256
-- a random per-password salt
-
-Werkzeug stores the method, salt, and derived hash together in the `user.password_hash` field. That means there is no separate salt column in the database. Two users with the same password should still have different stored hashes because each hash gets its own random salt.
-
-Login and password-change checks use Werkzeug's `check_password_hash()`, which reads the stored method and salt from the hash string. Existing valid password hashes remain compatible.
-
-## Session Authentication And CSRF
-
-Registered users are authenticated with Flask-Login. Successful login calls `login_user(user)`, logout calls `logout_user()`, and registered-only routes use `@login_required`.
-
-Guest mode remains separate from registered authentication. A guest can use guest-supported menu and game flows, but registered-only features such as profiles, friends, saves, and chat require a real authenticated `User`.
-
-CSRF protection is provided by Flask-WTF. Normal POST forms include a hidden `csrf_token` field, while JavaScript POST requests, such as `/save-game` and `/chat/keys/<friend_id>`, read the token from the page and send it in the `X-CSRFToken` header. Missing-token mutating requests should fail.
+| Area | Files |
+| --- | --- |
+| Flask app security wiring | `app.py` |
+| SQLAlchemy models | `models.py` |
+| Python dependencies | `requirements.txt` |
+| Login/register/profile/friend/chat forms | `templates/*.html` |
+| Chat E2EE client | `static/js/chat.js` |
+| Save-game CSRF fetch | `static/js/gameUI.js` |
+| Browser tests | `tests/playwright/*.spec.js` |
+| Test Flask server secrets | `scripts/run_playwright_server.py` |
+| Setup instructions | `README.md` |
+| Database overview | `DATABASE_GUIDE.md` |
+| Chat encryption details | `END_TO_END_ENCRYPTED_CHAT.md` |
 
 ## Required Environment Variables
 
-The app requires these values in `.env`:
+The app requires these values before it can start safely:
 
 ```text
 SECRET_KEY=...
@@ -72,16 +79,16 @@ DATABASE_URL=sqlite:///project.db
 
 ### `SECRET_KEY`
 
-`SECRET_KEY` is used by Flask for sessions and signed cookies.
+`SECRET_KEY` signs Flask session cookies and CSRF tokens.
 
-It should:
+Requirements:
 
-- be random
-- be at least 32 characters
-- stay private
-- not be reused for database or save encryption
+- Must exist.
+- Must not be a placeholder like `change-me`, `replace-me`, or `your-secret-key`.
+- Must be at least 32 characters.
+- Must not be reused as the SQLCipher key or save-payload key.
 
-Generate it with:
+Generate one with:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -89,99 +96,290 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ### `SQLCIPHER_DATABASE_KEY`
 
-`SQLCIPHER_DATABASE_KEY` unlocks the encrypted SQLite database.
+`SQLCIPHER_DATABASE_KEY` unlocks the encrypted SQLite database through SQLCipher.
 
-It should:
+Requirements:
 
-- be random
-- be separate from `SECRET_KEY`
-- stay stable for the life of a local encrypted DB
+- Must exist.
+- Must be at least 32 characters.
+- Must stay stable for the life of a local encrypted database.
+- Must be separate from `SECRET_KEY`.
 
-Generate it with:
-
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-If this value changes, the app will not be able to open the old encrypted database. For local development, that usually means renaming or deleting the old DB and letting the app create a fresh encrypted one.
+If this key changes, the app will not be able to read the old encrypted database file. For local development, rename the old DB and create a fresh encrypted one.
 
 ### `SAVE_PAYLOAD_KEYS`
 
-`SAVE_PAYLOAD_KEYS` is a key ring for fallback save files. Each entry has a key ID and a 32-byte base64url key:
+`SAVE_PAYLOAD_KEYS` is a key ring for encrypted fallback save files.
+
+Format:
 
 ```text
 SAVE_PAYLOAD_KEYS=v1:base64url_32_byte_key
 ```
 
-Generate it with:
+Generate a valid entry with:
 
 ```bash
 python -c "import base64, secrets; print('v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
 ```
 
-The key ID, such as `v1`, is stored in each encrypted fallback file. That lets the app choose the right key when reading old save files.
-
-For rotation, put the newest key first and keep older keys after it:
+For key rotation, put the newest key first and keep old keys after it:
 
 ```text
 SAVE_PAYLOAD_KEYS=v2:new_key_here,v1:old_key_here
 ```
 
-New fallback saves use `v2`, but older `v1` files can still be opened.
+New fallback saves use the first key. Old fallback saves can still be read if their key ID remains in the ring.
+
+### Optional Development Flags
+
+`ALLOW_PLAINTEXT_SAVE_FALLBACKS=true` allows old plaintext fallback save files to be read. It is disabled by default and should only be used temporarily for local recovery.
+
+`SESSION_COOKIE_SECURE=true` marks Flask session cookies as HTTPS-only. Enable this in HTTPS deployments. Leave it off for plain local `http://127.0.0.1` development.
+
+## Startup Safety
+
+The startup flow in `app.py` is deliberately strict:
+
+1. Load `.env`.
+2. Validate `SECRET_KEY`.
+3. Validate `SQLCIPHER_DATABASE_KEY`.
+4. Parse and validate `SAVE_PAYLOAD_KEYS`.
+5. Convert `sqlite:///...` into a `sqlite+pysqlcipher://...` SQLAlchemy URL.
+6. Initialize SQLAlchemy.
+7. Initialize Flask-Migrate.
+8. Initialize CSRF protection.
+9. Initialize Flask-Login.
+10. Initialize Socket.IO.
+11. For normal app startup, run `PRAGMA cipher_version` to confirm SQLCipher is active.
+12. For normal app startup, run legacy schema compatibility helpers.
+13. For `flask db ...` migration commands, skip legacy schema helpers so Alembic sees the real database state.
+
+This means the app should fail early instead of silently creating a plaintext database or running with weak session secrets.
+
+## Password Hashing
+
+Registered passwords are never stored as plaintext.
+
+Registration and password-change flows use:
+
+```python
+generate_password_hash(password, method="pbkdf2:sha256")
+```
+
+Login and password-change verification use:
+
+```python
+check_password_hash(user.password_hash, password)
+```
+
+Werkzeug stores the hashing method, salt, and derived hash in one string. There is no separate `salt` column because the salt is embedded in `User.password_hash`.
+
+Why this is better:
+
+- A leaked database does not immediately reveal user passwords.
+- The random salt means two users with the same password should still have different stored hashes.
+- The app relies on Werkzeug instead of custom cryptographic code.
+
+## Session Authentication
+
+Registered users authenticate through Flask-Login.
+
+Core pieces:
+
+- `User` inherits `UserMixin`.
+- `LoginManager(app)` is initialized in `app.py`.
+- `login_manager.login_view = "show_login"` points unauthenticated users to the login page.
+- `@login_manager.user_loader` reloads a `User` by ID from the signed session.
+- Successful login calls `login_user(user)`.
+- Logout calls `logout_user()` and clears the session.
+- Registered-only routes use `@login_required`.
+
+Protected registered-user features include:
+
+- Profile editing.
+- Public profile actions.
+- Saving and loading registered game progress.
+- Friend management.
+- Direct chat key exchange.
+- Direct chat pages.
+- Friend stats.
+
+Guest mode remains separate. A guest receives a display name and `session["is_guest"] = True`, but Flask-Login does not treat the guest as an authenticated `User`.
+
+## Session Cookie Settings
+
+The app configures session cookie behavior:
+
+```python
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = controlled by SESSION_COOKIE_SECURE env var
+```
+
+Effect:
+
+- `HttpOnly` reduces exposure of session cookies to browser JavaScript.
+- `SameSite=Lax` helps reduce cross-site cookie sending in common CSRF situations.
+- `Secure` can be enabled for HTTPS deployments.
+
+These settings support CSRF protection but do not replace CSRF tokens.
+
+## CSRF Protection
+
+CSRF protection is provided by Flask-WTF.
+
+The app uses:
+
+```python
+csrf = CSRFProtect(app)
+```
+
+Because Socket.IO and some app behavior need explicit control, the app sets:
+
+```python
+WTF_CSRF_CHECK_DEFAULT = False
+```
+
+Then `app.py` manually calls `csrf.protect()` in `before_request` for mutating HTTP methods:
+
+- `POST`
+- `PUT`
+- `PATCH`
+- `DELETE`
+
+Socket.IO paths are skipped because Socket.IO handshakes are not normal Flask form posts.
+
+### Form CSRF Tokens
+
+Every POST form includes:
+
+```html
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+```
+
+This covers:
+
+- Login.
+- Register.
+- Guest login.
+- Logout.
+- Profile update.
+- Friend request send.
+- Friend request accept/reject.
+- Public profile friend action.
+- Chat form fallback.
+
+### JavaScript CSRF Tokens
+
+Pages that need JS POST requests expose a meta token:
+
+```html
+<meta name="csrf-token" content="{{ csrf_token() }}">
+```
+
+JavaScript reads that token and sends:
+
+```http
+X-CSRFToken: <token>
+```
+
+This covers:
+
+- `POST /save-game`
+- `POST /chat/keys/<friend_id>`
+
+### Mutating Routes Are POST-Only
+
+These routes no longer mutate state through GET:
+
+```text
+POST /logout
+POST /add_friend/<user_id>
+POST /accept_friend/<request_id>
+POST /reject_friend/<request_id>
+```
+
+This prevents simple links, image tags, or browser prefetches from changing account state.
 
 ## SQLCipher Database Encryption
 
-The database is still SQLite from the app's point of view, but it is opened through SQLCipher.
+The app still uses SQLite from SQLAlchemy's point of view, but the database file is opened through SQLCipher.
 
-The startup flow in `app.py` is:
+Normal local configuration:
 
-1. Load `.env`.
-2. Require `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS`.
-3. Convert a normal SQLite URL such as `sqlite:///project.db` into a SQLCipher-compatible SQLAlchemy URL.
-4. Initialize SQLAlchemy, Flask-Migrate/Alembic, Flask-Login, CSRF protection, and Socket.IO.
-5. During normal app startup, run `PRAGMA cipher_version` to confirm SQLCipher is active.
-6. During normal app startup, run `db.create_all()` and schema compatibility helpers.
-7. During `flask db ...` migration commands, skip the legacy schema helpers so Alembic can compare the models against the real database state.
-
-The key behavior is deliberate: the app should fail early if the SQLCipher key is missing or SQLCipher is not available.
-
-### Fresh Encrypted DB Assumption
-
-This branch does not automatically migrate old plaintext SQLite databases. If a plaintext `project.db` already exists, SQLCipher may fail to open it because it expects encrypted pages.
-
-For local development, back up the old file and let the app create a new encrypted DB:
-
-```bash
-mv project.db project.plaintext.backup.db
-python app.py
+```text
+DATABASE_URL=sqlite:///project.db
 ```
 
-If your DB lives in `instance/`, use that path instead:
+At startup, `app.py` converts this into a SQLCipher URL using `SQLCIPHER_DATABASE_KEY`. The conversion keeps the project configuration simple while preventing accidental normal SQLite usage.
+
+The app verifies SQLCipher with:
+
+```sql
+PRAGMA cipher_version
+```
+
+If SQLCipher is not active, startup fails.
+
+What this protects:
+
+- A copied raw DB file should not be readable with normal `sqlite3`.
+- Table names and row contents should not appear as plaintext in the database bytes.
+
+What this does not protect:
+
+- Data while the Flask process is running and has the key.
+- Data returned through authorized routes.
+- A compromised host that can read environment variables and process memory.
+
+## Flask-Migrate And Alembic
+
+The project now initializes:
+
+```python
+migrate = Migrate(app, db)
+```
+
+Documented migration commands:
 
 ```bash
-mv instance/project.db instance/project.plaintext.backup.db
-python app.py
+export FLASK_APP=app.py
+flask db init
+flask db migrate -m "message"
+flask db upgrade
+flask db downgrade
 ```
+
+Important migration rules:
+
+- Run `flask db init` only once, and only if `migrations/` does not exist.
+- Always review generated migration files before committing.
+- Migration commands must load `.env`, because they connect through SQLCipher.
+- Do not run a table-creating initial migration blindly against an existing populated database.
+- For an existing DB, use a careful baseline/stamp workflow instead.
+
+During `flask db ...`, legacy `db.create_all()` and schema helper code is skipped. This prevents Alembic autogenerate from seeing tables that were created by app startup before migration comparison.
 
 ## Fallback Save Encryption
 
-The game saves to the database first. If the DB save fails, or after a successful DB save as a backup, the app writes a fallback file under:
+The primary save path is the SQLCipher database. The app also writes fallback save files under:
 
 ```text
 instance/save_fallbacks/
 ```
 
-Before this branch, those fallback files were normal JSON. Now they are encrypted with AES-GCM.
+Fallback files are encrypted with AES-GCM using the active key from `SAVE_PAYLOAD_KEYS`.
 
-The write flow is:
+Write flow:
 
-1. Build the normal save payload in Python.
-2. Serialize it to compact JSON bytes.
-3. Generate a random 12-byte nonce.
-4. Encrypt with AES-GCM using the active `SAVE_PAYLOAD_KEYS` key.
-5. Write only the encrypted envelope to disk.
+1. Build the normal save payload.
+2. Serialize the payload as compact JSON bytes.
+3. Generate a random 12-byte nonce with `os.urandom(12)`.
+4. Encrypt with `AESGCM(key).encrypt(nonce, plaintext, None)`.
+5. Write an encrypted envelope instead of plaintext JSON.
 
-The envelope looks like:
+Envelope shape:
 
 ```json
 {
@@ -193,91 +391,64 @@ The envelope looks like:
 }
 ```
 
-The fallback file should not contain readable fields like:
+Read flow:
+
+1. Load the JSON envelope.
+2. Confirm `encrypted` is true.
+3. Read `key_id`.
+4. Find the matching key in `SAVE_PAYLOAD_KEYS`.
+5. Base64url-decode the nonce and ciphertext.
+6. Decrypt with AES-GCM.
+7. Normalize the save payload before returning it to the game.
+
+Why AES-GCM:
+
+- It encrypts the save data.
+- It detects tampering. If the nonce, ciphertext, or key is wrong, decryption fails.
+
+Plaintext fallback saves are rejected by default. The only exception is the local recovery flag `ALLOW_PLAINTEXT_SAVE_FALLBACKS=true`.
+
+## Direct Chat End-To-End Encryption
+
+Direct chat encryption happens in the browser. Flask stores and forwards encrypted payloads, but does not store browser private keys and should not receive plaintext chat content.
+
+Browser cryptography in `static/js/chat.js`:
+
+| Purpose | Algorithm |
+| --- | --- |
+| Chat key pair | ECDH P-256 |
+| Shared key derivation | ECDH P-256 |
+| Message encryption | AES-GCM 256-bit |
+| Message nonce | 12 random bytes |
+| Public key ID | SHA-256 of public key, shortened |
+
+### Browser Key Storage
+
+Each logged-in user gets a browser-local chat key record stored in `localStorage`:
 
 ```text
-run_state
-difficulty
-health
-character_id
+cits3403:e2ee:<user_id>
 ```
 
-AES-GCM provides confidentiality and tamper detection. If the ciphertext, nonce, or key ID is changed, decryption should fail and the app should ignore that fallback file.
+The record contains:
 
-### Plaintext Fallback Compatibility
+- public key
+- private key
+- public key ID
 
-Plaintext fallback reads are disabled by default. There is a development-only escape hatch:
+Only the public key is sent to Flask. The private key stays in the browser.
 
-```text
-ALLOW_PLAINTEXT_SAVE_FALLBACKS=true
-```
+### Public Key Registration
 
-Only use that temporarily if you need to inspect or recover old local development saves. Do not use it as the normal setup.
+When a user opens a direct chat page:
 
-## Direct Chat E2EE
+1. The browser loads or creates the ECDH key pair.
+2. The browser sends the public key to `POST /chat/keys/<friend_id>`.
+3. Flask checks that the users are accepted friends.
+4. Flask stores the public key, key ID, and creation time on the `User` row.
+5. Flask returns the friend's public key when available.
 
-Direct chat encryption happens in the browser, not on the Flask server.
-
-The browser code in `static/js/chat.js` uses Web Crypto:
-
-- ECDH P-256 for browser identity keys and shared-key derivation
-- AES-GCM for message encryption
-- SHA-256-derived key IDs for public-key identity checks
-
-### Chat Key Setup
-
-When a user opens a chat page:
-
-1. The browser checks local storage for an existing chat key pair for that user.
-2. If none exists, it generates a new ECDH P-256 key pair.
-3. It stores the private key locally in the browser.
-4. It sends only the public key to Flask through `/chat/keys/<friend_id>`.
-5. Flask stores the public key and key ID on the `User` row.
-
-The server never stores the browser private key.
-
-### Sending A Message
-
-When the user sends a chat message:
-
-1. The browser fetches the friend's public key.
-2. The browser derives a shared AES-GCM key using:
-   - the current user's private key
-   - the friend's public key
-3. The browser encrypts the plaintext message.
-4. The browser sends an encrypted payload through Socket.IO or the form fallback.
-5. Flask validates friendship and stores the encrypted fields on `Message`.
-6. Flask broadcasts the encrypted payload to the chat room.
-
-The payload contains data such as:
-
-```text
-ciphertext
-nonce
-sender_public_key
-sender_key_id
-recipient_public_key
-recipient_key_id
-encryption_version
-```
-
-It does not contain the plaintext message.
-
-### Receiving A Message
-
-When the browser receives a message:
-
-1. It selects the peer public key from the message metadata.
-2. It derives the same shared AES-GCM key.
-3. It tries to decrypt the ciphertext.
-4. If decryption works, it displays the message.
-5. If decryption fails, it displays `Locked encrypted message`.
-
-Locked messages are expected when a user opens chat in a new browser without their original local private key. That is part of true E2EE: the server cannot decrypt and recover messages for the user.
-
-## Database Schema Changes
-
-The `User` model stores public chat key data:
+The `User` model stores:
 
 ```text
 chat_public_key
@@ -285,7 +456,122 @@ chat_key_id
 chat_key_created_at
 ```
 
-The `Message` model keeps the old `message` column nullable for compatibility, but encrypted chat uses these fields:
+### Sending A Chat Message
+
+Send flow:
+
+1. Browser reads the plaintext from the input.
+2. Browser gets the friend's public key.
+3. Browser derives a shared AES-GCM key using ECDH.
+4. Browser generates a fresh nonce.
+5. Browser encrypts the message.
+6. Browser sends encrypted payload through Socket.IO if connected.
+7. Browser falls back to a normal POST form if Socket.IO is unavailable.
+8. Flask validates login, friendship, and encrypted payload shape.
+9. Flask stores only encrypted message fields.
+10. Flask broadcasts ciphertext to the chat room.
+
+The encrypted payload contains:
+
+```text
+ciphertext
+nonce
+sender_public_key
+sender_key_id
+recipient_public_key
+recipient_key_id
+encryption_version
+```
+
+The `Message` model keeps `message` nullable for compatibility, but new encrypted chat messages use the encrypted fields.
+
+### Receiving A Chat Message
+
+Receive flow:
+
+1. Browser receives encrypted message metadata.
+2. Browser selects the peer public key.
+3. Browser derives the same AES-GCM key.
+4. Browser attempts decryption.
+5. If decryption succeeds, the plaintext is inserted with `textContent`.
+6. If decryption fails, the UI displays `Locked encrypted message`.
+
+Locked messages are expected when a user opens chat in a new browser profile without the original private key. That is a feature of this simple E2EE model: Flask cannot recover the old plaintext.
+
+## Authorization And Friendship Checks
+
+Direct chat and friend-only pages are protected by both authentication and relationship checks.
+
+Examples:
+
+- `@login_required` blocks logged-out users.
+- Guests are not authenticated `User` rows, so registered-only routes reject them.
+- Chat routes call friendship helpers before returning keys, messages, or chat pages.
+- Socket.IO chat events check the session user and accepted friendship before joining rooms or storing messages.
+- Friend stats require an accepted friendship.
+
+This matters because encryption does not replace authorization. The server still controls who can access records, rooms, and metadata.
+
+## SQLAlchemy And Raw SQL Policy
+
+User-controlled database actions use SQLAlchemy query APIs such as:
+
+- `User.query.filter_by(...)`
+- `FriendRequest.query.filter_by(...)`
+- `Message.query.filter(...)`
+- `db.session.query(...)`
+
+This avoids manually concatenating user input into SQL strings.
+
+Raw SQL remains in the project only for static operations:
+
+- SQLCipher verification with `PRAGMA cipher_version`.
+- Static schema compatibility `ALTER TABLE` statements.
+- Static SQLite metadata checks.
+
+Do not add raw SQL that interpolates request data. If raw SQL is ever needed, use SQLAlchemy parameters instead of string formatting.
+
+## Template And Browser Escaping
+
+Server-rendered user-controlled text is displayed with normal Jinja expressions, so Jinja autoescaping applies.
+
+Browser-rendered chat plaintext is inserted with:
+
+```js
+messageElement.textContent = plaintext || "Locked encrypted message";
+```
+
+Using `textContent` prevents decrypted chat text from becoming executable HTML.
+
+Some game UI code uses `innerHTML` for trusted local game labels and state generated by the app. Do not pass untrusted profile text, usernames, chat text, or request data into those `innerHTML` templates.
+
+## Profile Image Upload Safety
+
+Profile image uploads are restricted.
+
+Current checks:
+
+- Filenames are normalized with `secure_filename()`.
+- Only `.jpg` and `.jpeg` extensions are accepted.
+- The first bytes must match the JPEG header.
+- Upload size is limited to 5 MB.
+- Uploaded files are stored under `static/uploads/profile_pics/`.
+- Stored filenames are generated with the user ID and a UUID.
+- Path resolution checks keep selected uploaded images inside the profile upload directory.
+
+This reduces path traversal and arbitrary file upload risk. It is still wise to serve user uploads carefully in production.
+
+## Database Schema Security Changes
+
+`User` gained public chat key metadata:
+
+```text
+chat_public_key
+chat_key_id
+chat_key_created_at
+```
+
+`Message` gained encrypted chat fields:
 
 ```text
 ciphertext
@@ -297,96 +583,167 @@ recipient_public_key
 encryption_version
 ```
 
-New direct-chat messages should use the encrypted fields. The server-side serializer returns encrypted metadata for browser decryption.
+`Message.message` is nullable so older rows or compatibility paths do not break.
 
-## Known Limitations
+No schema column is needed for Flask-Login. `UserMixin` adds Python behavior, not database columns.
 
-This implementation is a strong project-level E2EE upgrade, but it is intentionally simple.
+## Test And Verification Commands
 
-- Browser private keys are stored in `localStorage`, so clearing browser data removes the ability to decrypt old messages.
-- There is no key export/import UI yet.
-- There is no multi-device key sync yet.
-- There is no user-facing key verification screen yet.
-- If a user's browser is compromised, browser-side decrypted messages can still be read by that compromised environment.
-- Existing plaintext SQLite databases are not migrated automatically.
-
-These tradeoffs keep the implementation understandable while still ensuring the server does not store plaintext chat content.
-
-## Verification Checklist
-
-Use this checklist after setup.
-
-### Database At Rest
-
-Create a fresh DB by running:
+Install dependencies:
 
 ```bash
-python app.py
+pip install -r requirements.txt
 ```
 
-Then confirm the raw DB file does not have the normal SQLite header:
+Compile Python:
+
+```bash
+python -m py_compile app.py models.py
+```
+
+Confirm Flask-Migrate CLI is available:
+
+```bash
+export FLASK_APP=app.py
+flask db --help
+```
+
+Run JS checks:
+
+```bash
+npm run lint:js
+npm run check:js
+```
+
+Run browser checks:
+
+```bash
+npm run sanity:browser
+```
+
+The Playwright config uses a Chrome project. If Chrome is missing, install it or adjust the Playwright channel.
+
+## Manual Security Checks
+
+### Confirm SQLCipher Is Active
+
+```bash
+python -c "from app import app, db; from sqlalchemy import text; app.app_context().push(); print(db.session.execute(text('PRAGMA cipher_version')).scalar())"
+```
+
+Expected: a SQLCipher version string.
+
+### Confirm Raw DB Is Not Plain SQLite
+
+For a DB at `project.db`:
 
 ```bash
 python -c "from pathlib import Path; data=Path('project.db').read_bytes(); print(b'SQLite format 3' in data)"
 ```
 
-Expected output:
+Expected:
 
 ```text
 False
 ```
 
-A normal SQLite client should fail without the SQLCipher key:
+If your DB lives in `instance/project.db`, use that path instead.
+
+### Confirm Normal SQLite Cannot Read The DB
 
 ```bash
 python -c "import sqlite3; sqlite3.connect('project.db').execute('select count(*) from sqlite_master').fetchone()"
 ```
 
-Expected result:
+Expected: an error like:
 
 ```text
 sqlite3.DatabaseError: file is not a database
 ```
 
-### Fallback Saves
+### Confirm Fallback Saves Are Encrypted
 
-Save a game, then inspect fallback saves:
+Save a game, then inspect fallback files:
 
 ```bash
 ls instance/save_fallbacks
 cat instance/save_fallbacks/*.json
 ```
 
-You should see envelope JSON with `encrypted`, `key_id`, `nonce`, and `ciphertext`. You should not see raw game fields like `run_state`, `health`, or `difficulty`.
+Expected:
 
-### Direct Chats
+- JSON envelope contains `encrypted`, `key_id`, `nonce`, and `ciphertext`.
+- File does not show raw fields like `run_state`, `health`, `difficulty`, or `character_id`.
 
-Send a direct chat message with a unique phrase, then inspect the DB bytes:
+### Confirm Direct Chat Plaintext Is Not Stored
+
+Send a unique chat phrase, then inspect database bytes:
 
 ```bash
 python -c "from pathlib import Path; data=Path('project.db').read_bytes(); print(b'your unique phrase' in data)"
 ```
 
-Expected output:
+Expected:
 
 ```text
 False
 ```
 
-Open the same chat from a fresh browser profile. Messages encrypted for the old browser key should display as locked instead of plaintext.
+Open the same chat in a fresh browser profile. Messages encrypted for the old browser key should display as locked.
+
+### Confirm CSRF Fails Without A Token
+
+After logging in, a direct POST to a protected mutating route without a CSRF token should fail with a 400 response.
+
+Examples to test with a Flask test client or browser dev tools:
+
+- `POST /logout`
+- `POST /save-game`
+- `POST /chat/keys/<friend_id>`
+
+Normal forms and app JS should pass because they include CSRF tokens.
+
+### Confirm Mutating GET Routes Are Disabled
+
+These should not perform state changes through GET:
+
+```text
+GET /logout
+GET /accept_friend/<request_id>
+GET /reject_friend/<request_id>
+GET /add_friend/<user_id>
+```
+
+Expected: method not allowed or no mutation.
 
 ## Common Errors
 
+### `SECRET_KEY is missing`
+
+Add a strong `SECRET_KEY` to `.env`.
+
+### `SECRET_KEY is still set to a placeholder`
+
+Replace placeholder values with a random value generated by `secrets.token_urlsafe(32)`.
+
 ### `SQLCIPHER_DATABASE_KEY is missing`
 
-Add `SQLCIPHER_DATABASE_KEY=...` to `.env`, then restart the server.
+Add `SQLCIPHER_DATABASE_KEY=...` to `.env`.
 
 ### `SAVE_PAYLOAD_KEYS is missing`
 
-Add a key-ring value like:
+Add a key ring entry:
 
 ```text
 SAVE_PAYLOAD_KEYS=v1:generated_32_byte_base64url_key
+```
+
+### `sqlcipher3 is required for encrypted SQLite databases`
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
 ```
 
 ### `file is not a database`
@@ -394,8 +751,60 @@ SAVE_PAYLOAD_KEYS=v1:generated_32_byte_base64url_key
 This usually means one of two things:
 
 - A normal SQLite tool is trying to open the encrypted SQLCipher DB. That failure is expected.
-- The app is trying to open an old plaintext DB as SQLCipher. Rename the old DB and let the app create a fresh encrypted one.
+- The app is trying to open an old plaintext DB with SQLCipher. Rename the old DB and let the app create a fresh encrypted one.
+
+### CSRF Token Missing Or Invalid
+
+The request is mutating state without a valid CSRF token. Use the app's rendered form or include the `X-CSRFToken` header from the page meta token.
 
 ### Old Chat Messages Show As Locked
 
-This means the current browser does not have the private key that can decrypt those messages. Use the original browser profile, or start a new conversation from the new browser key.
+The current browser does not have the private key that can decrypt those messages. Use the original browser profile or start a new conversation from the new browser key.
+
+## Deployment Notes
+
+For production-like deployment:
+
+- Use HTTPS and set `SESSION_COOKIE_SECURE=true`.
+- Store `.env` secrets outside version control.
+- Use long, random, separate keys for Flask sessions, SQLCipher, and fallback saves.
+- Back up encryption keys securely. Losing keys means losing access to encrypted data.
+- Do not commit `project.db`, `.env`, fallback saves, or profile uploads.
+- Review generated Alembic migrations before applying them.
+- Consider rate limiting login and registration routes.
+- Consider adding account lockout or delay after repeated failed logins.
+- Consider adding Content Security Policy headers.
+- Consider adding security headers such as HSTS in HTTPS deployments.
+- Consider a production WSGI/ASGI server instead of the Flask development server.
+
+## Known Limitations
+
+- Browser private chat keys are stored in `localStorage`.
+- Clearing browser data removes the ability to decrypt old E2EE messages.
+- There is no chat key export/import UI.
+- There is no multi-device chat key sync.
+- There is no user-facing public key verification screen.
+- If a browser is compromised, decrypted messages can be read in that browser.
+- SQLCipher protects the database file at rest, not data after Flask has decrypted it for legitimate use.
+- HTTPS is not configured locally.
+- There is no JWT/token-based API auth because the project uses session auth.
+- There is no automatic migration from plaintext SQLite databases to SQLCipher databases.
+
+These limitations are acceptable for the current project scope, but they should be documented honestly so future work can improve them.
+
+## Security Upgrade Summary
+
+Before this branch, local storage files and chat rows could expose much more readable data. After this branch:
+
+- Registered accounts use salted password hashes.
+- Session auth is handled by Flask-Login.
+- Mutating requests are CSRF protected.
+- Mutating friend/logout routes are POST-only.
+- Secrets are loaded from `.env` and validated at startup.
+- SQLite is encrypted through SQLCipher.
+- Fallback saves are encrypted with AES-GCM.
+- Direct chat messages are encrypted in the browser before Flask receives them.
+- Database access for user input uses SQLAlchemy query APIs.
+- Security behavior is documented and covered by targeted tests/checks.
+
+The result is a stronger, clearer security model that better matches the course security requirements while keeping the project understandable for development and assessment.
