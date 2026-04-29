@@ -89,9 +89,24 @@ function appendMessage(messageData) {
 
   const messageElement = document.createElement("div");
   const isOutgoing = Number(messageData.sender_id) === currentUserId;
+  const textElement = document.createElement("span");
+  const timeElement = document.createElement("time");
 
   messageElement.className = `chat-message ${isOutgoing ? "outgoing" : "incoming"}`;
-  messageElement.textContent = messageData.message;
+  textElement.textContent = messageData.message;
+
+  if (messageData.timestamp) {
+    const sentAt = new Date(messageData.timestamp);
+    timeElement.dateTime = messageData.timestamp;
+    timeElement.textContent = sentAt.toLocaleString([], {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  messageElement.append(textElement, timeElement);
 
   if (messageId) {
     messageElement.dataset.messageId = messageId;

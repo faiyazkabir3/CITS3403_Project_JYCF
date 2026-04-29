@@ -41,9 +41,15 @@
         <div class="chat-messages" data-chat-messages>
           {% for msg in messages %}
             {% if msg.sender_id == current_user %}
-              <div class="chat-message outgoing" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
+              <div class="chat-message outgoing" data-message-id="{{ msg.id }}">
+                <span>{{ msg.message }}</span>
+                <time datetime="{{ msg.timestamp.isoformat() if msg.timestamp else '' }}">{{ format_message_timestamp(msg.timestamp) }}</time>
+              </div>
             {% else %}
-              <div class="chat-message incoming" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
+              <div class="chat-message incoming" data-message-id="{{ msg.id }}">
+                <span>{{ msg.message }}</span>
+                <time datetime="{{ msg.timestamp.isoformat() if msg.timestamp else '' }}">{{ format_message_timestamp(msg.timestamp) }}</time>
+              </div>
             {% endif %}
           {% endfor %}
         </div>

@@ -62,6 +62,25 @@
       </section>
 
       <section class="selected-character-box">
+        <h2>Recent Chats</h2>
+        <ul>
+          {% for conversation in recent_conversations %}
+            <li>
+              <a class="friend-name-link" href="{{ url_for('chat', friend_id=conversation.friend.id) }}">
+                {{ conversation.display_name }}
+              </a>
+              <span class="conversation-preview">
+                {{ conversation.latest_message[:34] }}{% if conversation.latest_message|length > 34 %}...{% endif %}
+                {% if conversation.unread_count %} ({{ conversation.unread_count }} unread){% endif %}
+              </span>
+            </li>
+          {% else %}
+            <li>No conversations yet</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="selected-character-box">
         <h2>Add a Friend</h2>
         <form method="POST" class="button-stack" data-friend-form>
           <input

@@ -28,7 +28,7 @@
             aria-expanded="false"
             aria-controls="friends-dropdown"
           >
-            FRIENDS &#9662;
+            FRIENDS{% if unread_message_count %} ({{ unread_message_count }}){% endif %} &#9662;
           </button>
           <div id="friends-dropdown" class="friends-dropdown" data-friends-dropdown>
             <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
@@ -63,7 +63,7 @@
 
     <div class="menu-content">
       <div class="leaderboard">
-        <h2>LEADERBOARD</h2>
+        <h2>GLOBAL LEADERBOARD</h2>
         <ul>
           {% if leaderboard %}
             {% for entry in leaderboard %}

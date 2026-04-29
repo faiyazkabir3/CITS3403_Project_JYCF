@@ -67,7 +67,7 @@ async function openChatWithFriend(page, username) {
   await goToFriendsPage(page);
   const friendItem = page.locator("li", { hasText: username }).first();
   await expect(friendItem).toBeVisible();
-  await friendItem.getByRole("link", { name: "Chat" }).click();
+  await friendItem.getByRole("link", { name: "Chat", exact: true }).click();
   await expect(page).toHaveURL(/\/chat\/\d+$/);
   await expect(page.locator("[data-chat-status]")).toHaveText(/Live chat connected\./);
 }

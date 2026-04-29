@@ -46,6 +46,19 @@
         </section>
 
         <section class="profile-section">
+          <h2>Showcase</h2>
+
+          <label for="favorite-character">Favorite Character</label>
+          <select id="favorite-character" name="favorite_character">
+            {% for option in favorite_characters %}
+              <option value="{{ option.value }}" {% if option.value == favorite_character %}selected{% endif %}>
+                {{ option.label }}
+              </option>
+            {% endfor %}
+          </select>
+        </section>
+
+        <section class="profile-section">
           <h2>Bio</h2>
 
           <label for="bio">About You</label>
@@ -108,6 +121,25 @@
               JPG and JPEG only, up to 5MB. Uploading a new photo will replace your current custom picture.
             </p>
           </div>
+        </section>
+
+        <section class="profile-section">
+          <h2>Privacy</h2>
+
+          <label class="profile-checkbox">
+            <input type="checkbox" name="show_stats_to_friends" {% if show_stats_to_friends %}checked{% endif %}>
+            <span>Allow friends to view my stats</span>
+          </label>
+
+          <label class="profile-checkbox">
+            <input type="checkbox" name="allow_friend_messages" {% if allow_friend_messages %}checked{% endif %}>
+            <span>Allow friends to message me</span>
+          </label>
+
+          <label class="profile-checkbox">
+            <input type="checkbox" name="hide_from_leaderboard" {% if hide_from_leaderboard %}checked{% endif %}>
+            <span>Hide me from leaderboards</span>
+          </label>
         </section>
 
         <section class="profile-section">

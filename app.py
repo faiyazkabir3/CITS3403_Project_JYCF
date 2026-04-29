@@ -1,6 +1,7 @@
 import os
 import random
 import json
+import re
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -20,7 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from models import db, User, SaveData, Friend, Message, FriendRequest
+from models import db, User, SaveData, Friend, Message, FriendRequest, UserAchievement
 
 load_dotenv()
 
@@ -49,6 +50,15 @@ PROFILE_IMAGE_OPTIONS = [
     {"label": "Quite Tactical", "filename": "images/profile_presets/quite_pfp_2.jpg"},
     {"label": "Quite Chibi", "filename": "images/profile_presets/quite_pfp_3.jpg"},
 ]
+FAVORITE_CHARACTER_OPTIONS = [
+    {"label": "No Favorite", "value": ""},
+    {"label": "Leon", "value": "leon"},
+    {"label": "Quite", "value": "quite"},
+]
+FAVORITE_CHARACTER_LABELS = {
+    option["value"]: option["label"]
+    for option in FAVORITE_CHARACTER_OPTIONS
+}
 PROFILE_IMAGE_FILENAMES = {
     option["filename"]
     for option in PROFILE_IMAGE_OPTIONS
@@ -119,6 +129,16 @@ class FriendAction:
     action: Optional[str] = None
 
 
+@dataclass
+class AchievementDefinition:
+    id: str
+    name: str
+    description: str
+    target: int
+    metric: str
+    icon: str
+
+
 def friend_action_to_dict(friend_action):
     return {
         key: value
@@ -169,6 +189,28 @@ def ensure_user_schema():
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
         "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
+        "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
+        "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
+        "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+def ensure_message_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "message" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("message")}
+    required_columns = {
+        "read_at": "ALTER TABLE message ADD COLUMN read_at DATETIME",
     }
 
     for column_name, statement in required_columns.items():
@@ -209,6 +251,7 @@ with app.app_context():
         db.create_all()
         ensure_user_schema()
         ensure_save_data_schema()
+        ensure_message_schema()
     except SQLAlchemyError as error:
         db.session.rollback()
         app.logger.warning(
@@ -280,6 +323,168 @@ def get_user_stats(user_id):
 
 def get_empty_stats():
     return asdict(PlayerStats())
+
+def parse_level_number(value):
+    match = re.search(r"\d+", str(value or ""))
+    if match is None:
+        return 0
+
+    return coerce_int(match.group(0), 0)
+
+def get_latest_save_payload(user_id):
+    try:
+        payloads = list_db_save_payloads(user_id)
+    except SQLAlchemyError:
+        db.session.rollback()
+        payloads = []
+
+    payloads.extend(list_fallback_save_payloads(user_id))
+    return choose_latest_save_payload(*payloads)
+
+def get_latest_run_summary(user_id):
+    payload = get_latest_save_payload(user_id)
+
+    if payload is None:
+        return None
+
+    return {
+        "difficulty": payload.get("difficulty", "EASY"),
+        "character": FAVORITE_CHARACTER_LABELS.get(
+            str(payload.get("character_id", "")).lower(),
+            str(payload.get("character_id", "Unknown")).title()
+        ),
+        "current_level": payload.get("current_level_id", "1"),
+        "kills": coerce_int(payload.get("kills"), 0),
+        "game_won": coerce_bool(payload.get("game_won"), False),
+        "updated_at": payload.get("updated_at"),
+    }
+
+def get_achievement_definitions():
+    return [
+        AchievementDefinition(
+            id="first_blood",
+            name="First Blood",
+            description="Defeat your first infected.",
+            target=1,
+            metric="kills",
+            icon="I"
+        ),
+        AchievementDefinition(
+            id="survivor",
+            name="Survivor",
+            description="Reach level 3 or beyond.",
+            target=3,
+            metric="levels",
+            icon="III"
+        ),
+        AchievementDefinition(
+            id="sharpshooter",
+            name="Sharpshooter",
+            description="Deal 500 damage with 10 or fewer pistol shots.",
+            target=500,
+            metric="damage_dealt",
+            icon="S"
+        ),
+        AchievementDefinition(
+            id="medic",
+            name="Medic",
+            description="Use 5 medkits.",
+            target=5,
+            metric="medkits",
+            icon="+"
+        ),
+        AchievementDefinition(
+            id="no_mercy",
+            name="No Mercy",
+            description="Defeat 50 infected.",
+            target=50,
+            metric="kills",
+            icon="50"
+        ),
+        AchievementDefinition(
+            id="untouchable",
+            name="Untouchable",
+            description="Save a run after taking no damage.",
+            target=1,
+            metric="untouchable_runs",
+            icon="0"
+        ),
+    ]
+
+def get_achievement_progress(user_id, stats=None):
+    stats = stats or get_user_stats(user_id)
+    latest_payload = get_latest_save_payload(user_id)
+    latest_level = parse_level_number((latest_payload or {}).get("current_level_id"))
+    latest_damage_taken = coerce_int((latest_payload or {}).get("damage_taken"), 0)
+    latest_started = coerce_bool((latest_payload or {}).get("has_started_game"), False)
+
+    return {
+        "kills": coerce_int(stats.get("kills"), 0),
+        "levels": latest_level,
+        "damage_dealt": coerce_int(stats.get("damage_dealt"), 0),
+        "medkits": coerce_int(stats.get("medkits"), 0),
+        "untouchable_runs": 1 if latest_started and latest_damage_taken == 0 else 0,
+        "pistol_shots": coerce_int(stats.get("pistol_shots"), 0),
+    }
+
+def achievement_is_unlocked(definition, progress):
+    if definition.id == "sharpshooter":
+        return (
+            coerce_int(progress.get("damage_dealt"), 0) >= definition.target
+            and coerce_int(progress.get("pistol_shots"), 0) <= 10
+        )
+
+    return coerce_int(progress.get(definition.metric), 0) >= definition.target
+
+def get_user_achievements(user_id):
+    unlocked_rows = UserAchievement.query.filter_by(user_id=user_id).all()
+    unlocked_by_id = {
+        row.achievement_id: row
+        for row in unlocked_rows
+    }
+    stats = get_user_stats(user_id)
+    progress = get_achievement_progress(user_id, stats=stats)
+    achievements = []
+
+    for definition in get_achievement_definitions():
+        row = unlocked_by_id.get(definition.id)
+        current = coerce_int(progress.get(definition.metric), 0)
+
+        if definition.id == "sharpshooter":
+            current = coerce_int(progress.get("damage_dealt"), 0)
+
+        achievements.append({
+            **asdict(definition),
+            "current": min(current, definition.target),
+            "unlocked": row is not None,
+            "unlocked_at": row.unlocked_at if row is not None else None,
+        })
+
+    return achievements
+
+def unlock_achievements_for_user(user_id):
+    existing_ids = {
+        row.achievement_id
+        for row in UserAchievement.query.filter_by(user_id=user_id).all()
+    }
+    stats = get_user_stats(user_id)
+    progress = get_achievement_progress(user_id, stats=stats)
+    unlocked = []
+
+    for definition in get_achievement_definitions():
+        if definition.id in existing_ids:
+            continue
+
+        if achievement_is_unlocked(definition, progress):
+            row = UserAchievement(
+                user_id=user_id,
+                achievement_id=definition.id,
+                unlocked_at=datetime.utcnow()
+            )
+            db.session.add(row)
+            unlocked.append(definition.name)
+
+    return unlocked
 
 def get_display_name(user):
     if user is None:
@@ -420,9 +625,9 @@ def calculate_leaderboard_score(stats):
         + (coerce_int(stats.get("damage_taken"), 0) // 2)
     )
 
-def get_leaderboard_entries(current_user_id=None, limit=None):
+def get_leaderboard_entries(current_user_id=None, limit=None, user_ids=None):
     try:
-        rows = (
+        query = (
             db.session.query(
                 User.id.label("user_id"),
                 User.username.label("username"),
@@ -438,6 +643,14 @@ def get_leaderboard_entries(current_user_id=None, limit=None):
             )
             .join(SaveData, SaveData.user_id == User.id)
             .filter(SaveData.has_started_game.is_(True))
+            .filter(User.hide_from_leaderboard.is_(False))
+        )
+
+        if user_ids is not None:
+            query = query.filter(User.id.in_(user_ids))
+
+        rows = (
+            query
             .group_by(User.id, User.username, User.display_name)
             .all()
         )
@@ -496,6 +709,88 @@ def get_leaderboard_entry_for_user(user_id, current_user_id=None):
             return entry
 
     return None
+
+def get_friends_leaderboard(current_user_id):
+    friend_ids = [
+        friendship.friend_id
+        for friendship in Friend.query.filter_by(
+            user_id=current_user_id,
+            status="accepted"
+        ).all()
+    ]
+    visible_user_ids = [current_user_id, *friend_ids]
+    return get_leaderboard_entries(
+        current_user_id=current_user_id,
+        user_ids=visible_user_ids
+    )
+
+def get_friend_rank(current_user_id):
+    for entry in get_friends_leaderboard(current_user_id):
+        if entry["user_id"] == current_user_id:
+            return entry
+
+    return None
+
+def can_view_friend_stats(viewer_id, profile_user):
+    if profile_user is None:
+        return False
+
+    if viewer_id == profile_user.id:
+        return True
+
+    if not profile_user.show_stats_to_friends:
+        return False
+
+    return get_accepted_friendship(viewer_id, profile_user.id) is not None
+
+def can_message_friend(sender_id, receiver_user):
+    if receiver_user is None:
+        return False
+
+    if not receiver_user.allow_friend_messages:
+        return False
+
+    return get_accepted_friendship(sender_id, receiver_user.id) is not None
+
+def format_message_timestamp(timestamp):
+    if timestamp is None:
+        return ""
+
+    return timestamp.strftime("%d %b %H:%M")
+
+def get_unread_message_count(user_id, friend_id=None):
+    query = Message.query.filter(
+        Message.receiver_id == user_id,
+        Message.read_at.is_(None)
+    )
+
+    if friend_id is not None:
+        query = query.filter(Message.sender_id == friend_id)
+
+    return query.count()
+
+def get_recent_conversations(user_id):
+    conversations = []
+
+    for friend in get_friends(user_id):
+        latest_message = Message.query.filter(
+            ((Message.sender_id == user_id) & (Message.receiver_id == friend.id)) |
+            ((Message.sender_id == friend.id) & (Message.receiver_id == user_id))
+        ).order_by(Message.timestamp.desc()).first()
+
+        conversations.append({
+            "friend": friend,
+            "display_name": get_display_name(friend),
+            "latest_message": latest_message.message if latest_message else "No messages yet",
+            "timestamp": format_message_timestamp(latest_message.timestamp) if latest_message else "",
+            "unread_count": get_unread_message_count(user_id, friend.id),
+        })
+
+    return sorted(
+        conversations,
+        key=lambda item: item["timestamp"] or "",
+        reverse=True
+    )
 
 def get_accepted_friendship(user_id, friend_id):
     return Friend.query.filter_by(
@@ -906,4 +1201,3 @@ import routes
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
-

@@ -11,6 +11,10 @@ class User(db.Model):
     display_name = db.Column(db.String(80), nullable=True)
     profile_image = db.Column(db.String(255), nullable=False, default="images/Shadows.gif")
     bio = db.Column(db.Text, nullable=True)
+    favorite_character = db.Column(db.String(20), nullable=False, default="")
+    show_stats_to_friends = db.Column(db.Boolean, nullable=False, default=True)
+    allow_friend_messages = db.Column(db.Boolean, nullable=False, default=True)
+    hide_from_leaderboard = db.Column(db.Boolean, nullable=False, default=False)
     password_hash = db.Column(db.String(255), nullable=False)
     save_data = db.relationship("SaveData", backref="user", lazy=True)
 
@@ -75,3 +79,14 @@ class Message(db.Model):
     receiver_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     message = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    read_at = db.Column(db.DateTime, nullable=True)
+
+class UserAchievement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    achievement_id = db.Column(db.String(80), nullable=False)
+    unlocked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "achievement_id", name="uq_user_achievement"),
+    )
