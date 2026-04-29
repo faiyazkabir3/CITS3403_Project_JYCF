@@ -34,8 +34,11 @@
             <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
             {% if friends %}
               {% for friend in friends %}
+                {% set presence = get_friend_presence(friend) %}
                 <a href="{{ url_for('view_profile', user_id=friend.id) }}">
+                  <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
                   {{ friend.display_name or friend.username }}
+                  <span class="presence-label">{{ presence.label }}</span>
                 </a>
               {% endfor %}
             {% else %}
@@ -48,13 +51,13 @@
       {% if is_guest %}
         <div class="operator-bar">
           <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
-          <span class="operator-name">Operator: {{ username }}</span>
+          <span class="operator-name">{{ username }}</span>
           <span class="mode-chip">GUEST MODE</span>
         </div>
       {% else %}
         <a href="{{ url_for('profile') }}" class="operator-bar operator-link" aria-label="Customize profile">
           <img src="{{ url_for('static', filename=profile_image) }}" class="logo" alt="Profile picture">
-          <span class="operator-name">Operator: {{ username }}</span>
+          <span class="operator-name">{{ username }}</span>
         </a>
       {% endif %}
 

@@ -29,7 +29,7 @@
         {% endif %}
       {% endwith %}
 
-      <section class="public-profile-hero">
+      <section class="public-profile-hero profile-bg-{{ profile_background }}">
         <div class="public-profile-avatar">
           <img src="{{ url_for('static', filename=profile_image) }}" alt="{{ display_name }}">
         </div>
@@ -86,12 +86,86 @@
       </section>
 
       <section class="profile-section">
+        <h2>Profile Badges</h2>
+        <div class="profile-badge-grid">
+          {% for badge in profile_badges %}
+            <div class="profile-badge profile-badge-{{ badge.kind }}">
+              <span>{{ badge.symbol }}</span>
+              <div>
+                <strong>{{ badge.label }}</strong>
+                <p>{{ badge.description }}</p>
+              </div>
+            </div>
+          {% else %}
+            <p class="profile-meta">No profile badges unlocked yet.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="profile-section">
+        <h2>Reactions</h2>
+        <div class="profile-reaction-row">
+          {% for reaction in reaction_options %}
+            <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}">
+              <input type="hidden" name="action" value="profile_reaction">
+              <input type="hidden" name="reaction_type" value="{{ reaction.value }}">
+              <button
+                type="submit"
+                class="profile-reaction-btn{% if reaction.is_current_user %} is-selected{% endif %}"
+                aria-label="{{ reaction.label }}"
+              >
+                <span>{{ reaction.symbol }}</span>
+                <strong>{{ reaction.count }}</strong>
+              </button>
+            </form>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="profile-section">
+        <h2>Comments</h2>
+        <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}" class="profile-comment-form">
+          <input type="hidden" name="action" value="profile_comment">
+          <textarea
+            name="comment"
+            maxlength="{{ profile_comment_max_length }}"
+            rows="3"
+            placeholder="Leave a short profile comment."
+          ></textarea>
+          <button type="submit" class="public-profile-action-btn">POST COMMENT</button>
+        </form>
+
+        <div class="profile-comment-list">
+          {% for comment in profile_comments %}
+            <article class="profile-comment">
+              <div>
+                <strong>{{ comment.author.display_name or comment.author.username }}</strong>
+                <time datetime="{{ comment.created_at.isoformat() }}">{{ comment.created_at.strftime("%d %b %H:%M") }}</time>
+              </div>
+              <p>{{ comment.comment }}</p>
+            </article>
+          {% else %}
+            <p class="profile-meta">No comments yet.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="profile-section">
         <h2>Actions</h2>
 
         {% if is_self %}
           <a href="{{ url_for('profile') }}" class="profile-cancel-btn public-profile-action-link">EDIT PROFILE</a>
         {% elif friend_action.state == "friends" %}
-          <a href="{{ url_for('friend_stats', friend_id=profile_user.id) }}" class="profile-cancel-btn public-profile-action-link">VIEW STATS</a>
+          <div class="public-profile-action-grid">
+            <a href="{{ url_for('friend_stats', friend_id=profile_user.id) }}" class="profile-cancel-btn public-profile-action-link">VIEW STATS</a>
+            <form
+              method="POST"
+              action="{{ url_for('unfriend', friend_id=profile_user.id) }}"
+              onsubmit="return confirm('Remove {{ display_name|e }} from your friends?');"
+            >
+              <button type="submit" class="public-profile-action-btn danger-btn">UNFRIEND</button>
+            </form>
+          </div>
         {% elif friend_action.disabled %}
           <button type="button" class="public-profile-action-btn" disabled>
             {{ friend_action.label }}

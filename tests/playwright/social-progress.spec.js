@@ -191,3 +191,79 @@ test("friend profile action opens friend stats", async ({ browser, page }) => {
     await secondContext.close();
   }
 });
+
+test("unfriend removes access to chat and stats", async ({ browser, page }) => {
+  const secondContext = await browser.newContext();
+  const secondPage = await secondContext.newPage();
+  const firstUser = uniqueCredentials("unfriendone");
+  const secondUser = uniqueCredentials("unfriendtwo");
+
+  try {
+    await registerAndLogin(page, firstUser);
+    await registerAndLogin(secondPage, secondUser);
+
+    const secondUserId = await secondPage.locator("body").getAttribute("data-user-id");
+
+    await sendFriendRequest(page, secondUser.username);
+    await acceptFriendRequest(secondPage, firstUser.username);
+
+    await page.goto("/friends");
+    const friendItem = page.locator("li", { hasText: secondUser.username }).first();
+    await expect(friendItem).toBeVisible();
+    page.once("dialog", async (dialog) => {
+      expect(dialog.message()).toContain("Remove");
+      await dialog.accept();
+    });
+    await friendItem.getByRole("button", { name: "Unfriend" }).click();
+    await expect(page).toHaveURL(/\/friends$/);
+    await expect(page.locator("[data-flash-message]")).toContainText("Removed");
+    await expect(page.locator("li", { hasText: secondUser.username })).toHaveCount(0);
+
+    await page.goto(`/chat/${secondUserId}`);
+    await expect(page).toHaveURL(/\/friends$/);
+    await expect(page.locator("[data-flash-message]")).toContainText("You can only chat with users in your friends list.");
+
+    await page.goto(`/friend-stats/${secondUserId}`);
+    await expect(page).toHaveURL(/\/friends$/);
+    await expect(page.locator("[data-flash-message]")).toContainText("You can only view stats for users in your friends list.");
+  } finally {
+    await secondContext.close();
+  }
+});
+
+test("profiles support reactions comments and custom backgrounds", async ({ browser, page }) => {
+  const secondContext = await browser.newContext();
+  const secondPage = await secondContext.newPage();
+  const firstUser = uniqueCredentials("reactone");
+  const secondUser = uniqueCredentials("reacttwo");
+  const profileComment = `Great run ${Date.now()}`;
+
+  try {
+    await registerAndLogin(page, firstUser);
+    await registerAndLogin(secondPage, secondUser);
+    await saveProgress(secondPage, { kills: 1, damage_dealt: 120 });
+
+    await secondPage.goto("/profile");
+    await secondPage.locator("#profile-background").selectOption("neon");
+    await secondPage.getByRole("button", { name: "SAVE PROFILE" }).click();
+    await expect(secondPage.locator(".profile-success")).toContainText("Profile updated.");
+
+    await sendFriendRequest(page, secondUser.username);
+    await acceptFriendRequest(secondPage, firstUser.username);
+
+    await page.goto("/friends");
+    await page.locator("li", { hasText: secondUser.username }).first().getByRole("link", { name: secondUser.username }).click();
+    await expect(page.locator(".public-profile-hero")).toHaveClass(/profile-bg-neon/);
+    await expect(page.locator(".profile-badge-grid")).toContainText("First Blood");
+    await expect(page.locator(".profile-badge-grid")).toContainText("Custom Signal");
+
+    await page.getByRole("button", { name: "Heart" }).click();
+    await expect(page.locator(".profile-reaction-btn.is-selected", { hasText: "♥" })).toContainText("1");
+
+    await page.locator('textarea[name="comment"]').fill(profileComment);
+    await page.getByRole("button", { name: "POST COMMENT" }).click();
+    await expect(page.locator(".profile-comment")).toContainText(profileComment);
+  } finally {
+    await secondContext.close();
+  }
+});

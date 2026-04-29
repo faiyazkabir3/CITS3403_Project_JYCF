@@ -15,7 +15,7 @@
     <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
     <div class="top-bar">
-      <h1>Customize Profile</h1>
+      <h1>Profile Customisation</h1>
     </div>
 
     <div class="menu-content">
@@ -28,50 +28,77 @@
           <p class="profile-message profile-success">{{ success }}</p>
         {% endif %}
 
-        <section class="profile-section">
-          <h2>Operator</h2>
+        <div class="profile-editor-layout">
+          <aside class="profile-preview-card">
+            <span class="profile-preview-label">Current Profile</span>
+            <div class="profile-preview-avatar">
+              <img src="{{ url_for('static', filename=profile_image) }}" alt="{{ display_name or login_username }}">
+            </div>
+            <h2>{{ display_name or login_username }}</h2>
+            <p>@{{ login_username }}</p>
+            <span class="profile-preview-chip">
+              {% for option in favorite_characters %}
+                {% if option.value == favorite_character %}{{ option.label }}{% endif %}
+              {% endfor %}
+            </span>
+          </aside>
 
-          <label for="display-name">Display Name</label>
-          <input
-            type="text"
-            id="display-name"
-            name="display_name"
-            maxlength="80"
-            value="{{ display_name }}"
-            placeholder="{{ login_username }}"
-            autocomplete="nickname"
-          >
+          <div class="profile-editor-fields">
+            <section class="profile-section">
+              <h2>Identity</h2>
 
-          <p class="profile-meta">Login username: {{ login_username }}</p>
-        </section>
+              <label for="display-name">Display Name</label>
+              <input
+                type="text"
+                id="display-name"
+                name="display_name"
+                maxlength="80"
+                value="{{ display_name }}"
+                placeholder="{{ login_username }}"
+                autocomplete="nickname"
+              >
 
-        <section class="profile-section">
-          <h2>Showcase</h2>
+              <p class="profile-meta">Login username: {{ login_username }}</p>
+            </section>
 
-          <label for="favorite-character">Favorite Character</label>
-          <select id="favorite-character" name="favorite_character">
-            {% for option in favorite_characters %}
-              <option value="{{ option.value }}" {% if option.value == favorite_character %}selected{% endif %}>
-                {{ option.label }}
-              </option>
-            {% endfor %}
-          </select>
-        </section>
+            <section class="profile-section">
+              <h2>Showcase</h2>
 
-        <section class="profile-section">
-          <h2>Bio</h2>
+              <label for="favorite-character">Favorite Character</label>
+              <select id="favorite-character" name="favorite_character">
+                {% for option in favorite_characters %}
+                  <option value="{{ option.value }}" {% if option.value == favorite_character %}selected{% endif %}>
+                    {{ option.label }}
+                  </option>
+                {% endfor %}
+              </select>
 
-          <label for="bio">About You</label>
-          <textarea
-            id="bio"
-            name="bio"
-            maxlength="{{ bio_max_length }}"
-            rows="5"
-            placeholder="Write a short profile bio."
-          >{{ bio }}</textarea>
+              <label for="profile-background">Profile Background</label>
+              <select id="profile-background" name="profile_background">
+                {% for option in profile_backgrounds %}
+                  <option value="{{ option.value }}" {% if option.value == profile_background %}selected{% endif %}>
+                    {{ option.label }}
+                  </option>
+                {% endfor %}
+              </select>
+            </section>
 
-          <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
-        </section>
+            <section class="profile-section">
+              <h2>Bio</h2>
+
+              <label for="bio">About You</label>
+              <textarea
+                id="bio"
+                name="bio"
+                maxlength="{{ bio_max_length }}"
+                rows="5"
+                placeholder="Write a short profile bio."
+              >{{ bio }}</textarea>
+
+              <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
+            </section>
+          </div>
+        </div>
 
         <section class="profile-section">
           <h2>Profile Picture</h2>

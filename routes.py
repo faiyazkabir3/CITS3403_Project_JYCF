@@ -309,6 +309,7 @@ def profile():
     bio_value = get_profile_bio(user)
     selected_profile_image = get_profile_image(user)
     custom_profile_image = get_custom_profile_image(user)
+    profile_background_value = get_profile_background(user)
     favorite_character_value = user.favorite_character or ""
     show_stats_to_friends_value = bool(user.show_stats_to_friends)
     allow_friend_messages_value = bool(user.allow_friend_messages)
@@ -320,6 +321,12 @@ def profile():
         favorite_character = normalize_save_token(
             request.form.get("favorite_character", ""),
             "",
+            max_length=20,
+            transform="lower"
+        )
+        profile_background = normalize_save_token(
+            request.form.get("profile_background", "default"),
+            "default",
             max_length=20,
             transform="lower"
         )
@@ -347,6 +354,7 @@ def profile():
         display_name_value = display_name
         bio_value = bio
         selected_profile_image = profile_image
+        profile_background_value = profile_background
         favorite_character_value = favorite_character
         show_stats_to_friends_value = show_stats_to_friends
         allow_friend_messages_value = allow_friend_messages
@@ -360,6 +368,8 @@ def profile():
             error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
         elif favorite_character not in FAVORITE_CHARACTER_LABELS:
             error = "Choose one of the available favorite characters."
+        elif profile_background not in PROFILE_BACKGROUND_LABELS:
+            error = "Choose one of the available profile backgrounds."
         elif has_uploaded_profile_image:
             error = validate_uploaded_profile_image(uploaded_profile_image)
         elif not is_selectable_profile_image_for_user(profile_image, user_id):
@@ -391,6 +401,7 @@ def profile():
             user.display_name = display_name or None
             user.bio = bio or None
             user.profile_image = profile_image
+            user.profile_background = profile_background
             user.favorite_character = favorite_character
             user.show_stats_to_friends = show_stats_to_friends
             user.allow_friend_messages = allow_friend_messages
@@ -412,6 +423,7 @@ def profile():
                 bio_value = get_profile_bio(user)
                 selected_profile_image = get_profile_image(user)
                 custom_profile_image = get_custom_profile_image(user)
+                profile_background_value = get_profile_background(user)
                 favorite_character_value = user.favorite_character or ""
                 show_stats_to_friends_value = bool(user.show_stats_to_friends)
                 allow_friend_messages_value = bool(user.allow_friend_messages)
@@ -435,6 +447,8 @@ def profile():
         bio=bio_value,
         bio_max_length=BIO_MAX_LENGTH,
         profile_image=selected_profile_image,
+        profile_background=profile_background_value,
+        profile_backgrounds=PROFILE_BACKGROUND_OPTIONS,
         custom_profile_image=custom_profile_image,
         profile_images=PROFILE_IMAGE_OPTIONS,
         favorite_characters=FAVORITE_CHARACTER_OPTIONS,
@@ -477,6 +491,41 @@ def view_profile(user_id):
                 else:
                     accept_pending_friend_request(incoming_request)
                     flash("Friend request accepted.")
+            elif action == "profile_reaction":
+                reaction_type = request.form.get("reaction_type", "")
+
+                if reaction_type not in PROFILE_REACTION_VALUES:
+                    flash("Reaction not recognised.")
+                else:
+                    reaction = ProfileReaction.query.filter_by(
+                        profile_user_id=user_id,
+                        reactor_user_id=current_user_id
+                    ).first()
+
+                    if reaction is None:
+                        db.session.add(ProfileReaction(
+                            profile_user_id=user_id,
+                            reactor_user_id=current_user_id,
+                            reaction_type=reaction_type
+                        ))
+                    else:
+                        reaction.reaction_type = reaction_type
+                        reaction.updated_at = datetime.utcnow()
+
+                    flash("Profile reaction saved.")
+            elif action == "profile_comment":
+                comment = normalize_profile_comment(request.form.get("comment", ""))
+                comment_error = validate_profile_comment(comment)
+
+                if comment_error is not None:
+                    flash(comment_error)
+                else:
+                    db.session.add(ProfileComment(
+                        profile_user_id=user_id,
+                        author_user_id=current_user_id,
+                        comment=comment
+                    ))
+                    flash("Comment posted.")
             else:
                 flash("Profile action not recognised.")
 
@@ -507,13 +556,18 @@ def view_profile(user_id):
         profile_user=profile_user,
         display_name=get_display_name(profile_user),
         profile_image=get_profile_image(profile_user),
+        profile_background=get_profile_background(profile_user),
         bio=get_profile_bio(profile_user),
         leaderboard_entry=leaderboard_entry,
         favorite_character=FAVORITE_CHARACTER_LABELS.get(profile_user.favorite_character or "", "No Favorite"),
         unlocked_achievement_count=unlocked_count,
         total_achievement_count=len(achievements),
+        profile_badges=get_profile_badges(profile_user, achievements, leaderboard_entry),
         latest_run=latest_run,
         can_view_stats=can_view_stats,
+        reaction_options=get_profile_reaction_counts(user_id, current_user_id),
+        profile_comments=get_profile_comments(user_id),
+        profile_comment_max_length=PROFILE_COMMENT_MAX_LENGTH,
         friend_action=get_friend_action(current_user_id, user_id),
         is_self=current_user_id == user_id
     )
@@ -797,6 +851,48 @@ def reject_friend(request_id):
     if friend_request and friend_request.to_user_id == current_user:
         db.session.delete(friend_request)
         db.session.commit()
+
+    return redirect(url_for("show_friends"))
+
+@app.route("/unfriend/<int:friend_id>", methods=["POST"])
+def unfriend(friend_id):
+    current_user_id = session.get("user_id")
+
+    if current_user_id is None or session.get("is_guest"):
+        return redirect(url_for("show_login"))
+
+    friend = User.query.get(friend_id)
+    if friend is None:
+        flash("Friend not found.")
+        return redirect(url_for("show_friends"))
+
+    friendships = Friend.query.filter(
+        Friend.status == "accepted",
+        (
+            ((Friend.user_id == current_user_id) & (Friend.friend_id == friend_id)) |
+            ((Friend.user_id == friend_id) & (Friend.friend_id == current_user_id))
+        )
+    ).all()
+
+    if not friendships:
+        flash("That user is not in your friends list.")
+        return redirect(url_for("show_friends"))
+
+    try:
+        for friendship in friendships:
+            db.session.delete(friendship)
+
+        db.session.commit()
+        flash(f"Removed {get_display_name(friend)} from your friends.")
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Unfriend failed for user %s and friend %s. %s",
+            current_user_id,
+            friend_id,
+            getattr(error, "orig", error)
+        )
+        flash("Could not remove friend.")
 
     return redirect(url_for("show_friends"))
 

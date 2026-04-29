@@ -3,7 +3,7 @@ import random
 import json
 import re
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
@@ -21,7 +21,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from models import db, User, SaveData, Friend, Message, FriendRequest, UserAchievement
+from models import (
+    db, User, SaveData, Friend, Message, FriendRequest, UserAchievement,
+    ProfileReaction, ProfileComment
+)
 
 load_dotenv()
 
@@ -34,10 +37,12 @@ PROFILE_IMAGE_UPLOAD_DIR = Path(app.static_folder) / "uploads" / "profile_pics"
 PROFILE_IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 BIO_MAX_LENGTH = 500
+PROFILE_COMMENT_MAX_LENGTH = 240
 PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
 PROFILE_IMAGE_UPLOAD_PREFIX = "uploads/profile_pics/"
 PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
 PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+ONLINE_WINDOW = timedelta(minutes=2)
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
     {"label": "Leon", "filename": "images/players/leon_idle.png"},
@@ -58,6 +63,26 @@ FAVORITE_CHARACTER_OPTIONS = [
 FAVORITE_CHARACTER_LABELS = {
     option["value"]: option["label"]
     for option in FAVORITE_CHARACTER_OPTIONS
+}
+PROFILE_BACKGROUND_OPTIONS = [
+    {"label": "Default", "value": "default"},
+    {"label": "Neon Grid", "value": "neon"},
+    {"label": "Gold Signal", "value": "gold"},
+    {"label": "Red Alert", "value": "red"},
+]
+PROFILE_BACKGROUND_LABELS = {
+    option["value"]: option["label"]
+    for option in PROFILE_BACKGROUND_OPTIONS
+}
+PROFILE_REACTION_OPTIONS = [
+    {"label": "Heart", "value": "heart", "symbol": "♥"},
+    {"label": "Hype", "value": "hype", "symbol": "!"},
+    {"label": "Sad", "value": "sad", "symbol": ":("},
+    {"label": "Angry", "value": "angry", "symbol": ">:"},
+]
+PROFILE_REACTION_VALUES = {
+    option["value"]
+    for option in PROFILE_REACTION_OPTIONS
 }
 PROFILE_IMAGE_FILENAMES = {
     option["filename"]
@@ -188,11 +213,13 @@ def ensure_user_schema():
             'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
+        "profile_background": 'ALTER TABLE "user" ADD COLUMN profile_background VARCHAR(20) NOT NULL DEFAULT "default"',
         "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
         "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
         "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
         "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
         "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+        "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
     }
 
     for column_name, statement in required_columns.items():
@@ -259,11 +286,52 @@ with app.app_context():
             getattr(error, "orig", error)
         )
 
+@app.before_request
+def refresh_current_user_presence():
+    user_id = session.get("user_id")
+
+    if user_id is None or session.get("is_guest"):
+        return
+
+    try:
+        User.query.filter_by(id=user_id).update({"last_seen": datetime.utcnow()})
+        db.session.commit()
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Presence update failed for user %s. %s",
+            user_id,
+            getattr(error, "orig", error)
+        )
+
 def get_friends(user_id):
     friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
     friend_ids = [f.friend_id for f in friendships]
     friends = User.query.filter(User.id.in_(friend_ids)).all()
     return sorted(friends, key=lambda user: get_display_name(user).lower())
+
+
+def is_user_online(user):
+    if user is None or user.last_seen is None:
+        return False
+
+    return datetime.utcnow() - user.last_seen <= ONLINE_WINDOW
+
+
+def get_friend_presence(user):
+    online = is_user_online(user)
+    return {
+        "is_online": online,
+        "label": "Online" if online else "Offline",
+        "class_name": "online" if online else "offline",
+    }
+
+
+@app.context_processor
+def inject_presence_helpers():
+    return {
+        "get_friend_presence": get_friend_presence,
+    }
 
 
 def get_accepted_friend(current_user_id, friend_id):
@@ -486,6 +554,57 @@ def unlock_achievements_for_user(user_id):
 
     return unlocked
 
+def get_profile_badges(user, achievements=None, leaderboard_entry=None):
+    if user is None:
+        return []
+
+    badges = []
+    achievements = achievements or get_user_achievements(user.id)
+
+    for achievement in achievements:
+        if achievement.get("unlocked"):
+            badges.append({
+                "label": achievement["name"],
+                "symbol": achievement["icon"],
+                "description": achievement["description"],
+                "kind": "achievement",
+            })
+
+    if leaderboard_entry is not None:
+        badges.append({
+            "label": "Ranked",
+            "symbol": f"#{leaderboard_entry['rank']}",
+            "description": "Appears on the global leaderboard.",
+            "kind": "exclusive",
+        })
+
+    friend_count = Friend.query.filter_by(user_id=user.id, status="accepted").count()
+    if friend_count > 0:
+        badges.append({
+            "label": "Social Link",
+            "symbol": "SL",
+            "description": "Has connected with other players.",
+            "kind": "exclusive",
+        })
+
+    if get_profile_background(user) != "default" or get_custom_profile_image(user) is not None:
+        badges.append({
+            "label": "Custom Signal",
+            "symbol": "CS",
+            "description": "Uses profile customisation.",
+            "kind": "exclusive",
+        })
+
+    if user.hide_from_leaderboard:
+        badges.append({
+            "label": "Ghost Mode",
+            "symbol": "GM",
+            "description": "Keeps their leaderboard position private.",
+            "kind": "exclusive",
+        })
+
+    return badges[:8]
+
 def get_display_name(user):
     if user is None:
         return ""
@@ -609,6 +728,70 @@ def get_profile_bio(user):
         return ""
 
     return (user.bio or "").strip()
+
+def get_profile_background(user):
+    background = str(getattr(user, "profile_background", "default") or "default").strip().lower()
+
+    if background in PROFILE_BACKGROUND_LABELS:
+        return background
+
+    return "default"
+
+def normalize_profile_comment(comment):
+    return str(comment or "").strip()
+
+def validate_profile_comment(comment):
+    if comment == "":
+        return "Comment cannot be empty."
+
+    if len(comment) > PROFILE_COMMENT_MAX_LENGTH:
+        return f"Comment must be {PROFILE_COMMENT_MAX_LENGTH} characters or fewer."
+
+    return None
+
+def get_profile_reaction_counts(profile_user_id, current_user_id=None):
+    counts = {
+        option["value"]: {
+            **option,
+            "count": 0,
+            "is_current_user": False,
+        }
+        for option in PROFILE_REACTION_OPTIONS
+    }
+
+    rows = (
+        db.session.query(
+            ProfileReaction.reaction_type,
+            func.count(ProfileReaction.id)
+        )
+        .filter(ProfileReaction.profile_user_id == profile_user_id)
+        .group_by(ProfileReaction.reaction_type)
+        .all()
+    )
+
+    for reaction_type, count in rows:
+        if reaction_type in counts:
+            counts[reaction_type]["count"] = count
+
+    if current_user_id is not None:
+        current_reaction = ProfileReaction.query.filter_by(
+            profile_user_id=profile_user_id,
+            reactor_user_id=current_user_id
+        ).first()
+
+        if current_reaction is not None and current_reaction.reaction_type in counts:
+            counts[current_reaction.reaction_type]["is_current_user"] = True
+
+    return list(counts.values())
+
+def get_profile_comments(profile_user_id, limit=10):
+    return (
+        ProfileComment.query
+        .filter_by(profile_user_id=profile_user_id)
+        .order_by(ProfileComment.created_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 def calculate_leaderboard_score(stats):
     if isinstance(stats, LeaderboardStats):
