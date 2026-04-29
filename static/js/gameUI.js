@@ -658,6 +658,16 @@ function ensureBattleAssetBinding(imageEl, fallbackEl) {
   });
 
   imageEl.addEventListener("error", () => {
+    const requestedSrc = imageEl.dataset.requestedSrc || "";
+
+    if (requestedSrc && imageEl.dataset.retrySrc !== requestedSrc) {
+      imageEl.dataset.retrySrc = requestedSrc;
+      const separator = requestedSrc.includes("?") ? "&" : "?";
+      imageEl.src = `${requestedSrc}${separator}retry=${Date.now()}`;
+      return;
+    }
+
+    delete imageEl.dataset.currentSrc;
     imageEl.hidden = true;
     if (fallbackEl) {
       fallbackEl.hidden = false;
@@ -674,13 +684,18 @@ function setBattleAsset(imageEl, fallbackEl, src, alt, fallbackText) {
 
   if (!src) {
     imageEl.removeAttribute("src");
+    delete imageEl.dataset.requestedSrc;
+    delete imageEl.dataset.currentSrc;
+    delete imageEl.dataset.retrySrc;
     imageEl.hidden = true;
     fallbackEl.hidden = false;
     return;
   }
 
-  if (imageEl.dataset.currentSrc !== src) {
+  if (imageEl.dataset.requestedSrc !== src) {
+    imageEl.dataset.requestedSrc = src;
     imageEl.dataset.currentSrc = src;
+    delete imageEl.dataset.retrySrc;
     imageEl.hidden = true;
     fallbackEl.hidden = false;
     imageEl.src = src;

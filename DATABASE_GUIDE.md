@@ -1,5 +1,165 @@
 # Database Guide
 
+## Database files are local only
+
+The database file is now ignored by Git. Developers should **not commit `project.db`**, even though the current database is encrypted with SQLCipher.
+
+The ignored database paths/patterns are:
+
+```text
+instance/
+project.db
+*.db
+*.sqlite
+*.sqlite3
+```
+
+This means each developer creates their own local encrypted database after pulling the project. The repo should contain the application code, models, documentation, and migrations, not a live database file.
+
+Why we do not commit the DB:
+
+- an encrypted DB is useless to teammates without the matching `SQLCIPHER_DATABASE_KEY`
+- sharing the key would defeat the point of encryption
+- DB files may contain users, password hashes, saves, friend data, and encrypted chat rows
+- binary database files change often and create noisy Git conflicts
+- course/security best practice is to commit schema and setup steps, not live data
+
+If `project.db` was already tracked by Git before it was added to `.gitignore`, `.gitignore` alone is not enough. Untrack it while keeping your local copy:
+
+```bash
+git rm --cached project.db
+```
+
+Do not run `rm project.db` unless you intentionally want to delete your own local database.
+
+---
+
+## Fresh pull setup
+
+Use this flow after cloning or pulling the project on a new machine.
+
+1. Pull the latest code:
+
+```bash
+git pull
+```
+
+2. Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+On Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Generate local secret values:
+
+```bash
+python -c "import base64, secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32)); print('SQLCIPHER_DATABASE_KEY=' + secrets.token_urlsafe(32)); print('SAVE_PAYLOAD_KEYS=v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+5. Create a `.env` file in the project root:
+
+```text
+SECRET_KEY=generated_flask_session_key
+SQLCIPHER_DATABASE_KEY=generated_sqlcipher_database_key
+SAVE_PAYLOAD_KEYS=v1:generated_save_payload_key
+DATABASE_URL=sqlite:///project.db
+```
+
+Use the values generated in step 4. Do not commit `.env`.
+
+`SECRET_KEY` signs Flask sessions and CSRF tokens. `SQLCIPHER_DATABASE_KEY` opens your local encrypted database. `SAVE_PAYLOAD_KEYS` encrypts fallback save files. These should be separate values.
+
+---
+
+## Run the app and create the DB
+
+After `.env` is ready, start the app:
+
+```bash
+python app.py
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5000
+```
+
+For local development, the app creates the encrypted database when it starts and the schema is initialized. The default DB path is:
+
+```text
+project.db
+```
+
+That file is local to your machine and ignored by Git.
+
+If you already have an old plaintext `project.db`, SQLCipher may fail to open it. Rename the old file and let the app create a fresh encrypted one:
+
+```bash
+mv project.db project.plaintext.backup.db
+python app.py
+```
+
+If your DB is inside `instance/`, use that path instead.
+
+Important: if you lose or change `SQLCIPHER_DATABASE_KEY`, your old encrypted local DB cannot be opened. Use a new DB or restore the original key.
+
+---
+
+## Migration setup
+
+This project uses Flask-Migrate/Alembic for schema migrations.
+
+Set the Flask app target first:
+
+```bash
+export FLASK_APP=app.py
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:FLASK_APP = "app.py"
+```
+
+If the repo does **not** have a `migrations/` folder yet, initialize migrations once:
+
+```bash
+flask db init
+flask db migrate -m "initial migration"
+flask db upgrade
+```
+
+If the repo already has a `migrations/` folder, do not run `flask db init` again. Just apply existing migrations to your local encrypted DB:
+
+```bash
+flask db upgrade
+```
+
+Rules for migrations:
+
+- run commands from the project root
+- make sure `.env` exists before running `flask db ...`
+- review generated migration files before committing
+- do not blindly apply an initial table-creating migration to an existing populated database
+- for existing populated DBs, use a careful baseline/stamp workflow instead
+
+---
+
 ## What this database is for
 
 Our database supports the backend side of the zombie game.
@@ -23,17 +183,24 @@ The database side of the project uses:
 - **SQLite** as the actual database
 - **SQLCipher** to encrypt the SQLite database file at rest
 - **Flask-SQLAlchemy** to define and access the tables
+- **Flask-Migrate/Alembic** to manage schema migrations
 - **Flask** as the backend web framework
 
 For local development, the app uses an encrypted SQLite database file.
 
-By default, the app points to:
+By default, `.env` points the app to:
 
-`sqlite:///project.db`
+```text
+DATABASE_URL=sqlite:///project.db
+```
 
-At startup, `app.py` converts that SQLite URL into a SQLCipher-backed SQLAlchemy URL using `SQLCIPHER_DATABASE_KEY` from `.env`. Do not open or migrate the database without the SQLCipher key.
+At startup, `app.py` converts that SQLite URL into a SQLCipher-backed SQLAlchemy URL using `SQLCIPHER_DATABASE_KEY` from `.env`.
 
-In practice, the project also has an `instance/project.db` file during development.
+This keeps the app code using SQLAlchemy normally while the database file is encrypted at rest. Do not open, migrate, or copy the database without understanding that it depends on the local SQLCipher key.
+
+Some development setups may use `instance/project.db`, but this project currently documents `DATABASE_URL=sqlite:///project.db` as the simple local default.
+
+If `SQLCIPHER_DATABASE_KEY` is lost or changed, the old encrypted database cannot be opened.
 
 ---
 
@@ -76,6 +243,9 @@ Every real player who signs up gets one row in this table.
 - `id` — primary key
 - `username` — the login name, must be unique
 - `password_hash` — the hashed password
+- `chat_public_key` — public browser key for encrypted direct chat
+- `chat_key_id` — short ID derived from the public chat key
+- `chat_key_created_at` — when the public chat key was stored
 
 ### Key points
 
@@ -84,12 +254,13 @@ Every real player who signs up gets one row in this table.
 - passwords are **not** stored as plain text
 - `password_hash` stores the hashing method, random salt, and derived password hash together
 - Werkzeug creates the salt automatically, so there is no separate `salt` column
+- direct-chat private keys are **not** stored in the database; only public chat keys are stored
 
 ### Example
 
-| id | username | password_hash |
-|---|---|---|
-| 1 | leonplayer | pbkdf2:sha256:...$random_salt$... |
+| id | username | password_hash | chat_key_id |
+|---|---|---|---|
+| 1 | leonplayer | pbkdf2:sha256:...$random_salt$... | 8f3a... |
 
 ### What this table is used for
 
@@ -258,12 +429,21 @@ This means:
 
 This table stores direct messages between users.
 
+Direct chat is now designed for end-to-end encrypted payloads. Flask stores and forwards encrypted message data, but the browser performs encryption and decryption.
+
 ### Main columns
 
 - `id` — primary key
 - `sender_id` — foreign key to `user.id`
 - `receiver_id` — foreign key to `user.id`
-- `message`
+- `message` — old/plaintext compatibility column, now nullable
+- `ciphertext` — encrypted message body
+- `nonce` — AES-GCM nonce used by the browser
+- `sender_key_id` — sender public key ID
+- `sender_public_key` — sender public key used for this message
+- `recipient_key_id` — recipient public key ID
+- `recipient_public_key` — recipient public key used for this message
+- `encryption_version` — encrypted message format version
 - `timestamp`
 
 ### Key points
@@ -271,17 +451,19 @@ This table stores direct messages between users.
 - `id` is the **primary key**
 - `sender_id` and `receiver_id` are **foreign keys**
 - both point back to the `user` table
+- new direct messages should store ciphertext and key metadata, not plaintext chat text
+- if a browser does not have the matching private key, old encrypted messages may show as locked
 
 ### Example
 
-| id | sender_id | receiver_id | message | timestamp |
-|---|---|---|---|---|
-| 1 | 2 | 1 | Ready for level 3? | 2026-04-17 13:20:45 |
+| id | sender_id | receiver_id | ciphertext | nonce | encryption_version |
+|---|---|---|---|---|---|
+| 1 | 2 | 1 | encrypted_base64url_payload | random_nonce | 1 |
 
 ### What this table is used for
 
-- simple chat between users
-- showing message history
+- storing encrypted direct-chat payloads
+- loading encrypted message history for browser-side decryption
 
 ---
 
@@ -335,7 +517,7 @@ A row is first created in `friend_request`.
 Rows are created in `friend`.
 
 ### 6. They chat
-Rows are created in `message`.
+Rows are created in `message`. New chat rows store encrypted payload fields instead of plaintext message text.
 
 This is basically the life cycle of the current database.
 
