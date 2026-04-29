@@ -14,13 +14,20 @@ export default defineConfig({
   },
   use: {
     baseURL: "http://127.0.0.1:5000",
-    browserName: "chromium",
-    channel: "msedge",
     headless: true,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
+  projects: [
+    {
+      name: "chrome",
+      use: {
+        browserName: "chromium",
+        channel: "chrome",
+      },
+    },
+  ],
   webServer: {
     command: "python -B scripts/run_playwright_server.py",
     url: "http://127.0.0.1:5000/login",
