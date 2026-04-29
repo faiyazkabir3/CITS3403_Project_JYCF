@@ -4,8 +4,10 @@ import json
 import base64
 import hashlib
 import sys
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -82,6 +84,65 @@ SECRET_KEY_PLACEHOLDERS = {
     "super-secret-key",
     "your-secret-key",
 }
+
+
+@dataclass
+class ChatMessagePayload:
+    id: int
+    sender_id: int
+    receiver_id: int
+    message: str
+    timestamp: Optional[str]
+
+
+@dataclass
+class PlayerStats:
+    kills: int = 0
+    damage_dealt: int = 0
+    damage_taken: int = 0
+    pistol_shots: int = 0
+    grenades: int = 0
+    medkits: int = 0
+    reloads: int = 0
+    knife_uses: int = 0
+
+
+@dataclass
+class LeaderboardStats:
+    kills: int = 0
+    damage_dealt: int = 0
+    damage_taken: int = 0
+    pistol_shots: int = 0
+    grenades_used: int = 0
+    medkits_used: int = 0
+    reloads: int = 0
+    knife_uses: int = 0
+
+
+@dataclass
+class LeaderboardEntry:
+    user_id: int
+    display_name: str
+    login_username: str
+    score: int
+    rank: int = 0
+    is_current_user: bool = False
+
+
+@dataclass
+class FriendAction:
+    state: str
+    label: str
+    disabled: bool
+    action: Optional[str] = None
+
+
+def friend_action_to_dict(friend_action):
+    return {
+        key: value
+        for key, value in asdict(friend_action).items()
+        if value is not None
+    }
 
 
 def load_required_secret_key():
@@ -432,28 +493,19 @@ def get_user_stats(user_id):
     def total(field):
         return sum((payload.get(field) or 0) for payload in payloads if payload)
 
-    return {
-        "kills": total("kills"),
-        "damage_dealt": total("damage_dealt"),
-        "damage_taken": total("damage_taken"),
-        "pistol_shots": total("pistol_shots"),
-        "grenades": total("grenades_used"),
-        "medkits": total("medkits_used"),
-        "reloads": total("reloads"),
-        "knife_uses": total("knife_uses"),
-    }
+    return asdict(PlayerStats(
+        kills=total("kills"),
+        damage_dealt=total("damage_dealt"),
+        damage_taken=total("damage_taken"),
+        pistol_shots=total("pistol_shots"),
+        grenades=total("grenades_used"),
+        medkits=total("medkits_used"),
+        reloads=total("reloads"),
+        knife_uses=total("knife_uses"),
+    ))
 
 def get_empty_stats():
-    return {
-        "kills": 0,
-        "damage_dealt": 0,
-        "damage_taken": 0,
-        "pistol_shots": 0,
-        "grenades": 0,
-        "medkits": 0,
-        "reloads": 0,
-        "knife_uses": 0,
-    }
+    return asdict(PlayerStats())
 
 def get_display_name(user):
     if user is None:
@@ -580,6 +632,9 @@ def get_profile_bio(user):
     return (user.bio or "").strip()
 
 def calculate_leaderboard_score(stats):
+    if isinstance(stats, LeaderboardStats):
+        stats = asdict(stats)
+
     return (
         coerce_int(stats.get("kills"), 0)
         + coerce_int(stats.get("pistol_shots"), 0)
@@ -624,36 +679,36 @@ def get_leaderboard_entries(current_user_id=None, limit=None):
 
     for row in rows:
         display_name = (row.display_name or "").strip() or row.username
-        stats = {
-            "kills": row.kills,
-            "damage_dealt": row.damage_dealt,
-            "damage_taken": row.damage_taken,
-            "pistol_shots": row.pistol_shots,
-            "grenades_used": row.grenades_used,
-            "medkits_used": row.medkits_used,
-            "reloads": row.reloads,
-            "knife_uses": row.knife_uses,
-        }
-        entries.append({
-            "user_id": row.user_id,
-            "display_name": display_name,
-            "login_username": row.username,
-            "score": calculate_leaderboard_score(stats),
-        })
+        stats = LeaderboardStats(
+            kills=row.kills,
+            damage_dealt=row.damage_dealt,
+            damage_taken=row.damage_taken,
+            pistol_shots=row.pistol_shots,
+            grenades_used=row.grenades_used,
+            medkits_used=row.medkits_used,
+            reloads=row.reloads,
+            knife_uses=row.knife_uses,
+        )
+        entries.append(LeaderboardEntry(
+            user_id=row.user_id,
+            display_name=display_name,
+            login_username=row.username,
+            score=calculate_leaderboard_score(stats),
+        ))
 
     ranked_entries = sorted(
         entries,
-        key=lambda entry: (-entry["score"], entry["display_name"].lower(), entry["login_username"])
+        key=lambda entry: (-entry.score, entry.display_name.lower(), entry.login_username)
     )
 
     for index, entry in enumerate(ranked_entries, start=1):
-        entry["rank"] = index
-        entry["is_current_user"] = entry["user_id"] == current_user_id
+        entry.rank = index
+        entry.is_current_user = entry.user_id == current_user_id
 
     if limit is not None:
         ranked_entries = ranked_entries[:limit]
 
-    return ranked_entries
+    return [asdict(entry) for entry in ranked_entries]
 
 def get_leaderboard(limit=5, current_user_id=None):
     return get_leaderboard_entries(
@@ -717,41 +772,41 @@ def create_friend_request(from_user_id, to_user_id):
 
 def get_friend_action(current_user_id, profile_user_id):
     if current_user_id == profile_user_id:
-        return {
-            "state": "self",
-            "label": "YOUR PROFILE",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="self",
+            label="YOUR PROFILE",
+            disabled=True,
+        ))
 
     if get_accepted_friendship(current_user_id, profile_user_id) is not None:
-        return {
-            "state": "friends",
-            "label": "FRIENDS",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="friends",
+            label="FRIENDS",
+            disabled=True,
+        ))
 
     if get_pending_friend_request(current_user_id, profile_user_id) is not None:
-        return {
-            "state": "outgoing_pending",
-            "label": "REQUEST SENT",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="outgoing_pending",
+            label="REQUEST SENT",
+            disabled=True,
+        ))
 
     incoming_request = get_pending_friend_request(profile_user_id, current_user_id)
     if incoming_request is not None:
-        return {
-            "state": "incoming_pending",
-            "label": "ACCEPT REQUEST",
-            "disabled": False,
-            "action": "accept_friend_request",
-        }
+        return friend_action_to_dict(FriendAction(
+            state="incoming_pending",
+            label="ACCEPT REQUEST",
+            disabled=False,
+            action="accept_friend_request",
+        ))
 
-    return {
-        "state": "add",
-        "label": "ADD FRIEND",
-        "disabled": False,
-        "action": "send_friend_request",
-    }
+    return friend_action_to_dict(FriendAction(
+        state="add",
+        label="ADD FRIEND",
+        disabled=False,
+        action="send_friend_request",
+    ))
 
 def make_guest_name():
     num = random.randint(10000, 99999)
@@ -1110,752 +1165,9 @@ def build_save_payload(save_data):
     }
 
 
-@app.route("/")
-@app.route("/login", methods=["GET", "POST"])
-def show_login():
-    if current_user.is_authenticated:
-        return redirect(url_for("main_menu"))
+sys.modules.setdefault("app", sys.modules[__name__])
 
-    if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-
-        if username == "":
-            return render_template("login.html", error="Please enter your username.")
-
-        if password == "":
-            return render_template("login.html", error="Please enter your password.")
-
-        user = User.query.filter_by(username=username).first()
-
-        if user is None:
-            return render_template("login.html", error="Invalid username or password.")
-
-        if not check_password_hash(user.password_hash, password):
-            return render_template("login.html", error="Invalid username or password.")
-
-        session.clear()
-        login_user(user)
-        session["user_id"] = user.id
-        session["username"] = user.username
-        session["display_name"] = get_display_name(user)
-        session["is_guest"] = False
-
-        return redirect(url_for("main_menu"))
-
-    return render_template("login.html", error=None)
-
-
-@app.route("/register", methods=["GET", "POST"])
-def show_register():
-    if current_user.is_authenticated:
-        return redirect(url_for("main_menu"))
-
-    if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm-password", "")
-
-        if username == "":
-            return render_template("register.html", error="Please enter a username.")
-
-        if password == "":
-            return render_template("register.html", error="Please enter a password.")
-
-        if password != confirm:
-            return render_template("register.html", error="Passwords do not match.")
-
-        user = User.query.filter_by(username=username).first()
-        if user is not None:
-            return render_template("register.html", error="Username already exists.")
-
-        new_user = User(
-            username=username,
-            password_hash=generate_password_hash(password, method='pbkdf2:sha256')
-        )
-
-        db.session.add(new_user)
-        db.session.commit()
-
-        return redirect(url_for("show_login"))
-
-    return render_template("register.html", error=None)
-
-
-@app.route("/guest-login", methods=["POST"])
-def guest_login():
-    name = make_guest_name()
-
-    logout_user()
-    session.clear()
-    session["username"] = name
-    session["is_guest"] = True
-
-    return redirect(url_for("main_menu"))
-
-
-@app.route("/logout", methods=["POST"])
-def logout():
-    logout_user()
-    session.clear()
-    return redirect(url_for("show_login"))
-
-
-@app.route("/main-menu")
-@app.route("/main_menu")
-def main_menu():
-    is_guest = bool(session.get("is_guest")) and not current_user.is_authenticated
-    username = get_display_name(current_user) if current_user.is_authenticated else session.get("username")
-    user_id = current_user.id if current_user.is_authenticated else session.get("user_id")
-    profile_image = PROFILE_IMAGE_DEFAULT
-
-    if not username:
-        return redirect(url_for("show_login"))
-
-    friends = []
-
-    if current_user.is_authenticated:
-        user = current_user
-        username = get_display_name(user)
-        profile_image = get_profile_image(user)
-        session["user_id"] = user.id
-        session["username"] = user.username
-        session["display_name"] = username
-        friends = get_friends(user_id)
-    elif not is_guest:
-        session.clear()
-        return redirect(url_for("show_login"))
-
-    return render_template(
-        "main_menu_view.html",
-        username=username,
-        friends=friends,
-        is_guest=is_guest,
-        user_id=user_id,
-        profile_image=profile_image,
-        leaderboard=get_leaderboard(current_user_id=user_id),
-        can_view_profiles=not is_guest
-    )
-
-
-@app.route("/profile", methods=["GET", "POST"])
-@login_required
-def profile():
-    user = current_user
-    user_id = user.id
-
-    error = None
-    success = None
-    display_name_value = user.display_name or ""
-    bio_value = get_profile_bio(user)
-    selected_profile_image = get_profile_image(user)
-    custom_profile_image = get_custom_profile_image(user)
-
-    if request.method == "POST":
-        display_name = request.form.get("display_name", "").strip()
-        bio = request.form.get("bio", "").strip()
-        profile_image = normalize_profile_image_path(
-            request.form.get("profile_image", selected_profile_image)
-        )
-        uploaded_profile_image = request.files.get("custom_profile_image")
-        has_uploaded_profile_image = bool(
-            uploaded_profile_image
-            and (uploaded_profile_image.filename or "").strip()
-        )
-        current_password = request.form.get("current_password", "")
-        new_password = request.form.get("new_password", "")
-        confirm_password = request.form.get("confirm_password", "")
-        wants_password_change = any([
-            current_password,
-            new_password,
-            confirm_password,
-        ])
-        new_uploaded_profile_image = None
-
-        display_name_value = display_name
-        bio_value = bio
-        selected_profile_image = profile_image
-
-        if (request.content_length or 0) > PROFILE_IMAGE_UPLOAD_MAX_BYTES:
-            error = "Profile image uploads must be 5MB or smaller."
-        elif len(display_name) > 80:
-            error = "Display name must be 80 characters or fewer."
-        elif len(bio) > BIO_MAX_LENGTH:
-            error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
-        elif has_uploaded_profile_image:
-            error = validate_uploaded_profile_image(uploaded_profile_image)
-        elif not is_selectable_profile_image_for_user(profile_image, user_id):
-            error = "Choose one of the available profile pictures or upload your own JPEG."
-        elif wants_password_change:
-            if not current_password or not new_password or not confirm_password:
-                error = "Fill in all password fields to change your password."
-            elif not check_password_hash(user.password_hash, current_password):
-                error = "Current password is incorrect."
-            elif new_password != confirm_password:
-                error = "New passwords do not match."
-
-        if error is None:
-            if has_uploaded_profile_image:
-                profile_image, upload_error = save_uploaded_profile_image(
-                    uploaded_profile_image,
-                    user_id
-                )
-
-                if upload_error is not None:
-                    error = upload_error
-                else:
-                    new_uploaded_profile_image = profile_image
-                    selected_profile_image = profile_image
-                    custom_profile_image = profile_image
-
-        if error is None:
-            previous_profile_image = normalize_profile_image_path(user.profile_image)
-            user.display_name = display_name or None
-            user.bio = bio or None
-            user.profile_image = profile_image
-
-            if wants_password_change:
-                user.password_hash = generate_password_hash(
-                    new_password,
-                    method="pbkdf2:sha256"
-                )
-
-            try:
-                db.session.commit()
-                session["display_name"] = get_display_name(user)
-                success = "Profile updated."
-                if previous_profile_image != user.profile_image:
-                    delete_uploaded_profile_image(previous_profile_image)
-                display_name_value = user.display_name or ""
-                bio_value = get_profile_bio(user)
-                selected_profile_image = get_profile_image(user)
-                custom_profile_image = get_custom_profile_image(user)
-            except SQLAlchemyError as update_error:
-                db.session.rollback()
-                if new_uploaded_profile_image is not None:
-                    delete_uploaded_profile_image(new_uploaded_profile_image)
-                app.logger.warning(
-                    "Profile update failed for user %s. %s",
-                    user_id,
-                    getattr(update_error, "orig", update_error)
-                )
-                error = "Profile update failed."
-
-    return render_template(
-        "profile.html",
-        username=get_display_name(user),
-        login_username=user.username,
-        display_name=display_name_value,
-        bio=bio_value,
-        bio_max_length=BIO_MAX_LENGTH,
-        profile_image=selected_profile_image,
-        custom_profile_image=custom_profile_image,
-        profile_images=PROFILE_IMAGE_OPTIONS,
-        error=error,
-        success=success
-    )
-
-
-@app.route("/profile/<int:user_id>", methods=["GET", "POST"])
-@login_required
-def view_profile(user_id):
-    current_user_id = current_user.id
-
-    profile_user = User.query.get(user_id)
-    if profile_user is None:
-        flash("Profile not found.")
-        return redirect(url_for("main_menu"))
-
-    if request.method == "POST":
-        action = request.form.get("action")
-
-        try:
-            if action == "send_friend_request":
-                _, message = create_friend_request(current_user_id, user_id)
-                flash(message)
-            elif action == "accept_friend_request":
-                incoming_request = get_pending_friend_request(user_id, current_user_id)
-
-                if incoming_request is None:
-                    flash("Friend request not found.")
-                else:
-                    accept_pending_friend_request(incoming_request)
-                    flash("Friend request accepted.")
-            else:
-                flash("Profile action not recognised.")
-
-            db.session.commit()
-        except SQLAlchemyError as error:
-            db.session.rollback()
-            app.logger.warning(
-                "Profile friend action failed for user %s and profile %s. %s",
-                current_user_id,
-                user_id,
-                getattr(error, "orig", error)
-            )
-            flash("Profile action failed.")
-
-        return redirect(url_for("view_profile", user_id=user_id))
-
-    leaderboard_entry = get_leaderboard_entry_for_user(
-        user_id,
-        current_user_id=current_user_id
-    )
-
-    return render_template(
-        "public_profile.html",
-        profile_user=profile_user,
-        display_name=get_display_name(profile_user),
-        profile_image=get_profile_image(profile_user),
-        bio=get_profile_bio(profile_user),
-        leaderboard_entry=leaderboard_entry,
-        friend_action=get_friend_action(current_user_id, user_id),
-        is_self=current_user_id == user_id
-    )
-
-
-@app.route("/favicon.ico")
-def favicon():
-    return app.send_static_file("images/icons/settings.svg")
-
-
-@app.route("/play")
-def show_play():
-    if "username" not in session:
-        return redirect(url_for("show_login"))
-
-    return render_template("play.html")
-
-
-@app.route("/achievements")
-def show_achievements():
-    if "username" not in session:
-        return redirect(url_for("show_login"))
-
-    user_id = session.get("user_id")
-    username = session.get("username", "Player")
-
-    if user_id is None or session.get("is_guest"):
-        stats = get_empty_stats()
-    else:
-        user = User.query.get(user_id)
-        if user is not None:
-            username = get_display_name(user)
-        stats = get_user_stats(user_id)
-
-    return render_template(
-        "achievements.html",
-        username=username,
-        achievements=[],
-        stats=stats
-    )
-
-
-@app.route("/save-game", methods=["POST"])
-@login_required
-def save_game():
-    user_id = current_user.id
-
-    data = request.get_json(silent=True)
-
-    if not data:
-        return jsonify({
-            "ok": False,
-            "message": "No save data received."
-        }), 400
-
-    character_id = str(data.get("character_id", "leon")).lower()
-    session["selected_character"] = character_id
-
-    fallback_payload = build_save_payload_from_request(data)
-
-    try:
-        save_data = get_user_save(character_id=character_id, create=True)
-        update_save_data(save_data, data)
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-
-        try:
-            write_fallback_save(user_id, character_id, fallback_payload)
-        except OSError:
-            app.logger.exception("Save failed for user %s.", user_id)
-            return jsonify({
-                "ok": False,
-                "message": "Save failed."
-            }), 500
-
-        app.logger.warning(
-            "SQLite save failed for user %s; wrote fallback save instead. %s",
-            user_id,
-            getattr(error, "orig", error)
-        )
-        return jsonify({
-            "ok": True,
-            "message": "Game saved locally."
-        })
-
-    try:
-        write_fallback_save(user_id, character_id, build_save_payload(save_data))
-    except OSError as error:
-        app.logger.warning(
-            "Backup save write failed for user %s after database save succeeded. %s",
-            user_id,
-            error
-        )
-
-    return jsonify({
-        "ok": True,
-        "message": "Game saved."
-    })
-
-
-@app.route("/load-game")
-@login_required
-def load_game():
-    user_id = current_user.id
-
-    requested_character_id = request.args.get("character_id")
-    character_id = str(requested_character_id).lower() if requested_character_id else None
-
-    db_payloads = []
-    fallback_payloads = []
-
-    try:
-        db_payloads = list_db_save_payloads(user_id, character_id=character_id)
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        app.logger.warning(
-            "Database load failed for user %s; falling back to JSON save. %s",
-            user_id,
-            getattr(error, "orig", error)
-        )
-
-    if character_id is not None:
-        fallback_payload = read_fallback_save(user_id, character_id)
-        if fallback_payload is not None:
-            fallback_payloads.append(fallback_payload)
-    else:
-        fallback_payloads = list_fallback_save_payloads(user_id)
-
-    save_payload = choose_latest_save_payload(*db_payloads, *fallback_payloads)
-
-    if save_payload is None:
-        return jsonify({
-            "ok": False,
-            "message": "Start a new game first."
-        })
-
-    session["selected_character"] = str(save_payload.get("character_id", "leon")).lower()
-
-    return jsonify({
-        "ok": True,
-        "message": "Save loaded.",
-        "save_data": save_payload
-    })
-
-
-@app.route("/add_friend/<int:user_id>", methods=["POST"])
-@login_required
-def add_friend(user_id):
-    current_user_id = current_user.id
-
-    if current_user_id == user_id:
-        return redirect(url_for("main_menu"))
-
-    target_user = User.query.get(user_id)
-    if target_user is None:
-        flash("User not found.")
-        return redirect(url_for("main_menu"))
-
-    try:
-        _, message = create_friend_request(current_user_id, user_id)
-        db.session.commit()
-        flash(message)
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        app.logger.warning(
-            "Friend request failed for user %s and target %s. %s",
-            current_user_id,
-            user_id,
-            getattr(error, "orig", error)
-        )
-        flash("Friend request failed.")
-
-    return redirect(url_for("view_profile", user_id=user_id))
-
-
-@app.route('/friends', methods=['GET', 'POST'])
-@login_required
-def show_friends():
-    user = current_user
-    
-    if request.method == 'POST':
-        from_user_id = user.id
-        friend_username = request.form['friend_username'].strip().lower()
-        friend = User.query.filter_by(username=friend_username).first()
-
-        if friend:
-            try:
-                _, message = create_friend_request(from_user_id, friend.id)
-                db.session.commit()
-                flash(message)
-            except SQLAlchemyError as error:
-                db.session.rollback()
-                app.logger.warning(
-                    "Friend request failed for user %s and target %s. %s",
-                    from_user_id,
-                    friend.id,
-                    getattr(error, "orig", error)
-                )
-                flash("Friend request failed.")
-        else:
-            flash('User not found.')
-        
-        return redirect(url_for('show_friends'))
-    
-    # Get pending requests for current user
-    incoming_requests = FriendRequest.query.filter_by(
-        to_user_id=user.id, status='pending'
-    ).all()
-    
-    # Get friends (accepted requests)
-    friends = get_friends(user.id)
-    
-    return render_template(
-        'friends_view.html',
-        username=get_display_name(user),
-        current_user=user,
-        incoming_requests=incoming_requests,
-        friends=friends
-    )
-
-
-@app.route("/accept_friend/<int:request_id>", methods=["POST"])
-@login_required
-def accept_friend(request_id):
-    current_user_id = current_user.id
-
-    friend_request = FriendRequest.query.get(request_id)
-    if friend_request and friend_request.to_user_id == current_user_id:
-        accept_pending_friend_request(friend_request)
-        db.session.commit()
-
-    return redirect(url_for("show_friends"))
-
-
-@app.route("/reject_friend/<int:request_id>", methods=["POST"])
-@login_required
-def reject_friend(request_id):
-    current_user_id = current_user.id
-
-    friend_request = FriendRequest.query.get(request_id)
-    if friend_request and friend_request.to_user_id == current_user_id:
-        db.session.delete(friend_request)
-        db.session.commit()
-
-    return redirect(url_for("show_friends"))
-
-
-@app.route("/chat/keys/<int:friend_id>", methods=["GET", "POST"])
-@login_required
-def chat_keys(friend_id):
-    user = current_user._get_current_object()
-    current_user_id = user.id
-
-    friend = get_accepted_friend(current_user_id, friend_id)
-    if friend is None:
-        return jsonify({"ok": False, "message": "You can only chat with accepted friends."}), 403
-
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        public_key = str(data.get("public_key", "")).strip()
-
-        if not public_key:
-            return jsonify({"ok": False, "message": "Chat public key is required."}), 400
-
-        user.chat_public_key = public_key
-        user.chat_key_id = build_chat_key_id(public_key)
-        user.chat_key_created_at = datetime.utcnow()
-        db.session.commit()
-
-    return jsonify({
-        "ok": True,
-        "current_user_key": serialize_chat_public_key(user),
-        "friend_key": serialize_chat_public_key(friend),
-    })
-
-
-@app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
-@login_required
-def chat(friend_id):
-    current_user_id = current_user.id
-
-    friend = get_accepted_friend(current_user_id, friend_id)
-
-    if friend is None:
-        flash("You can only chat with users in your friends list.")
-        return redirect(url_for("show_friends"))
-
-    if request.method == "POST":
-        encrypted_payload = validate_encrypted_chat_payload({
-            "ciphertext": request.form.get("ciphertext"),
-            "nonce": request.form.get("nonce"),
-            "sender_public_key": request.form.get("sender_public_key"),
-            "sender_key_id": request.form.get("sender_key_id"),
-            "recipient_public_key": request.form.get("recipient_public_key"),
-            "recipient_key_id": request.form.get("recipient_key_id"),
-            "encryption_version": request.form.get("encryption_version"),
-        })
-
-        if encrypted_payload:
-            message = Message(
-                sender_id=current_user_id,
-                receiver_id=friend_id,
-                message=None,
-                **encrypted_payload,
-                timestamp=datetime.utcnow()
-            )
-            db.session.add(message)
-            db.session.commit()
-            return redirect(url_for("chat", friend_id=friend_id))
-
-        flash("Message encryption failed.")
-
-    messages = Message.query.filter(
-        ((Message.sender_id == current_user_id) & (Message.receiver_id == friend_id)) |
-        ((Message.sender_id == friend_id) & (Message.receiver_id == current_user_id))
-    ).order_by(Message.timestamp).all()
-
-    return render_template(
-        "chat.html",
-        messages=messages,
-        chat_messages=[serialize_chat_message(message) for message in messages],
-        friend=friend,
-        current_user=current_user_id
-    )
-
-
-@socketio.on("connect")
-def handle_socket_connect():
-    if session.get("user_id") is None or session.get("is_guest"):
-        return False
-
-
-@socketio.on("chat:join")
-def handle_chat_join(data):
-    current_user = session.get("user_id")
-    friend_id = parse_friend_id((data or {}).get("friend_id"))
-
-    if current_user is None or session.get("is_guest"):
-        return {"ok": False, "message": "Please log in to use chat."}
-
-    if friend_id is None:
-        socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
-        return {"ok": False, "message": "Chat user is invalid."}
-
-    friend = get_accepted_friend(current_user, friend_id)
-    if friend is None:
-        socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
-        return {"ok": False, "message": "You can only chat with accepted friends."}
-
-    room_key = build_chat_room_key(current_user, friend_id)
-    join_room(room_key)
-    return {
-        "ok": True,
-        "room": room_key,
-        "friend": {
-            "id": friend.id,
-            "username": friend.username,
-        },
-    }
-
-
-@socketio.on("chat:leave")
-def handle_chat_leave(data):
-    current_user = session.get("user_id")
-    friend_id = parse_friend_id((data or {}).get("friend_id"))
-
-    if current_user is None or friend_id is None:
-        return {"ok": False}
-
-    leave_room(build_chat_room_key(current_user, friend_id))
-    return {"ok": True}
-
-
-@socketio.on("chat:send")
-def handle_chat_send(data):
-    current_user = session.get("user_id")
-    friend_id = parse_friend_id((data or {}).get("friend_id"))
-    encrypted_payload = validate_encrypted_chat_payload((data or {}).get("message"))
-
-    if current_user is None or session.get("is_guest"):
-        socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
-        return {"ok": False, "message": "Please log in to use chat."}
-
-    if friend_id is None:
-        socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
-        return {"ok": False, "message": "Chat user is invalid."}
-
-    if get_accepted_friend(current_user, friend_id) is None:
-        socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
-        return {"ok": False, "message": "You can only chat with accepted friends."}
-
-    if encrypted_payload is None:
-        socketio.emit("chat:error", {"message": "Message encryption failed."}, to=request.sid)
-        return {"ok": False, "message": "Message encryption failed."}
-
-    room_key = build_chat_room_key(current_user, friend_id)
-    join_room(room_key)
-
-    message = Message(
-        sender_id=current_user,
-        receiver_id=friend_id,
-        message=None,
-        **encrypted_payload,
-        timestamp=datetime.utcnow()
-    )
-    db.session.add(message)
-    db.session.commit()
-
-    payload = serialize_chat_message(message)
-    socketio.emit("chat:new", payload, to=room_key)
-
-    return {
-        "ok": True,
-        "message": payload,
-    }
-
-
-@app.route("/friend-stats/<int:friend_id>")
-@login_required
-def friend_stats(friend_id):
-    current_user_id = current_user.id
-
-    friendship = Friend.query.filter_by(
-        user_id=current_user_id,
-        friend_id=friend_id,
-        status="accepted"
-    ).first()
-
-    if friendship is None:
-        flash("You can only view stats for users in your friends list.")
-        return redirect(url_for("show_friends"))
-
-    friend = User.query.get(friend_id)
-    if friend is None:
-        flash("Friend not found.")
-        return redirect(url_for("show_friends"))
-
-    stats = get_user_stats(friend_id)
-
-    return render_template(
-        "friend_stats.html",
-        username=get_display_name(current_user),
-        friend=friend,
-        stats=stats
-    )
-
+import routes
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)

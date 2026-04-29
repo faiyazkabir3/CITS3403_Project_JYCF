@@ -162,17 +162,17 @@ Rules for migrations:
 
 ## What this database is for
 
-Our database supports the backend side of the zombie game.
+Our database supports the backend side of the zombie game web app.
 
-It mainly does three jobs:
+At the moment, it mainly supports five areas:
 
-1. stores registered users
-2. stores each user's current saved game
-3. stores simple social features between users, like friends, friend requests, and messages
+1. registered user accounts
+2. saved game progress
+3. profile information
+4. social features such as friends and friend requests
+5. direct messages between users
 
-So if someone asks, “what is the database doing in this project?”, the short answer is:
-
-**it remembers who the users are, what progress they have made, and how they interact with each other.**
+So in simple terms, the database remembers who the users are, what profile they use, what game progress they have made, and how they interact with other users.
 
 ---
 
@@ -185,6 +185,8 @@ The database side of the project uses:
 - **Flask-SQLAlchemy** to define and access the tables
 - **Flask-Migrate/Alembic** to manage schema migrations
 - **Flask** as the backend web framework
+
+This still matches the stack taught in the unit: Flask for the server logic, SQLite-style storage, and SQLAlchemy to map Python objects to database tables. The project adds SQLCipher so the SQLite database file is encrypted at rest.
 
 For local development, the app uses an encrypted SQLite database file.
 
@@ -204,9 +206,23 @@ If `SQLCIPHER_DATABASE_KEY` is lost or changed, the old encrypted database canno
 
 ---
 
-## Big picture structure
+## MVC view of this project
 
-The current database has **5 main tables**:
+Based on the course structure, the database belongs to the **model** side of the app.
+
+In this project:
+
+- **model** = the SQLAlchemy models in `models.py`
+- **view** = the HTML pages built from Jinja templates
+- **controller** = the Flask request handlers in `routes.py` that read and update the models
+
+This separation is useful because it keeps storage, page rendering, and request handling as different concerns.
+
+---
+
+## Current database tables
+
+The current database has 5 main tables:
 
 1. `user`
 2. `save_data`
@@ -214,34 +230,23 @@ The current database has **5 main tables**:
 4. `friend_request`
 5. `message`
 
-A simple way to understand the structure is:
-
-```text
-User
- ├── has one SaveData
- ├── can send many FriendRequests
- ├── can receive many FriendRequests
- ├── can have many Friends
- ├── can send many Messages
- └── can receive many Messages
-```
-
-So the **user** table is the centre of the whole database.
+The `user` table is the central table because the other four all connect back to users in some way.
 
 ---
 
 ## Table 1: `user`
 
-### What it does
+### What it stores
 
-This table stores the registered accounts for the website.
+This table stores registered user accounts and their profile details.
 
-Every real player who signs up gets one row in this table.
-
-### Main columns
+### Columns
 
 - `id` — primary key
 - `username` — the login name, must be unique
+- `display_name` — optional public-facing display name
+- `profile_image` — selected or uploaded profile image path
+- `bio` — optional profile biography
 - `password_hash` — the hashed password
 - `chat_public_key` — public browser key for encrypted direct chat
 - `chat_key_id` — short ID derived from the public chat key
@@ -254,100 +259,109 @@ Every real player who signs up gets one row in this table.
 - passwords are **not** stored as plain text
 - `password_hash` stores the hashing method, random salt, and derived password hash together
 - Werkzeug creates the salt automatically, so there is no separate `salt` column
+- profile-related information is stored directly on the user row
 - direct-chat private keys are **not** stored in the database; only public chat keys are stored
 
 ### Example
 
-| id | username | password_hash | chat_key_id |
-|---|---|---|---|
-| 1 | leonplayer | pbkdf2:sha256:...$random_salt$... | 8f3a... |
+| id | username | display_name | password_hash | chat_key_id |
+|---|---|---|---|---|
+| 1 | leonplayer | Leon | pbkdf2:sha256:...$random_salt$... | 8f3a... |
 
 ### What this table is used for
 
 - registration
 - login
-- session-based identity
-- linking a user to saves and social features
+- session identity
+- profile page data
+- public profile display
+- linking users to saves, friends, and messages
 
 ---
 
 ## Table 2: `save_data`
 
-### What it does
+### What it stores
 
-This table stores one user's current game progress.
+This table stores saved gameplay state.
 
-This is the table that makes the game persistent between sessions.
+It includes both basic progression values and combat/stat tracking values.
 
-### Main columns
+### Columns
 
+#### Identity and setup
 - `id` — primary key
 - `user_id` — foreign key to `user.id`
 - `difficulty`
 - `character_id`
+
+#### Inventory and resources
 - `health`
 - `medkits`
 - `grenades`
 - `ammo_in_gun`
 - `ammo_in_bag`
 - `mag_capacity`
+
+#### Combat/stat tracking
+- `kills`
+- `damage_dealt`
+- `damage_taken`
+- `pistol_shots`
+- `grenades_used`
+- `medkits_used`
+- `reloads`
+- `knife_uses`
+
+#### Upgrades / equipment state
 - `laser_upgrade`
 - `shield_owned`
 - `shield_on`
+
+#### Progression state
 - `current_level_id`
 - `enemies_remaining`
 - `level_complete`
 - `awaiting_choice`
 - `game_won`
 - `has_started_game`
+
+#### Flexible stored state
 - `run_state_json`
 - `updated_at`
 
 ### Key points
 
-- `id` is the **primary key**
-- `user_id` is a **foreign key (FK)** pointing to `user.id`
-- `user_id` is also **unique**, which means one user can only have **one save row**
+- `id` is the primary key
+- `user_id` is a foreign key to `user.id`
+- `user_id` is **not marked unique** in the current model
+- this means the current schema allows more than one save row per user
+- the save system also uses `character_id` and `updated_at` when selecting the most relevant save
 
-So this is a:
+So the current schema should **not** be described as a strict “one user -> one save row” design.
 
-**one user -> one save data row**
+### What it is used for
 
-design.
+- loading saved progress
+- storing player state between sessions
+- tracking player stats for achievements/leaderboards/stats pages
+- storing extra run data in JSON form when needed
 
-That is an intentional MVP choice. It keeps the save system simple.
+### Note on `run_state_json`
 
-### Example
+Most core values are stored in normal columns.
 
-| id | user_id | difficulty | health | current_level_id | has_started_game |
-|---|---|---|---|---|---|
-| 1 | 1 | HARD | 72 | 2A | True |
-
-### What this table is used for
-
-- saving the player’s latest state
-- loading the player’s latest state
-- making sure progress is remembered after logout or closing the game
-
-### Special note: `run_state_json`
-
-Most save values are stored in normal columns.
-
-But `run_state_json` stores more detailed game state as JSON text.
-
-That gives the project a bit more flexibility without creating too many extra columns.
+`run_state_json` is used for extra structured game state that does not fit neatly into a small fixed set of columns.
 
 ---
 
 ## Table 3: `friend`
 
-### What it does
+### What it stores
 
-This table stores friendship links between users.
+This table stores user-to-user friendship links.
 
-If two users are friends, that relationship is represented here.
-
-### Main columns
+### Columns
 
 - `id` — primary key
 - `user_id` — foreign key to `user.id`
@@ -356,42 +370,25 @@ If two users are friends, that relationship is represented here.
 
 ### Key points
 
-- `id` is the **primary key**
-- `user_id` and `friend_id` are both **foreign keys**
-- both point back to the `user` table
+- both `user_id` and `friend_id` point back to the `user` table
+- this table represents direct user-to-user relationships
+- accepted friendships are stored here
 
-This means the table is saying:
+### What it is used for
 
-- “this user is connected to that user”
-
-### Example
-
-| id | user_id | friend_id | status |
-|---|---|---|---|
-| 1 | 1 | 2 | accepted |
-| 2 | 2 | 1 | accepted |
-
-This example means:
-- user 1 is friends with user 2
-- user 2 is friends with user 1
-
-### What this table is used for
-
-- listing friends
-- checking who is connected to whom
-- supporting social navigation and chat
+- listing a user’s friends
+- checking whether two users are connected
+- controlling access to friend-based pages and chat
 
 ---
 
 ## Table 4: `friend_request`
 
-### What it does
+### What it stores
 
-This table stores pending friend requests before they become full friendships.
+This table stores friend requests before they become accepted friendships.
 
-A request is not the same thing as a confirmed friendship, so it is kept in its own table.
-
-### Main columns
+### Columns
 
 - `id` — primary key
 - `from_user_id` — foreign key to `user.id`
@@ -400,34 +397,24 @@ A request is not the same thing as a confirmed friendship, so it is kept in its 
 
 ### Key points
 
-- `id` is the **primary key**
 - `from_user_id` is the sender
 - `to_user_id` is the receiver
-- both are **foreign keys** to `user.id`
+- both columns link back to the `user` table
+- this separates pending requests from accepted friendships
 
-### Example
+### What it is used for
 
-| id | from_user_id | to_user_id | status |
-|---|---|---|---|
-| 1 | 1 | 3 | pending |
-
-This means:
-- user 1 sent a request to user 3
-- user 3 has not accepted or rejected it yet
-
-### What this table is used for
-
-- sending requests
-- accepting requests
-- rejecting requests
+- sending friend requests
+- receiving friend requests
+- accepting or rejecting friend requests
 
 ---
 
 ## Table 5: `message`
 
-### What it does
+### What it stores
 
-This table stores direct messages between users.
+This table stores direct chat messages between users.
 
 Direct chat is now designed for end-to-end encrypted payloads. Flask stores and forwards encrypted message data, but the browser performs encryption and decryption.
 
@@ -451,6 +438,8 @@ Direct chat is now designed for end-to-end encrypted payloads. Flask stores and 
 - `id` is the **primary key**
 - `sender_id` and `receiver_id` are **foreign keys**
 - both point back to the `user` table
+- each row is one message envelope
+- timestamps allow message history to be shown in order
 - new direct messages should store ciphertext and key metadata, not plaintext chat text
 - if a browser does not have the matching private key, old encrypted messages may show as locked
 
@@ -464,61 +453,76 @@ Direct chat is now designed for end-to-end encrypted payloads. Flask stores and 
 
 - storing encrypted direct-chat payloads
 - loading encrypted message history for browser-side decryption
+- socket/chat page persistence
 
 ---
 
-## How the tables connect together
+## How the tables connect
 
-Here is the most important part to understand.
+### `user` -> `save_data`
+A user can have one or more save rows in the current schema.
 
-### `user` and `save_data`
-A user has one save row.
+This is because:
+- `save_data.user_id` is a foreign key to `user.id`
+- but it is not unique in the model
 
-This is enforced by:
-- `save_data.user_id` pointing to `user.id`
-- `save_data.user_id` being unique
-
-So one account has one current saved game.
-
-### `user` and `friend_request`
+### `user` -> `friend_request`
 A user can send many friend requests and receive many friend requests.
 
-That is why the table has:
-- `from_user_id`
-- `to_user_id`
+### `user` -> `friend`
+A user can be connected to many other users through friendship rows.
 
-### `user` and `friend`
-A user can have many friends.
+### `user` -> `message`
+A user can send many messages and receive many messages.
 
-The friend table links one user to another user.
-
-### `user` and `message`
-A user can send and receive many messages.
-
-So overall, the `user` table is the central table that everything else connects back to.
+So overall, `user` is the central table and the other tables describe progress and interaction around that user.
 
 ---
 
-## Example flow through the database
+## Persistence outside the database
+
+The project also has a fallback save mechanism outside the SQLite tables.
+
+If database save/load fails, the app can also use JSON fallback save files.
+
+This is part of the project’s persistence design, but it is **not** a database table and therefore sits outside the relational schema described above.
+
+---
+
+## Example flow through the data layer
 
 ### 1. A player registers
 A row is created in `user`.
 
-### 2. The player starts a game
-A row is created in `save_data` for that user.
+### 2. The player updates their profile
+Their `display_name`, `bio`, or `profile_image` fields in `user` are updated.
 
-### 3. The player saves progress
-The same `save_data` row is updated with new values like health, ammo, and current level.
+### 3. The player starts and saves a run
+A row is created or updated in `save_data`.
 
-### 4. The player adds a friend
-A row is first created in `friend_request`.
+### 4. The player sends a friend request
+A row is created in `friend_request`.
 
-### 5. The other player accepts
-Rows are created in `friend`.
+### 5. The request is accepted
+Friendship rows are created in `friend`.
 
 ### 6. They chat
 Rows are created in `message`. New chat rows store encrypted payload fields instead of plaintext message text.
 
-This is basically the life cycle of the current database.
+This shows how the current schema supports both the game side and the social side of the web app.
 
 ---
+
+## Summary
+
+The current database is a small relational schema built around the `user` table.
+
+Its job is to support:
+
+- account identity
+- profile information
+- saved progress
+- friend relationships
+- direct messages
+
+The design follows the course stack of Flask + SQLite + SQLAlchemy, with the models acting as the database-backed model layer of the application.
