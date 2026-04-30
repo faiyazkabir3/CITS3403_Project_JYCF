@@ -156,6 +156,11 @@ def sanitize_save_request_payload(data):
 @app.route("/")
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
+    if request.method == "GET" and request.path == "/login" and current_user.is_authenticated:
+        logout_user()
+        session.clear()
+        return render_template("login.html", error=None)
+
     if current_user.is_authenticated:
         return redirect(url_for("main_menu"))
 
@@ -424,7 +429,7 @@ def profile():
                 allow_friend_messages_value = bool(user.allow_friend_messages)
                 hide_from_leaderboard_value = bool(user.hide_from_leaderboard)
             except SQLAlchemyError as update_error:
-                db.session.rollback()
+                rollback_database_session("Profile update")
                 if new_uploaded_profile_image is not None:
                     delete_uploaded_profile_image(new_uploaded_profile_image)
                 app.logger.warning(
@@ -521,7 +526,7 @@ def view_profile(user_id):
 
             db.session.commit()
         except SQLAlchemyError as error:
-            db.session.rollback()
+            rollback_database_session("Profile action")
             app.logger.warning(
                 "Profile friend action failed for user %s and profile %s. %s",
                 current_user_id,
@@ -627,7 +632,7 @@ def save_game():
         unlocked_achievements = unlock_achievements_for_user(session["user_id"])
         db.session.commit()
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Save game")
 
         try:
             write_fallback_save(user_id, character_id, fallback_payload)
@@ -678,7 +683,7 @@ def load_game():
     try:
         db_payloads = list_db_save_payloads(user_id, character_id=character_id)
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Load game")
         app.logger.warning(
             "Database load failed for user %s; falling back to JSON save. %s",
             user_id,
@@ -727,7 +732,7 @@ def add_friend(user_id):
         db.session.commit()
         flash(message)
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Friend request")
         app.logger.warning(
             "Friend request failed for user %s and target %s. %s",
             current_user_id,
@@ -765,7 +770,7 @@ def show_friends():
                 db.session.commit()
                 flash(message)
             except SQLAlchemyError as error:
-                db.session.rollback()
+                rollback_database_session("Friend request")
                 app.logger.warning(
                     "Friend request failed for user %s and target %s. %s",
                     from_user_id,
@@ -850,7 +855,7 @@ def unfriend(friend_id):
         db.session.commit()
         flash(f"Removed {get_display_name(friend)} from your friends.")
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Unfriend")
         app.logger.warning(
             "Unfriend failed for user %s and friend %s. %s",
             current_user_id,
@@ -888,6 +893,35 @@ def chat_keys(friend_id):
         "ok": True,
         "current_user_key": serialize_chat_public_key(user),
         "friend_key": serialize_chat_public_key(friend),
+    })
+
+@app.route("/chat/keys", methods=["POST"])
+@login_required
+def register_chat_key():
+    user = current_user._get_current_object()
+    data = request.get_json(silent=True) or {}
+    public_key = str(data.get("public_key", "")).strip()
+
+    if not public_key:
+        return jsonify({"ok": False, "message": "Chat public key is required."}), 400
+
+    try:
+        user.chat_public_key = public_key
+        user.chat_key_id = build_chat_key_id(public_key)
+        user.chat_key_created_at = datetime.utcnow()
+        db.session.commit()
+    except SQLAlchemyError as error:
+        rollback_database_session("Chat key registration")
+        app.logger.warning(
+            "Chat key registration failed for user %s. %s",
+            user.id,
+            getattr(error, "orig", error)
+        )
+        return jsonify({"ok": False, "message": "Chat key registration failed."}), 500
+
+    return jsonify({
+        "ok": True,
+        "current_user_key": serialize_chat_public_key(user),
     })
 
 @app.route("/chat/<int:friend_id>", methods=["GET", "POST"])

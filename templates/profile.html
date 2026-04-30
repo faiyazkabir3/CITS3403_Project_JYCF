@@ -4,13 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Customize Profile</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
 </head>
-<body class="achievements-page profile-page">
+<body class="achievements-page profile-page" data-user-id="{{ current_user.id }}">
   <div class="menu-container">
     <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
@@ -206,5 +207,6 @@
       </form>
     </div>
   </div>
+  <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
 </body>
 </html>
