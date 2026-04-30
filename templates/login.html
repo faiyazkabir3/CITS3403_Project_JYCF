@@ -22,6 +22,8 @@
     {% endif %}
 
     <form id="login-form" method="POST" action="/login">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
       <label for="username">Username</label>
       <input
         type="text"
@@ -53,6 +55,7 @@
       </button>
 
       <form method="POST" action="/guest-login" class="guest-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="guest-btn">Guest Login</button>
       </form>
     </div>

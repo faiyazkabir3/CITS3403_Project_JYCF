@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 test.use({ viewport: { width: 1366, height: 768 } });
+
+const PLAYWRIGHT_DB_PATH = path.join(process.cwd(), "instance", "playwright_smoke.db");
 
 function uniqueCredentials(label) {
   const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -59,7 +63,7 @@ async function acceptFriendRequest(page, username) {
   await goToFriendsPage(page);
   const requestItem = page.locator("li", { hasText: username }).first();
   await expect(requestItem).toBeVisible();
-  await requestItem.getByRole("link", { name: "Accept" }).click();
+  await requestItem.getByRole("button", { name: "Accept" }).click();
   await expect(page).toHaveURL(/\/friends$/);
 }
 
@@ -155,6 +159,8 @@ test("separate browser contexts keep different logged-in accounts", async ({ bro
 test("accepted friends receive realtime chat messages without page refresh", async ({ browser, page }) => {
   const secondContext = await browser.newContext();
   const secondPage = await secondContext.newPage();
+  const thirdContext = await browser.newContext();
+  const thirdPage = await thirdContext.newPage();
   const firstUser = uniqueCredentials("chatone");
   const secondUser = uniqueCredentials("chattwo");
   const outboundMessage = `live-message-${Date.now()}`;
@@ -174,7 +180,16 @@ test("accepted friends receive realtime chat messages without page refresh", asy
 
     await expect(page.locator(".chat-message.outgoing", { hasText: outboundMessage })).toBeVisible();
     await expect(secondPage.locator(".chat-message.incoming", { hasText: outboundMessage })).toBeVisible();
+
+    const rawDb = readFileSync(PLAYWRIGHT_DB_PATH);
+    expect(rawDb.includes(Buffer.from(outboundMessage))).toBe(false);
+
+    await loginUser(thirdPage, firstUser);
+    await openChatWithFriend(thirdPage, secondUser.username);
+    await expect(thirdPage.locator(".chat-message[data-locked='true']")).toBeVisible();
+    await expect(thirdPage.locator(".chat-message", { hasText: outboundMessage })).toHaveCount(0);
   } finally {
+    await thirdContext.close();
     await secondContext.close();
   }
 });
@@ -195,9 +210,10 @@ test("chat access is denied for non-friends and socket auth rejects unauthentica
     await expect(page).toHaveURL(/\/friends$/);
     await expect(page.locator("[data-flash-message]")).toContainText("You can only chat with users in your friends list.");
 
-    const unauthenticatedPage = await secondContext.newPage();
+    const unauthenticatedContext = await browser.newContext();
+    const unauthenticatedPage = await unauthenticatedContext.newPage();
     try {
-      await unauthenticatedPage.goto("/logout");
+      await unauthenticatedPage.goto("/login");
       await expect(unauthenticatedPage).toHaveURL(/\/login$/);
 
       const unauthenticatedSocketAttempt = await attemptSocketConnection(unauthenticatedPage);
@@ -211,6 +227,7 @@ test("chat access is denied for non-friends and socket auth rejects unauthentica
       expect(guestSocketAttempt.connected).toBe(false);
     } finally {
       await unauthenticatedPage.close();
+      await unauthenticatedContext.close();
     }
   } finally {
     await secondContext.close();

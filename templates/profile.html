@@ -20,6 +20,8 @@
 
     <div class="menu-content">
       <form method="POST" action="{{ url_for('profile') }}" class="profile-form" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         {% if error %}
           <p class="profile-message profile-error">{{ error }}</p>
         {% endif %}
