@@ -4,13 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ display_name }}'s Profile</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
 </head>
-<body class="achievements-page profile-page public-profile-page">
+<body class="achievements-page profile-page public-profile-page" data-user-id="{{ current_user.id }}">
   <div class="menu-container">
     <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
@@ -107,6 +108,7 @@
         <div class="profile-reaction-row">
           {% for reaction in reaction_options %}
             <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="action" value="profile_reaction">
               <input type="hidden" name="reaction_type" value="{{ reaction.value }}">
               <button
@@ -125,6 +127,7 @@
       <section class="profile-section">
         <h2>Comments</h2>
         <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}" class="profile-comment-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="profile_comment">
           <textarea
             name="comment"
@@ -163,6 +166,7 @@
               action="{{ url_for('unfriend', friend_id=profile_user.id) }}"
               onsubmit="return confirm('Remove {{ display_name|e }} from your friends?');"
             >
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button type="submit" class="public-profile-action-btn danger-btn">UNFRIEND</button>
             </form>
           </div>
@@ -182,5 +186,6 @@
       </section>
     </div>
   </div>
+  <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
 </body>
 </html>

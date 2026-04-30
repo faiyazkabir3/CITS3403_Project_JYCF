@@ -127,7 +127,7 @@ async function deriveMessageKey(peerPublicKey) {
 async function encryptMessage(plainText) {
   const freshFriendKey = await ensureFriendKey();
   if (!freshFriendKey) {
-    throw new Error("Friend encryption key is not available yet.");
+    throw new Error("Friend chat key is not ready yet. Ask them to log in once, then try again.");
   }
 
   const key = await deriveMessageKey(freshFriendKey.public_key);
@@ -285,7 +285,10 @@ function pollFriendKey() {
   }
 
   window.setTimeout(async () => {
-    await ensureFriendKey();
+    const freshFriendKey = await ensureFriendKey();
+    if (freshFriendKey) {
+      clearChatAlert();
+    }
     pollFriendKey();
   }, 1000);
 }

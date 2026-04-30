@@ -61,6 +61,7 @@ PROFILE_IMAGE_UPLOAD_PREFIX = "uploads/profile_pics/"
 PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
 PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 ONLINE_WINDOW = timedelta(minutes=2)
+PRESENCE_REFRESH_INTERVAL = timedelta(seconds=30)
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
     {"label": "Leon", "filename": "images/players/leon_idle.png"},
@@ -274,6 +275,12 @@ app.config["SQLALCHEMY_DATABASE_URI"] = configure_sqlcipher_database_uri(
     sqlcipher_database_key
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "connect_args": {
+        "timeout": 30,
+    },
+}
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = (
@@ -326,6 +333,37 @@ def verify_sqlcipher_database():
         raise RuntimeError("SQLCipher is not active for the configured SQLite database.")
 
     db.session.execute(text("SELECT count(*) FROM sqlite_master")).scalar()
+
+
+def rollback_database_session(context):
+    try:
+        db.session.rollback()
+        return True
+    except SQLAlchemyError as rollback_error:
+        app.logger.warning(
+            "%s rollback failed. %s",
+            context,
+            getattr(rollback_error, "orig", rollback_error)
+        )
+    except Exception as rollback_error:
+        app.logger.warning("%s rollback failed. %s", context, rollback_error)
+
+    try:
+        db.session.remove()
+    except Exception as remove_error:
+        app.logger.warning("%s session reset failed. %s", context, remove_error)
+
+    return False
+
+
+def parse_iso_datetime(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
 def ensure_user_schema():
@@ -429,7 +467,7 @@ def initialize_runtime_database():
             ensure_save_data_schema()
             ensure_message_schema()
         except SQLAlchemyError as error:
-            db.session.rollback()
+            rollback_database_session("Database initialization")
             app.logger.warning(
                 "Database initialization skipped because SQLite is unavailable. %s",
                 getattr(error, "orig", error)
@@ -441,16 +479,32 @@ if not is_flask_db_command():
 
 @app.before_request
 def refresh_current_user_presence():
+    if request.endpoint == "static" or request.path.startswith("/socket.io"):
+        return
+
     user_id = session.get("user_id")
 
     if user_id is None or session.get("is_guest"):
         return
 
+    now = datetime.utcnow()
+    last_presence_refresh = parse_iso_datetime(session.get("last_presence_refresh_at"))
+
+    if (
+        last_presence_refresh is not None
+        and now - last_presence_refresh < PRESENCE_REFRESH_INTERVAL
+    ):
+        return
+
     try:
-        User.query.filter_by(id=user_id).update({"last_seen": datetime.utcnow()})
+        User.query.filter_by(id=user_id).update(
+            {"last_seen": now},
+            synchronize_session=False
+        )
         db.session.commit()
+        session["last_presence_refresh_at"] = now.isoformat()
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Presence update")
         app.logger.warning(
             "Presence update failed for user %s. %s",
             user_id,
@@ -610,7 +664,7 @@ def get_latest_save_payload(user_id):
     try:
         payloads = list_db_save_payloads(user_id)
     except SQLAlchemyError:
-        db.session.rollback()
+        rollback_database_session("Latest save query")
         payloads = []
 
     payloads.extend(list_fallback_save_payloads(user_id))
@@ -1045,7 +1099,7 @@ def get_leaderboard_entries(current_user_id=None, limit=None, user_ids=None):
             .all()
         )
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Leaderboard query")
         app.logger.warning(
             "Leaderboard query failed. %s",
             getattr(error, "orig", error)
