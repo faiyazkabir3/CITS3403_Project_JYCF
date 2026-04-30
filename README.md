@@ -273,7 +273,7 @@ The repo includes Playwright smoke tests for real browser-level checks.
 - `npm run test:e2e:headed`: run the suite with a visible browser
 - `npm run sanity:browser`: run the smoke test file only
 
-The Playwright config uses the locally installed Microsoft Edge browser and starts a dedicated Flask test server with an isolated SQLite database at `instance/playwright_smoke.db`. This keeps smoke-test accounts and save data out of your main local run.
+The Playwright config uses Chromium by default, or the browser channel in `PLAYWRIGHT_CHANNEL` when one is set, and starts a dedicated Flask test server with an isolated SQLite database at `instance/playwright_smoke.db`. This keeps smoke-test accounts and save data out of your main local run.
 
 ## VS Code Debugging
 

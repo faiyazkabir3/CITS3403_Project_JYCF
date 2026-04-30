@@ -1,11 +1,12 @@
 import os
 import random
 import json
+import re
 import base64
 import hashlib
 import sys
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 from urllib.parse import quote
@@ -29,7 +30,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from models import db, User, SaveData, Friend, Message, FriendRequest
+from models import (
+    db, User, SaveData, Friend, Message, FriendRequest, UserAchievement,
+    ProfileReaction, ProfileComment
+)
 
 try:
     import sqlcipher3
@@ -51,10 +55,12 @@ PROFILE_IMAGE_UPLOAD_DIR = Path(app.static_folder) / "uploads" / "profile_pics"
 PROFILE_IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 BIO_MAX_LENGTH = 500
+PROFILE_COMMENT_MAX_LENGTH = 240
 PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
 PROFILE_IMAGE_UPLOAD_PREFIX = "uploads/profile_pics/"
 PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
 PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+ONLINE_WINDOW = timedelta(minutes=2)
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
     {"label": "Leon", "filename": "images/players/leon_idle.png"},
@@ -67,6 +73,35 @@ PROFILE_IMAGE_OPTIONS = [
     {"label": "Quite Tactical", "filename": "images/profile_presets/quite_pfp_2.jpg"},
     {"label": "Quite Chibi", "filename": "images/profile_presets/quite_pfp_3.jpg"},
 ]
+FAVORITE_CHARACTER_OPTIONS = [
+    {"label": "No Favorite", "value": ""},
+    {"label": "Leon", "value": "leon"},
+    {"label": "Quite", "value": "quite"},
+]
+FAVORITE_CHARACTER_LABELS = {
+    option["value"]: option["label"]
+    for option in FAVORITE_CHARACTER_OPTIONS
+}
+PROFILE_BACKGROUND_OPTIONS = [
+    {"label": "Default", "value": "default"},
+    {"label": "Neon Grid", "value": "neon"},
+    {"label": "Gold Signal", "value": "gold"},
+    {"label": "Red Alert", "value": "red"},
+]
+PROFILE_BACKGROUND_LABELS = {
+    option["value"]: option["label"]
+    for option in PROFILE_BACKGROUND_OPTIONS
+}
+PROFILE_REACTION_OPTIONS = [
+    {"label": "Heart", "value": "heart", "symbol": "♥"},
+    {"label": "Hype", "value": "hype", "symbol": "!"},
+    {"label": "Sad", "value": "sad", "symbol": ":("},
+    {"label": "Angry", "value": "angry", "symbol": ">:"},
+]
+PROFILE_REACTION_VALUES = {
+    option["value"]
+    for option in PROFILE_REACTION_OPTIONS
+}
 PROFILE_IMAGE_FILENAMES = {
     option["filename"]
     for option in PROFILE_IMAGE_OPTIONS
@@ -135,6 +170,16 @@ class FriendAction:
     label: str
     disabled: bool
     action: Optional[str] = None
+
+
+@dataclass
+class AchievementDefinition:
+    id: str
+    name: str
+    description: str
+    target: int
+    metric: str
+    icon: str
 
 
 def friend_action_to_dict(friend_action):
@@ -297,7 +342,13 @@ def ensure_user_schema():
             'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
+        "profile_background": 'ALTER TABLE "user" ADD COLUMN profile_background VARCHAR(20) NOT NULL DEFAULT "default"',
         "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
+        "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
+        "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
+        "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+        "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
         "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
         "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
         "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
@@ -346,6 +397,7 @@ def ensure_message_schema():
 
     existing_columns = {column["name"] for column in inspector.get_columns("message")}
     required_columns = {
+        "read_at": "ALTER TABLE message ADD COLUMN read_at DATETIME",
         "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
         "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
         "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
@@ -387,12 +439,52 @@ def initialize_runtime_database():
 if not is_flask_db_command():
     initialize_runtime_database()
 
+@app.before_request
+def refresh_current_user_presence():
+    user_id = session.get("user_id")
+
+    if user_id is None or session.get("is_guest"):
+        return
+
+    try:
+        User.query.filter_by(id=user_id).update({"last_seen": datetime.utcnow()})
+        db.session.commit()
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Presence update failed for user %s. %s",
+            user_id,
+            getattr(error, "orig", error)
+        )
 
 def get_friends(user_id):
     friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
     friend_ids = [f.friend_id for f in friendships]
     friends = User.query.filter(User.id.in_(friend_ids)).all()
     return sorted(friends, key=lambda user: get_display_name(user).lower())
+
+
+def is_user_online(user):
+    if user is None or user.last_seen is None:
+        return False
+
+    return datetime.utcnow() - user.last_seen <= ONLINE_WINDOW
+
+
+def get_friend_presence(user):
+    online = is_user_online(user)
+    return {
+        "is_online": online,
+        "label": "Online" if online else "Offline",
+        "class_name": "online" if online else "offline",
+    }
+
+
+@app.context_processor
+def inject_presence_helpers():
+    return {
+        "get_friend_presence": get_friend_presence,
+    }
 
 
 def get_accepted_friend(current_user_id, friend_id):
@@ -506,6 +598,219 @@ def get_user_stats(user_id):
 
 def get_empty_stats():
     return asdict(PlayerStats())
+
+def parse_level_number(value):
+    match = re.search(r"\d+", str(value or ""))
+    if match is None:
+        return 0
+
+    return coerce_int(match.group(0), 0)
+
+def get_latest_save_payload(user_id):
+    try:
+        payloads = list_db_save_payloads(user_id)
+    except SQLAlchemyError:
+        db.session.rollback()
+        payloads = []
+
+    payloads.extend(list_fallback_save_payloads(user_id))
+    return choose_latest_save_payload(*payloads)
+
+def get_latest_run_summary(user_id):
+    payload = get_latest_save_payload(user_id)
+
+    if payload is None:
+        return None
+
+    return {
+        "difficulty": payload.get("difficulty", "EASY"),
+        "character": FAVORITE_CHARACTER_LABELS.get(
+            str(payload.get("character_id", "")).lower(),
+            str(payload.get("character_id", "Unknown")).title()
+        ),
+        "current_level": payload.get("current_level_id", "1"),
+        "kills": coerce_int(payload.get("kills"), 0),
+        "game_won": coerce_bool(payload.get("game_won"), False),
+        "updated_at": payload.get("updated_at"),
+    }
+
+def get_achievement_definitions():
+    return [
+        AchievementDefinition(
+            id="first_blood",
+            name="First Blood",
+            description="Defeat your first infected.",
+            target=1,
+            metric="kills",
+            icon="I"
+        ),
+        AchievementDefinition(
+            id="survivor",
+            name="Survivor",
+            description="Reach level 3 or beyond.",
+            target=3,
+            metric="levels",
+            icon="III"
+        ),
+        AchievementDefinition(
+            id="sharpshooter",
+            name="Sharpshooter",
+            description="Deal 500 damage with 10 or fewer pistol shots.",
+            target=500,
+            metric="damage_dealt",
+            icon="S"
+        ),
+        AchievementDefinition(
+            id="medic",
+            name="Medic",
+            description="Use 5 medkits.",
+            target=5,
+            metric="medkits",
+            icon="+"
+        ),
+        AchievementDefinition(
+            id="no_mercy",
+            name="No Mercy",
+            description="Defeat 50 infected.",
+            target=50,
+            metric="kills",
+            icon="50"
+        ),
+        AchievementDefinition(
+            id="untouchable",
+            name="Untouchable",
+            description="Save a run after taking no damage.",
+            target=1,
+            metric="untouchable_runs",
+            icon="0"
+        ),
+    ]
+
+def get_achievement_progress(user_id, stats=None):
+    stats = stats or get_user_stats(user_id)
+    latest_payload = get_latest_save_payload(user_id)
+    latest_level = parse_level_number((latest_payload or {}).get("current_level_id"))
+    latest_damage_taken = coerce_int((latest_payload or {}).get("damage_taken"), 0)
+    latest_started = coerce_bool((latest_payload or {}).get("has_started_game"), False)
+
+    return {
+        "kills": coerce_int(stats.get("kills"), 0),
+        "levels": latest_level,
+        "damage_dealt": coerce_int(stats.get("damage_dealt"), 0),
+        "medkits": coerce_int(stats.get("medkits"), 0),
+        "untouchable_runs": 1 if latest_started and latest_damage_taken == 0 else 0,
+        "pistol_shots": coerce_int(stats.get("pistol_shots"), 0),
+    }
+
+def achievement_is_unlocked(definition, progress):
+    if definition.id == "sharpshooter":
+        return (
+            coerce_int(progress.get("damage_dealt"), 0) >= definition.target
+            and coerce_int(progress.get("pistol_shots"), 0) <= 10
+        )
+
+    return coerce_int(progress.get(definition.metric), 0) >= definition.target
+
+def get_user_achievements(user_id):
+    unlocked_rows = UserAchievement.query.filter_by(user_id=user_id).all()
+    unlocked_by_id = {
+        row.achievement_id: row
+        for row in unlocked_rows
+    }
+    stats = get_user_stats(user_id)
+    progress = get_achievement_progress(user_id, stats=stats)
+    achievements = []
+
+    for definition in get_achievement_definitions():
+        row = unlocked_by_id.get(definition.id)
+        current = coerce_int(progress.get(definition.metric), 0)
+
+        if definition.id == "sharpshooter":
+            current = coerce_int(progress.get("damage_dealt"), 0)
+
+        achievements.append({
+            **asdict(definition),
+            "current": min(current, definition.target),
+            "unlocked": row is not None,
+            "unlocked_at": row.unlocked_at if row is not None else None,
+        })
+
+    return achievements
+
+def unlock_achievements_for_user(user_id):
+    existing_ids = {
+        row.achievement_id
+        for row in UserAchievement.query.filter_by(user_id=user_id).all()
+    }
+    stats = get_user_stats(user_id)
+    progress = get_achievement_progress(user_id, stats=stats)
+    unlocked = []
+
+    for definition in get_achievement_definitions():
+        if definition.id in existing_ids:
+            continue
+
+        if achievement_is_unlocked(definition, progress):
+            row = UserAchievement(
+                user_id=user_id,
+                achievement_id=definition.id,
+                unlocked_at=datetime.utcnow()
+            )
+            db.session.add(row)
+            unlocked.append(definition.name)
+
+    return unlocked
+
+def get_profile_badges(user, achievements=None, leaderboard_entry=None):
+    if user is None:
+        return []
+
+    badges = []
+    achievements = achievements or get_user_achievements(user.id)
+
+    for achievement in achievements:
+        if achievement.get("unlocked"):
+            badges.append({
+                "label": achievement["name"],
+                "symbol": achievement["icon"],
+                "description": achievement["description"],
+                "kind": "achievement",
+            })
+
+    if leaderboard_entry is not None:
+        badges.append({
+            "label": "Ranked",
+            "symbol": f"#{leaderboard_entry['rank']}",
+            "description": "Appears on the global leaderboard.",
+            "kind": "exclusive",
+        })
+
+    friend_count = Friend.query.filter_by(user_id=user.id, status="accepted").count()
+    if friend_count > 0:
+        badges.append({
+            "label": "Social Link",
+            "symbol": "SL",
+            "description": "Has connected with other players.",
+            "kind": "exclusive",
+        })
+
+    if get_profile_background(user) != "default" or get_custom_profile_image(user) is not None:
+        badges.append({
+            "label": "Custom Signal",
+            "symbol": "CS",
+            "description": "Uses profile customisation.",
+            "kind": "exclusive",
+        })
+
+    if user.hide_from_leaderboard:
+        badges.append({
+            "label": "Ghost Mode",
+            "symbol": "GM",
+            "description": "Keeps their leaderboard position private.",
+            "kind": "exclusive",
+        })
+
+    return badges[:8]
 
 def get_display_name(user):
     if user is None:
@@ -631,6 +936,70 @@ def get_profile_bio(user):
 
     return (user.bio or "").strip()
 
+def get_profile_background(user):
+    background = str(getattr(user, "profile_background", "default") or "default").strip().lower()
+
+    if background in PROFILE_BACKGROUND_LABELS:
+        return background
+
+    return "default"
+
+def normalize_profile_comment(comment):
+    return str(comment or "").strip()
+
+def validate_profile_comment(comment):
+    if comment == "":
+        return "Comment cannot be empty."
+
+    if len(comment) > PROFILE_COMMENT_MAX_LENGTH:
+        return f"Comment must be {PROFILE_COMMENT_MAX_LENGTH} characters or fewer."
+
+    return None
+
+def get_profile_reaction_counts(profile_user_id, current_user_id=None):
+    counts = {
+        option["value"]: {
+            **option,
+            "count": 0,
+            "is_current_user": False,
+        }
+        for option in PROFILE_REACTION_OPTIONS
+    }
+
+    rows = (
+        db.session.query(
+            ProfileReaction.reaction_type,
+            func.count(ProfileReaction.id)
+        )
+        .filter(ProfileReaction.profile_user_id == profile_user_id)
+        .group_by(ProfileReaction.reaction_type)
+        .all()
+    )
+
+    for reaction_type, count in rows:
+        if reaction_type in counts:
+            counts[reaction_type]["count"] = count
+
+    if current_user_id is not None:
+        current_reaction = ProfileReaction.query.filter_by(
+            profile_user_id=profile_user_id,
+            reactor_user_id=current_user_id
+        ).first()
+
+        if current_reaction is not None and current_reaction.reaction_type in counts:
+            counts[current_reaction.reaction_type]["is_current_user"] = True
+
+    return list(counts.values())
+
+def get_profile_comments(profile_user_id, limit=10):
+    return (
+        ProfileComment.query
+        .filter_by(profile_user_id=profile_user_id)
+        .order_by(ProfileComment.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
 def calculate_leaderboard_score(stats):
     if isinstance(stats, LeaderboardStats):
         stats = asdict(stats)
@@ -646,9 +1015,9 @@ def calculate_leaderboard_score(stats):
         + (coerce_int(stats.get("damage_taken"), 0) // 2)
     )
 
-def get_leaderboard_entries(current_user_id=None, limit=None):
+def get_leaderboard_entries(current_user_id=None, limit=None, user_ids=None):
     try:
-        rows = (
+        query = (
             db.session.query(
                 User.id.label("user_id"),
                 User.username.label("username"),
@@ -664,6 +1033,14 @@ def get_leaderboard_entries(current_user_id=None, limit=None):
             )
             .join(SaveData, SaveData.user_id == User.id)
             .filter(SaveData.has_started_game.is_(True))
+            .filter(User.hide_from_leaderboard.is_(False))
+        )
+
+        if user_ids is not None:
+            query = query.filter(User.id.in_(user_ids))
+
+        rows = (
+            query
             .group_by(User.id, User.username, User.display_name)
             .all()
         )
@@ -722,6 +1099,92 @@ def get_leaderboard_entry_for_user(user_id, current_user_id=None):
             return entry
 
     return None
+
+def get_friends_leaderboard(current_user_id):
+    friend_ids = [
+        friendship.friend_id
+        for friendship in Friend.query.filter_by(
+            user_id=current_user_id,
+            status="accepted"
+        ).all()
+    ]
+    visible_user_ids = [current_user_id, *friend_ids]
+    return get_leaderboard_entries(
+        current_user_id=current_user_id,
+        user_ids=visible_user_ids
+    )
+
+def get_friend_rank(current_user_id):
+    for entry in get_friends_leaderboard(current_user_id):
+        if entry["user_id"] == current_user_id:
+            return entry
+
+    return None
+
+def can_view_friend_stats(viewer_id, profile_user):
+    if profile_user is None:
+        return False
+
+    if viewer_id == profile_user.id:
+        return True
+
+    if not profile_user.show_stats_to_friends:
+        return False
+
+    return get_accepted_friendship(viewer_id, profile_user.id) is not None
+
+def can_message_friend(sender_id, receiver_user):
+    if receiver_user is None:
+        return False
+
+    if not receiver_user.allow_friend_messages:
+        return False
+
+    return get_accepted_friendship(sender_id, receiver_user.id) is not None
+
+def format_message_timestamp(timestamp):
+    if timestamp is None:
+        return ""
+
+    return timestamp.strftime("%d %b %H:%M")
+
+def get_unread_message_count(user_id, friend_id=None):
+    query = Message.query.filter(
+        Message.receiver_id == user_id,
+        Message.read_at.is_(None)
+    )
+
+    if friend_id is not None:
+        query = query.filter(Message.sender_id == friend_id)
+
+    return query.count()
+
+def get_recent_conversations(user_id):
+    conversations = []
+
+    for friend in get_friends(user_id):
+        latest_message = Message.query.filter(
+            ((Message.sender_id == user_id) & (Message.receiver_id == friend.id)) |
+            ((Message.sender_id == friend.id) & (Message.receiver_id == user_id))
+        ).order_by(Message.timestamp.desc()).first()
+        latest_preview = "No messages yet"
+
+        if latest_message is not None:
+            latest_preview = latest_message.message or "Encrypted message"
+
+        conversations.append({
+            "friend": friend,
+            "display_name": get_display_name(friend),
+            "latest_message": latest_preview,
+            "timestamp": format_message_timestamp(latest_message.timestamp) if latest_message else "",
+            "unread_count": get_unread_message_count(user_id, friend.id),
+        })
+
+    return sorted(
+        conversations,
+        key=lambda item: item["timestamp"] or "",
+        reverse=True
+    )
 
 def get_accepted_friendship(user_id, friend_id):
     return Friend.query.filter_by(

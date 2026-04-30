@@ -264,6 +264,7 @@ def main_menu():
         return redirect(url_for("show_login"))
 
     friends = []
+    unread_message_count = 0
 
     if current_user.is_authenticated:
         user = current_user
@@ -273,6 +274,7 @@ def main_menu():
         session["username"] = user.username
         session["display_name"] = username
         friends = get_friends(user_id)
+        unread_message_count = get_unread_message_count(user_id)
     elif not is_guest:
         session.clear()
         return redirect(url_for("show_login"))
@@ -285,6 +287,7 @@ def main_menu():
         user_id=user_id,
         profile_image=profile_image,
         leaderboard=get_leaderboard(current_user_id=user_id),
+        unread_message_count=unread_message_count,
         can_view_profiles=not is_guest
     )
 
@@ -301,10 +304,30 @@ def profile():
     bio_value = get_profile_bio(user)
     selected_profile_image = get_profile_image(user)
     custom_profile_image = get_custom_profile_image(user)
+    profile_background_value = get_profile_background(user)
+    favorite_character_value = user.favorite_character or ""
+    show_stats_to_friends_value = bool(user.show_stats_to_friends)
+    allow_friend_messages_value = bool(user.allow_friend_messages)
+    hide_from_leaderboard_value = bool(user.hide_from_leaderboard)
 
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
         bio = request.form.get("bio", "").strip()
+        favorite_character = normalize_save_token(
+            request.form.get("favorite_character", ""),
+            "",
+            max_length=20,
+            transform="lower"
+        )
+        profile_background = normalize_save_token(
+            request.form.get("profile_background", "default"),
+            "default",
+            max_length=20,
+            transform="lower"
+        )
+        show_stats_to_friends = request.form.get("show_stats_to_friends") == "on"
+        allow_friend_messages = request.form.get("allow_friend_messages") == "on"
+        hide_from_leaderboard = request.form.get("hide_from_leaderboard") == "on"
         profile_image = normalize_profile_image_path(
             request.form.get("profile_image", selected_profile_image)
         )
@@ -326,6 +349,11 @@ def profile():
         display_name_value = display_name
         bio_value = bio
         selected_profile_image = profile_image
+        profile_background_value = profile_background
+        favorite_character_value = favorite_character
+        show_stats_to_friends_value = show_stats_to_friends
+        allow_friend_messages_value = allow_friend_messages
+        hide_from_leaderboard_value = hide_from_leaderboard
 
         if (request.content_length or 0) > PROFILE_IMAGE_UPLOAD_MAX_BYTES:
             error = "Profile image uploads must be 5MB or smaller."
@@ -333,6 +361,10 @@ def profile():
             error = "Display name must be 80 characters or fewer."
         elif len(bio) > BIO_MAX_LENGTH:
             error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
+        elif favorite_character not in FAVORITE_CHARACTER_LABELS:
+            error = "Choose one of the available favorite characters."
+        elif profile_background not in PROFILE_BACKGROUND_LABELS:
+            error = "Choose one of the available profile backgrounds."
         elif has_uploaded_profile_image:
             error = validate_uploaded_profile_image(uploaded_profile_image)
         elif not is_selectable_profile_image_for_user(profile_image, user_id):
@@ -364,6 +396,11 @@ def profile():
             user.display_name = display_name or None
             user.bio = bio or None
             user.profile_image = profile_image
+            user.profile_background = profile_background
+            user.favorite_character = favorite_character
+            user.show_stats_to_friends = show_stats_to_friends
+            user.allow_friend_messages = allow_friend_messages
+            user.hide_from_leaderboard = hide_from_leaderboard
 
             if wants_password_change:
                 user.password_hash = generate_password_hash(
@@ -381,6 +418,11 @@ def profile():
                 bio_value = get_profile_bio(user)
                 selected_profile_image = get_profile_image(user)
                 custom_profile_image = get_custom_profile_image(user)
+                profile_background_value = get_profile_background(user)
+                favorite_character_value = user.favorite_character or ""
+                show_stats_to_friends_value = bool(user.show_stats_to_friends)
+                allow_friend_messages_value = bool(user.allow_friend_messages)
+                hide_from_leaderboard_value = bool(user.hide_from_leaderboard)
             except SQLAlchemyError as update_error:
                 db.session.rollback()
                 if new_uploaded_profile_image is not None:
@@ -400,8 +442,15 @@ def profile():
         bio=bio_value,
         bio_max_length=BIO_MAX_LENGTH,
         profile_image=selected_profile_image,
+        profile_background=profile_background_value,
+        profile_backgrounds=PROFILE_BACKGROUND_OPTIONS,
         custom_profile_image=custom_profile_image,
         profile_images=PROFILE_IMAGE_OPTIONS,
+        favorite_characters=FAVORITE_CHARACTER_OPTIONS,
+        favorite_character=favorite_character_value,
+        show_stats_to_friends=show_stats_to_friends_value,
+        allow_friend_messages=allow_friend_messages_value,
+        hide_from_leaderboard=hide_from_leaderboard_value,
         error=error,
         success=success
     )
@@ -432,6 +481,41 @@ def view_profile(user_id):
                 else:
                     accept_pending_friend_request(incoming_request)
                     flash("Friend request accepted.")
+            elif action == "profile_reaction":
+                reaction_type = request.form.get("reaction_type", "")
+
+                if reaction_type not in PROFILE_REACTION_VALUES:
+                    flash("Reaction not recognised.")
+                else:
+                    reaction = ProfileReaction.query.filter_by(
+                        profile_user_id=user_id,
+                        reactor_user_id=current_user_id
+                    ).first()
+
+                    if reaction is None:
+                        db.session.add(ProfileReaction(
+                            profile_user_id=user_id,
+                            reactor_user_id=current_user_id,
+                            reaction_type=reaction_type
+                        ))
+                    else:
+                        reaction.reaction_type = reaction_type
+                        reaction.updated_at = datetime.utcnow()
+
+                    flash("Profile reaction saved.")
+            elif action == "profile_comment":
+                comment = normalize_profile_comment(request.form.get("comment", ""))
+                comment_error = validate_profile_comment(comment)
+
+                if comment_error is not None:
+                    flash(comment_error)
+                else:
+                    db.session.add(ProfileComment(
+                        profile_user_id=user_id,
+                        author_user_id=current_user_id,
+                        comment=comment
+                    ))
+                    flash("Comment posted.")
             else:
                 flash("Profile action not recognised.")
 
@@ -448,18 +532,32 @@ def view_profile(user_id):
 
         return redirect(url_for("view_profile", user_id=user_id))
 
-    leaderboard_entry = get_leaderboard_entry_for_user(
+    leaderboard_entry = None if profile_user.hide_from_leaderboard else get_leaderboard_entry_for_user(
         user_id,
         current_user_id=current_user_id
     )
+    achievements = get_user_achievements(user_id)
+    unlocked_count = sum(1 for achievement in achievements if achievement["unlocked"])
+    latest_run = get_latest_run_summary(user_id)
+    can_view_stats = can_view_friend_stats(current_user_id, profile_user)
 
     return render_template(
         "public_profile.html",
         profile_user=profile_user,
         display_name=get_display_name(profile_user),
         profile_image=get_profile_image(profile_user),
+        profile_background=get_profile_background(profile_user),
         bio=get_profile_bio(profile_user),
         leaderboard_entry=leaderboard_entry,
+        favorite_character=FAVORITE_CHARACTER_LABELS.get(profile_user.favorite_character or "", "No Favorite"),
+        unlocked_achievement_count=unlocked_count,
+        total_achievement_count=len(achievements),
+        profile_badges=get_profile_badges(profile_user, achievements, leaderboard_entry),
+        latest_run=latest_run,
+        can_view_stats=can_view_stats,
+        reaction_options=get_profile_reaction_counts(user_id, current_user_id),
+        profile_comments=get_profile_comments(user_id),
+        profile_comment_max_length=PROFILE_COMMENT_MAX_LENGTH,
         friend_action=get_friend_action(current_user_id, user_id),
         is_self=current_user_id == user_id
     )
@@ -488,16 +586,18 @@ def show_achievements():
 
     if user_id is None or session.get("is_guest"):
         stats = get_empty_stats()
+        achievements = []
     else:
         user = User.query.get(user_id)
         if user is not None:
             username = get_display_name(user)
         stats = get_user_stats(user_id)
+        achievements = get_user_achievements(user_id)
 
     return render_template(
         "achievements.html",
         username=username,
-        achievements=[],
+        achievements=achievements,
         stats=stats
     )
 
@@ -524,6 +624,7 @@ def save_game():
     try:
         save_data = get_user_save(character_id=character_id, create=True)
         update_save_data(save_data, sanitized_data)
+        unlocked_achievements = unlock_achievements_for_user(session["user_id"])
         db.session.commit()
     except SQLAlchemyError as error:
         db.session.rollback()
@@ -558,7 +659,8 @@ def save_game():
 
     return jsonify({
         "ok": True,
-        "message": "Game saved."
+        "message": "Game saved.",
+        "achievements_unlocked": unlocked_achievements
     })
 
 
@@ -682,14 +784,15 @@ def show_friends():
     ).all()
 
     # Get friends (accepted requests)
-    friends = get_friends(user.id)
-
+    friends = get_friends(current_user.id)
+    recent_conversations = get_recent_conversations(current_user.id)
     return render_template(
         'friends_view.html',
         username=get_display_name(user),
         current_user=user,
         incoming_requests=incoming_requests,
-        friends=friends
+        friends=friends,
+        recent_conversations=recent_conversations
     )
 
 
@@ -717,6 +820,47 @@ def reject_friend(request_id):
         db.session.commit()
 
     return redirect(url_for("show_friends"))
+
+@app.route("/unfriend/<int:friend_id>", methods=["POST"])
+@login_required
+def unfriend(friend_id):
+    current_user_id = current_user.id
+
+    friend = User.query.get(friend_id)
+    if friend is None:
+        flash("Friend not found.")
+        return redirect(url_for("show_friends"))
+
+    friendships = Friend.query.filter(
+        Friend.status == "accepted",
+        (
+            ((Friend.user_id == current_user_id) & (Friend.friend_id == friend_id)) |
+            ((Friend.user_id == friend_id) & (Friend.friend_id == current_user_id))
+        )
+    ).all()
+
+    if not friendships:
+        flash("That user is not in your friends list.")
+        return redirect(url_for("show_friends"))
+
+    try:
+        for friendship in friendships:
+            db.session.delete(friendship)
+
+        db.session.commit()
+        flash(f"Removed {get_display_name(friend)} from your friends.")
+    except SQLAlchemyError as error:
+        db.session.rollback()
+        app.logger.warning(
+            "Unfriend failed for user %s and friend %s. %s",
+            current_user_id,
+            friend_id,
+            getattr(error, "orig", error)
+        )
+        flash("Could not remove friend.")
+
+    return redirect(url_for("show_friends"))
+
 
 @app.route("/chat/keys/<int:friend_id>", methods=["GET", "POST"])
 @login_required
@@ -746,7 +890,6 @@ def chat_keys(friend_id):
         "friend_key": serialize_chat_public_key(friend),
     })
 
-
 @app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
 @login_required
 def chat(friend_id):
@@ -756,6 +899,10 @@ def chat(friend_id):
 
     if friend is None:
         flash("You can only chat with users in your friends list.")
+        return redirect(url_for("show_friends"))
+
+    if not friend.allow_friend_messages:
+        flash("This friend is not accepting messages right now.")
         return redirect(url_for("show_friends"))
 
     if request.method == "POST":
@@ -788,12 +935,24 @@ def chat(friend_id):
         ((Message.sender_id == friend_id) & (Message.receiver_id == current_user_id))
     ).order_by(Message.timestamp).all()
 
+    unread_messages = Message.query.filter_by(
+        sender_id=friend_id,
+        receiver_id=current_user_id,
+        read_at=None
+    ).all()
+
+    if unread_messages:
+        for message in unread_messages:
+            message.read_at = datetime.utcnow()
+        db.session.commit()
+
     return render_template(
         "chat.html",
         messages=messages,
         chat_messages=[serialize_chat_message(message) for message in messages],
         friend=friend,
-        current_user=current_user_id
+        current_user=current_user_id,
+        format_message_timestamp=format_message_timestamp
     )
 
 
@@ -858,9 +1017,14 @@ def handle_chat_send(data):
         socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
         return {"ok": False, "message": "Chat user is invalid."}
 
-    if get_accepted_friend(current_user, friend_id) is None:
+    friend = get_accepted_friend(current_user, friend_id)
+    if friend is None:
         socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
         return {"ok": False, "message": "You can only chat with accepted friends."}
+
+    if not friend.allow_friend_messages:
+        socketio.emit("chat:error", {"message": "This friend is not accepting messages right now."}, to=request.sid)
+        return {"ok": False, "message": "This friend is not accepting messages right now."}
 
     if encrypted_payload is None:
         socketio.emit("chat:error", {"message": "Message encryption failed."}, to=request.sid)
@@ -907,11 +1071,21 @@ def friend_stats(friend_id):
         flash("Friend not found.")
         return redirect(url_for("show_friends"))
 
+    if not can_view_friend_stats(current_user_id, friend):
+        return render_template(
+            "friend_stats.html",
+            username=session.get("username", "Player"),
+            friend=friend,
+            stats=get_empty_stats(),
+            stats_private=True
+        )
+
     stats = get_user_stats(friend_id)
 
     return render_template(
         "friend_stats.html",
         username=get_display_name(current_user),
         friend=friend,
-        stats=stats
+        stats=stats,
+        stats_private=False
     )

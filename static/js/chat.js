@@ -314,14 +314,29 @@ async function appendMessage(messageData) {
 
   const messageElement = document.createElement("div");
   const isOutgoing = Number(messageData.sender_id) === currentUserId;
+  const textElement = document.createElement("span");
+  const timeElement = document.createElement("time");
   const plaintext = await decryptMessage(messageData);
 
   messageElement.className = `chat-message ${isOutgoing ? "outgoing" : "incoming"}`;
-  messageElement.textContent = plaintext || "Locked encrypted message";
+  textElement.textContent = plaintext || "Locked encrypted message";
 
   if (!plaintext) {
     messageElement.dataset.locked = "true";
   }
+
+  if (messageData.timestamp) {
+    const sentAt = new Date(messageData.timestamp);
+    timeElement.dateTime = messageData.timestamp;
+    timeElement.textContent = sentAt.toLocaleString([], {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  messageElement.append(textElement, timeElement);
 
   if (messageId) {
     messageElement.dataset.messageId = messageId;

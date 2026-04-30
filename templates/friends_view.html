@@ -56,15 +56,52 @@
         <h2>Your Friends</h2>
         <ul>
           {% for f in friends %}
+            {% set presence = get_friend_presence(f) %}
             <li>
-              <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
-                {{ f.display_name or f.username }}
-              </a>
+              <div class="friend-identity">
+                <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
+                <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
+                  {{ f.display_name or f.username }}
+                </a>
+                <span class="presence-label">{{ presence.label }}</span>
+              </div>
               <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
               <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+              <form
+                method="POST"
+                action="{{ url_for('unfriend', friend_id=f.id) }}"
+                class="inline-action-form"
+                onsubmit="return confirm('Remove {{ (f.display_name or f.username)|e }} from your friends?');"
+              >
+                <button type="submit" class="danger-btn">Unfriend</button>
+              </form>
             </li>
           {% else %}
             <li>No friends yet</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="selected-character-box">
+        <h2>Recent Chats</h2>
+        <ul>
+          {% for conversation in recent_conversations %}
+            {% set presence = get_friend_presence(conversation.friend) %}
+            <li>
+              <div class="friend-identity">
+                <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
+                <a class="friend-name-link" href="{{ url_for('chat', friend_id=conversation.friend.id) }}">
+                  {{ conversation.display_name }}
+                </a>
+                <span class="presence-label">{{ presence.label }}</span>
+              </div>
+              <span class="conversation-preview">
+                {{ conversation.latest_message[:34] }}{% if conversation.latest_message|length > 34 %}...{% endif %}
+                {% if conversation.unread_count %} ({{ conversation.unread_count }} unread){% endif %}
+              </span>
+            </li>
+          {% else %}
+            <li>No conversations yet</li>
           {% endfor %}
         </ul>
       </section>

@@ -33,7 +33,7 @@ async function loginUser(page, credentials) {
   await page.getByRole("button", { name: "Log In" }).click();
 
   await expect(page).toHaveURL(/\/main[-_]menu$/);
-  await expect(page.locator(".operator-name")).toHaveText(`Operator: ${credentials.username}`);
+  await expect(page.locator(".operator-name")).toHaveText(credentials.username);
 }
 
 async function registerAndLogin(page, credentials) {
@@ -71,7 +71,7 @@ async function openChatWithFriend(page, username) {
   await goToFriendsPage(page);
   const friendItem = page.locator("li", { hasText: username }).first();
   await expect(friendItem).toBeVisible();
-  await friendItem.getByRole("link", { name: "Chat" }).click();
+  await friendItem.getByRole("link", { name: "Chat", exact: true }).click();
   await expect(page).toHaveURL(/\/chat\/\d+$/);
   await expect(page.locator("[data-chat-status]")).toHaveText(/Live chat connected\./);
 }
@@ -131,7 +131,7 @@ test("same browser context tabs share the same login session", async ({ page }) 
 
     await secondPage.goto("/main_menu");
     await expect(secondPage).toHaveURL(/\/main[-_]menu$/);
-    await expect(secondPage.locator(".operator-name")).toHaveText(`Operator: ${credentials.username}`);
+    await expect(secondPage.locator(".operator-name")).toHaveText(credentials.username);
   } finally {
     await secondPage.close();
   }
@@ -147,8 +147,8 @@ test("separate browser contexts keep different logged-in accounts", async ({ bro
     await registerAndLogin(page, firstUser);
     await registerAndLogin(secondPage, secondUser);
 
-    await expect(page.locator(".operator-name")).toHaveText(`Operator: ${firstUser.username}`);
-    await expect(secondPage.locator(".operator-name")).toHaveText(`Operator: ${secondUser.username}`);
+    await expect(page.locator(".operator-name")).toHaveText(firstUser.username);
+    await expect(secondPage.locator(".operator-name")).toHaveText(secondUser.username);
     await expect(page.locator("body")).toHaveAttribute("data-user-id", /\d+/);
     await expect(secondPage.locator("body")).toHaveAttribute("data-user-id", /\d+/);
   } finally {
