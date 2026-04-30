@@ -156,6 +156,9 @@ def sanitize_save_request_payload(data):
 @app.route("/")
 @app.route("/login", methods=["GET", "POST"])
 def show_login():
+    if current_user.is_authenticated:
+        return redirect(url_for("main_menu"))
+
     if request.method == "POST":
         username = normalize_auth_username(request.form.get("username", ""))
         password = str(request.form.get("password", ""))
@@ -177,6 +180,7 @@ def show_login():
             return render_template("login.html", error="Invalid username or password.")
 
         session.clear()
+        login_user(user)
         session["user_id"] = user.id
         session["username"] = user.username
         session["display_name"] = get_display_name(user)
@@ -189,6 +193,9 @@ def show_login():
 
 @app.route("/register", methods=["GET", "POST"])
 def show_register():
+    if current_user.is_authenticated:
+        return redirect(url_for("main_menu"))
+
     if request.method == "POST":
         username = normalize_auth_username(request.form.get("username", ""))
         password = str(request.form.get("password", ""))
@@ -230,6 +237,7 @@ def show_register():
 def guest_login():
     name = make_guest_name()
 
+    logout_user()
     session.clear()
     session["username"] = name
     session["is_guest"] = True
@@ -237,8 +245,9 @@ def guest_login():
     return redirect(url_for("main_menu"))
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
+    logout_user()
     session.clear()
     return redirect(url_for("show_login"))
 
@@ -246,9 +255,9 @@ def logout():
 @app.route("/main-menu")
 @app.route("/main_menu")
 def main_menu():
-    username = session.get("username")
-    is_guest = bool(session.get("is_guest"))
-    user_id = session.get("user_id")
+    is_guest = bool(session.get("is_guest")) and not current_user.is_authenticated
+    username = get_display_name(current_user) if current_user.is_authenticated else session.get("username")
+    user_id = current_user.id if current_user.is_authenticated else session.get("user_id")
     profile_image = PROFILE_IMAGE_DEFAULT
 
     if not username:
@@ -256,21 +265,17 @@ def main_menu():
 
     friends = []
 
-    if not is_guest:
-        if user_id is None:
-            session.clear()
-            return redirect(url_for("show_login"))
-
-        user = User.query.get(user_id)
-
-        if user is None:
-            session.clear()
-            return redirect(url_for("show_login"))
-
+    if current_user.is_authenticated:
+        user = current_user
         username = get_display_name(user)
         profile_image = get_profile_image(user)
+        session["user_id"] = user.id
+        session["username"] = user.username
         session["display_name"] = username
         friends = get_friends(user_id)
+    elif not is_guest:
+        session.clear()
+        return redirect(url_for("show_login"))
 
     return render_template(
         "main_menu_view.html",
@@ -285,20 +290,10 @@ def main_menu():
 
 
 @app.route("/profile", methods=["GET", "POST"])
+@login_required
 def profile():
-    user_id = session.get("user_id")
-
-    if user_id is None or session.get("is_guest"):
-        if session.get("username"):
-            return redirect(url_for("main_menu"))
-
-        return redirect(url_for("show_login"))
-
-    user = User.query.get(user_id)
-
-    if user is None:
-        session.clear()
-        return redirect(url_for("show_login"))
+    user = current_user
+    user_id = user.id
 
     error = None
     success = None
@@ -413,14 +408,9 @@ def profile():
 
 
 @app.route("/profile/<int:user_id>", methods=["GET", "POST"])
+@login_required
 def view_profile(user_id):
-    current_user_id = session.get("user_id")
-
-    if current_user_id is None or session.get("is_guest"):
-        if session.get("username"):
-            return redirect(url_for("main_menu"))
-
-        return redirect(url_for("show_login"))
+    current_user_id = current_user.id
 
     profile_user = User.query.get(user_id)
     if profile_user is None:
@@ -513,12 +503,9 @@ def show_achievements():
 
 
 @app.route("/save-game", methods=["POST"])
+@login_required
 def save_game():
-    if session.get("user_id") is None or session.get("is_guest"):
-        return jsonify({
-            "ok": False,
-            "message": "Please log in to save your game."
-        }), 401
+    user_id = current_user.id
 
     data = request.get_json(silent=True)
     sanitized_data = sanitize_save_request_payload(data)
@@ -542,9 +529,9 @@ def save_game():
         db.session.rollback()
 
         try:
-            write_fallback_save(session["user_id"], character_id, fallback_payload)
+            write_fallback_save(user_id, character_id, fallback_payload)
         except OSError:
-            app.logger.exception("Save failed for user %s.", session.get("user_id"))
+            app.logger.exception("Save failed for user %s.", user_id)
             return jsonify({
                 "ok": False,
                 "message": "Save failed."
@@ -552,7 +539,7 @@ def save_game():
 
         app.logger.warning(
             "SQLite save failed for user %s; wrote fallback save instead. %s",
-            session.get("user_id"),
+            user_id,
             getattr(error, "orig", error)
         )
         return jsonify({
@@ -561,11 +548,11 @@ def save_game():
         })
 
     try:
-        write_fallback_save(session["user_id"], character_id, build_save_payload(save_data))
+        write_fallback_save(user_id, character_id, build_save_payload(save_data))
     except OSError as error:
         app.logger.warning(
             "Backup save write failed for user %s after database save succeeded. %s",
-            session.get("user_id"),
+            user_id,
             error
         )
 
@@ -576,12 +563,9 @@ def save_game():
 
 
 @app.route("/load-game")
+@login_required
 def load_game():
-    if session.get("user_id") is None or session.get("is_guest"):
-        return jsonify({
-            "ok": False,
-            "message": "Please log in to load your game."
-        }), 401
+    user_id = current_user.id
 
     requested_character_id = request.args.get("character_id")
     character_id = str(requested_character_id).lower() if requested_character_id else None
@@ -590,21 +574,21 @@ def load_game():
     fallback_payloads = []
 
     try:
-        db_payloads = list_db_save_payloads(session["user_id"], character_id=character_id)
+        db_payloads = list_db_save_payloads(user_id, character_id=character_id)
     except SQLAlchemyError as error:
         db.session.rollback()
         app.logger.warning(
             "Database load failed for user %s; falling back to JSON save. %s",
-            session.get("user_id"),
+            user_id,
             getattr(error, "orig", error)
         )
 
     if character_id is not None:
-        fallback_payload = read_fallback_save(session["user_id"], character_id)
+        fallback_payload = read_fallback_save(user_id, character_id)
         if fallback_payload is not None:
             fallback_payloads.append(fallback_payload)
     else:
-        fallback_payloads = list_fallback_save_payloads(session["user_id"])
+        fallback_payloads = list_fallback_save_payloads(user_id)
 
     save_payload = choose_latest_save_payload(*db_payloads, *fallback_payloads)
 
@@ -622,24 +606,14 @@ def load_game():
         "save_data": save_payload
     })
 
-@app.route("/add_friend/<int:user_id>")
+@app.route("/add_friend/<int:user_id>", methods=["POST"])
+@login_required
 def add_friend(user_id):
-    current_user = session.get("user_id")
+    current_user_id = current_user.id
 
-    if session.get("is_guest"):
-        return redirect(url_for("main_menu"))
-
-    if not current_user:
-        return redirect(url_for("show_login"))
-
-    if current_user == user_id:
+    if current_user_id == user_id:
         flash("You cannot add yourself.")
         return redirect(url_for("show_friends"))
-
-    current_user_record = User.query.get(current_user)
-    if current_user_record is None:
-        session.clear()
-        return redirect(url_for("show_login"))
 
     target_user = User.query.get(user_id)
     if target_user is None:
@@ -647,14 +621,14 @@ def add_friend(user_id):
         return redirect(url_for("show_friends"))
 
     try:
-        _, message = create_friend_request(current_user, user_id)
+        _, message = create_friend_request(current_user_id, user_id)
         db.session.commit()
         flash(message)
     except SQLAlchemyError as error:
         db.session.rollback()
         app.logger.warning(
             "Friend request failed for user %s and target %s. %s",
-            current_user,
+            current_user_id,
             user_id,
             getattr(error, "orig", error)
         )
@@ -664,17 +638,12 @@ def add_friend(user_id):
 
 
 @app.route('/friends', methods=['GET', 'POST'])
+@login_required
 def show_friends():
-    if session.get("is_guest"):
-        return redirect(url_for("main_menu"))
+    user = current_user
 
-    current_user = User.query.get(session.get('user_id'))
-    if current_user is None:
-        session.clear()
-        return redirect(url_for('show_login'))
-    
     if request.method == 'POST':
-        from_user_id = session.get('user_id')
+        from_user_id = user.id
         friend_username = normalize_auth_username(request.form.get('friend_username', ''))
         friend_username_error = validate_friend_username(friend_username)
 
@@ -682,7 +651,7 @@ def show_friends():
             flash(friend_username_error)
             return redirect(url_for('show_friends'))
 
-        if friend_username == current_user.username:
+        if friend_username == user.username:
             flash("You cannot add yourself.")
             return redirect(url_for('show_friends'))
 
@@ -704,93 +673,127 @@ def show_friends():
                 flash("Friend request failed.")
         else:
             flash('User not found.')
-        
+
         return redirect(url_for('show_friends'))
-    
+
     # Get pending requests for current user
     incoming_requests = FriendRequest.query.filter_by(
-        to_user_id=current_user.id, status='pending'
+        to_user_id=user.id, status='pending'
     ).all()
-    
+
     # Get friends (accepted requests)
-    friends = get_friends(current_user.id)
-    
+    friends = get_friends(user.id)
+
     return render_template(
         'friends_view.html',
-        username=get_display_name(current_user),
-        current_user=current_user,
+        username=get_display_name(user),
+        current_user=user,
         incoming_requests=incoming_requests,
         friends=friends
     )
 
 
-@app.route("/accept_friend/<int:request_id>")
+@app.route("/accept_friend/<int:request_id>", methods=["POST"])
+@login_required
 def accept_friend(request_id):
-    current_user = session.get('user_id')
-    if not current_user:
-        return redirect(url_for("show_login"))
+    current_user_id = current_user.id
 
     friend_request = FriendRequest.query.get(request_id)
-    if friend_request and friend_request.to_user_id == current_user:
+    if friend_request and friend_request.to_user_id == current_user_id:
         accept_pending_friend_request(friend_request)
         db.session.commit()
 
     return redirect(url_for("show_friends"))
 
-@app.route("/reject_friend/<int:request_id>")
+
+@app.route("/reject_friend/<int:request_id>", methods=["POST"])
+@login_required
 def reject_friend(request_id):
-    current_user = session.get('user_id')
-    if not current_user:
-        return redirect(url_for("show_login"))
+    current_user_id = current_user.id
 
     friend_request = FriendRequest.query.get(request_id)
-    if friend_request and friend_request.to_user_id == current_user:
+    if friend_request and friend_request.to_user_id == current_user_id:
         db.session.delete(friend_request)
         db.session.commit()
 
     return redirect(url_for("show_friends"))
 
+@app.route("/chat/keys/<int:friend_id>", methods=["GET", "POST"])
+@login_required
+def chat_keys(friend_id):
+    user = current_user._get_current_object()
+    current_user_id = user.id
+
+    friend = get_accepted_friend(current_user_id, friend_id)
+    if friend is None:
+        return jsonify({"ok": False, "message": "You can only chat with accepted friends."}), 403
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        public_key = str(data.get("public_key", "")).strip()
+
+        if not public_key:
+            return jsonify({"ok": False, "message": "Chat public key is required."}), 400
+
+        user.chat_public_key = public_key
+        user.chat_key_id = build_chat_key_id(public_key)
+        user.chat_key_created_at = datetime.utcnow()
+        db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "current_user_key": serialize_chat_public_key(user),
+        "friend_key": serialize_chat_public_key(friend),
+    })
+
+
 @app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
+@login_required
 def chat(friend_id):
-    current_user = session.get("user_id")
+    current_user_id = current_user.id
 
-    if current_user is None or session.get("is_guest"):
-        return redirect(url_for("show_login"))
-
-    friend = get_accepted_friend(current_user, friend_id)
+    friend = get_accepted_friend(current_user_id, friend_id)
 
     if friend is None:
         flash("You can only chat with users in your friends list.")
         return redirect(url_for("show_friends"))
 
     if request.method == "POST":
-        msg = normalize_chat_message(request.form.get("message", ""))
-        message_error = validate_chat_message(msg)
+        encrypted_payload = validate_encrypted_chat_payload({
+            "ciphertext": request.form.get("ciphertext"),
+            "nonce": request.form.get("nonce"),
+            "sender_public_key": request.form.get("sender_public_key"),
+            "sender_key_id": request.form.get("sender_key_id"),
+            "recipient_public_key": request.form.get("recipient_public_key"),
+            "recipient_key_id": request.form.get("recipient_key_id"),
+            "encryption_version": request.form.get("encryption_version"),
+        })
 
-        if message_error is not None:
-            flash(message_error)
+        if encrypted_payload:
+            message = Message(
+                sender_id=current_user_id,
+                receiver_id=friend_id,
+                message=None,
+                **encrypted_payload,
+                timestamp=datetime.utcnow()
+            )
+            db.session.add(message)
+            db.session.commit()
             return redirect(url_for("chat", friend_id=friend_id))
 
-        message = Message(
-            sender_id=session["user_id"],
-            receiver_id=friend_id,
-            message=msg,
-            timestamp=datetime.utcnow()
-        )
-        db.session.add(message)
-        db.session.commit()
-        return redirect(url_for("chat", friend_id=friend_id))
+        flash("Message encryption failed.")
 
     messages = Message.query.filter(
-        ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
-        ((Message.sender_id == friend_id) & (Message.receiver_id == current_user))
+        ((Message.sender_id == current_user_id) & (Message.receiver_id == friend_id)) |
+        ((Message.sender_id == friend_id) & (Message.receiver_id == current_user_id))
     ).order_by(Message.timestamp).all()
 
     return render_template(
         "chat.html",
         messages=messages,
+        chat_messages=[serialize_chat_message(message) for message in messages],
         friend=friend,
-        current_user=session["user_id"]
+        current_user=current_user_id
     )
 
 
@@ -845,7 +848,7 @@ def handle_chat_leave(data):
 def handle_chat_send(data):
     current_user = session.get("user_id")
     friend_id = parse_friend_id((data or {}).get("friend_id"))
-    message_text = normalize_chat_message((data or {}).get("message", ""))
+    encrypted_payload = validate_encrypted_chat_payload((data or {}).get("message"))
 
     if current_user is None or session.get("is_guest"):
         socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
@@ -859,10 +862,9 @@ def handle_chat_send(data):
         socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
         return {"ok": False, "message": "You can only chat with accepted friends."}
 
-    message_error = validate_chat_message(message_text)
-    if message_error is not None:
-        socketio.emit("chat:error", {"message": message_error}, to=request.sid)
-        return {"ok": False, "message": message_error}
+    if encrypted_payload is None:
+        socketio.emit("chat:error", {"message": "Message encryption failed."}, to=request.sid)
+        return {"ok": False, "message": "Message encryption failed."}
 
     room_key = build_chat_room_key(current_user, friend_id)
     join_room(room_key)
@@ -870,7 +872,8 @@ def handle_chat_send(data):
     message = Message(
         sender_id=current_user,
         receiver_id=friend_id,
-        message=message_text,
+        message=None,
+        **encrypted_payload,
         timestamp=datetime.utcnow()
     )
     db.session.add(message)
@@ -885,11 +888,9 @@ def handle_chat_send(data):
     }
 
 @app.route("/friend-stats/<int:friend_id>")
+@login_required
 def friend_stats(friend_id):
-    current_user_id = session.get("user_id")
-
-    if current_user_id is None or session.get("is_guest"):
-        return redirect(url_for("show_login"))
+    current_user_id = current_user.id
 
     friendship = Friend.query.filter_by(
         user_id=current_user_id,
@@ -910,7 +911,7 @@ def friend_stats(friend_id):
 
     return render_template(
         "friend_stats.html",
-        username=session.get("username", "Player"),
+        username=get_display_name(current_user),
         friend=friend,
         stats=stats
     )

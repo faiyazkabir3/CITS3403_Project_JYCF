@@ -92,7 +92,10 @@
         <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
         <button type="button" id="open-settings-btn">SETTINGS</button>
         <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
-        <a href="{{ url_for('logout') }}"><button type="button">LOG OUT</button></a>
+        <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">LOG OUT</button>
+        </form>
       </div>
     </div>
   </div>

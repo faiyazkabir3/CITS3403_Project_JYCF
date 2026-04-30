@@ -15,6 +15,7 @@ const WARNING_BEEP_SOUND = "/static/audio/sfx/system/warning_beep.mp3";
 const SUCCESS_SOUND = "/static/audio/sfx/system/success.mp3";
 const FAIL_SOUND = "/static/audio/sfx/system/fail.mp3";
 const BUTTON_CLICK_SOUND = "/static/audio/sfx/ui/button_click.mp3";
+const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
 const PISTOL_SHOT_SOUND = "/static/audio/sfx/combat/pistol_shot.mp3";
 const RIFLE_SHOT_SOUND = "/static/audio/sfx/combat/rifle_shot.mp3";
 const RELOAD_SOUND = "/static/audio/sfx/combat/reload.mp3";
@@ -657,6 +658,16 @@ function ensureBattleAssetBinding(imageEl, fallbackEl) {
   });
 
   imageEl.addEventListener("error", () => {
+    const requestedSrc = imageEl.dataset.requestedSrc || "";
+
+    if (requestedSrc && imageEl.dataset.retrySrc !== requestedSrc) {
+      imageEl.dataset.retrySrc = requestedSrc;
+      const separator = requestedSrc.includes("?") ? "&" : "?";
+      imageEl.src = `${requestedSrc}${separator}retry=${Date.now()}`;
+      return;
+    }
+
+    delete imageEl.dataset.currentSrc;
     imageEl.hidden = true;
     if (fallbackEl) {
       fallbackEl.hidden = false;
@@ -673,13 +684,18 @@ function setBattleAsset(imageEl, fallbackEl, src, alt, fallbackText) {
 
   if (!src) {
     imageEl.removeAttribute("src");
+    delete imageEl.dataset.requestedSrc;
+    delete imageEl.dataset.currentSrc;
+    delete imageEl.dataset.retrySrc;
     imageEl.hidden = true;
     fallbackEl.hidden = false;
     return;
   }
 
-  if (imageEl.dataset.currentSrc !== src) {
+  if (imageEl.dataset.requestedSrc !== src) {
+    imageEl.dataset.requestedSrc = src;
     imageEl.dataset.currentSrc = src;
+    delete imageEl.dataset.retrySrc;
     imageEl.hidden = true;
     fallbackEl.hidden = false;
     imageEl.src = src;
@@ -1232,12 +1248,18 @@ function buildSavePayload(engine) {
   };
 }
 
+function getCsrfToken() {
+  return csrfTokenMeta?.content || "";
+}
+
 async function saveGameToBackend(engine) {
   const payload = buildSavePayload(engine);
+  const csrfToken = getCsrfToken();
   const response = await fetch("/save-game", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {})
     },
     body: JSON.stringify(payload)
   });

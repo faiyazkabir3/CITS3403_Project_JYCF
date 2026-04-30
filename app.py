@@ -1,10 +1,14 @@
 import os
 import random
 import json
+import base64
+import hashlib
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 from uuid import uuid4
 
 try:
@@ -14,13 +18,27 @@ except ModuleNotFoundError:
         return False
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask_login import LoginManager, current_user, login_required, login_user, logout_user
+from flask_migrate import Migrate
 from flask_socketio import SocketIO, join_room, leave_room
+from flask_wtf.csrf import CSRFProtect
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from sqlalchemy import func, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models import db, User, SaveData, Friend, Message, FriendRequest
+
+try:
+    import sqlcipher3
+    import sqlcipher3.dbapi2 as sqlcipher_dbapi
+except ModuleNotFoundError:
+    sqlcipher3 = None
+else:
+    sys.modules.setdefault("pysqlcipher3", sqlcipher3)
+    sys.modules.setdefault("pysqlcipher3.dbapi2", sqlcipher_dbapi)
 
 load_dotenv()
 
@@ -145,14 +163,125 @@ def load_required_secret_key():
     return secret_key
 
 
+def load_required_env_secret(name, minimum_length=32):
+    value = os.environ.get(name, "").strip()
+
+    if not value:
+        raise RuntimeError(f"{name} is missing. Add it to your .env file.")
+
+    if len(value) < minimum_length:
+        raise RuntimeError(f"{name} is too short. Use at least {minimum_length} random characters.")
+
+    return value
+
+
+def configure_sqlcipher_database_uri(database_url, sqlcipher_key):
+    if sqlcipher3 is None:
+        raise RuntimeError("sqlcipher3 is required for encrypted SQLite databases.")
+
+    if database_url.startswith("sqlite+pysqlcipher://"):
+        return database_url
+
+    if not database_url.startswith("sqlite:///"):
+        raise RuntimeError("Only SQLite database URLs are supported for SQLCipher encryption.")
+
+    database_path = database_url.removeprefix("sqlite:///")
+    quoted_key = quote(sqlcipher_key, safe="")
+    return f"sqlite+pysqlcipher://:{quoted_key}@/{database_path}"
+
+
+def parse_save_payload_key_ring(raw_key_ring):
+    if not raw_key_ring.strip():
+        raise RuntimeError("SAVE_PAYLOAD_KEYS is missing. Add at least one key like v1:<base64-32-byte-key>.")
+
+    key_ring = {}
+    active_key_id = None
+
+    for entry in raw_key_ring.split(","):
+        key_id, separator, encoded_key = entry.strip().partition(":")
+        if not separator or not key_id or not encoded_key:
+            raise RuntimeError("SAVE_PAYLOAD_KEYS entries must use key_id:base64_key format.")
+
+        try:
+            key = base64.urlsafe_b64decode(encoded_key + "=" * (-len(encoded_key) % 4))
+        except ValueError as error:
+            raise RuntimeError(f"SAVE_PAYLOAD_KEYS entry {key_id} is not valid base64.") from error
+
+        if len(key) != 32:
+            raise RuntimeError(f"SAVE_PAYLOAD_KEYS entry {key_id} must decode to 32 bytes.")
+
+        key_ring[key_id] = key
+        active_key_id = active_key_id or key_id
+
+    return active_key_id, key_ring
+
+
 secret_key = load_required_secret_key()
+sqlcipher_database_key = load_required_env_secret("SQLCIPHER_DATABASE_KEY")
+SAVE_PAYLOAD_ACTIVE_KEY_ID, SAVE_PAYLOAD_KEY_RING = parse_save_payload_key_ring(
+    os.environ.get("SAVE_PAYLOAD_KEYS", "")
+)
+ALLOW_PLAINTEXT_SAVE_FALLBACKS = os.environ.get("ALLOW_PLAINTEXT_SAVE_FALLBACKS", "").lower() in {"1", "true", "yes"}
 
 app.config["SECRET_KEY"] = secret_key
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///project.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = configure_sqlcipher_database_uri(
+    os.environ.get("DATABASE_URL", "sqlite:///project.db"),
+    sqlcipher_database_key
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("SESSION_COOKIE_SECURE", "").lower() in {"1", "true", "yes"}
+)
+app.config["WTF_CSRF_CHECK_DEFAULT"] = False
 
 db.init_app(app)
+migrate = Migrate(app, db)
+csrf = CSRFProtect(app)
+login_manager = LoginManager(app)
+login_manager.login_view = "show_login"
 socketio = SocketIO(app, async_mode="threading")
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    try:
+        return db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
+
+
+@login_manager.unauthorized_handler
+def handle_unauthorized_user():
+    if request.path.startswith(("/save-game", "/load-game", "/chat/keys")):
+        return jsonify({"ok": False, "message": "Please log in."}), 401
+
+    if session.get("is_guest"):
+        return redirect(url_for("main_menu"))
+
+    return redirect(url_for("show_login"))
+
+
+@app.before_request
+def protect_csrf_requests():
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+
+    if request.path.startswith("/socket.io"):
+        return None
+
+    csrf.protect()
+    return None
+
+
+def verify_sqlcipher_database():
+    cipher_version = db.session.execute(text("PRAGMA cipher_version")).scalar()
+    if not cipher_version:
+        raise RuntimeError("SQLCipher is not active for the configured SQLite database.")
+
+    db.session.execute(text("SELECT count(*) FROM sqlite_master")).scalar()
+
 
 def ensure_user_schema():
     inspector = inspect(db.engine)
@@ -169,6 +298,9 @@ def ensure_user_schema():
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
         "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
+        "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
+        "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
     }
 
     for column_name, statement in required_columns.items():
@@ -176,6 +308,7 @@ def ensure_user_schema():
             db.session.execute(text(statement))
 
     db.session.commit()
+
 
 def ensure_save_data_schema():
     inspector = inspect(db.engine)
@@ -204,17 +337,56 @@ def ensure_save_data_schema():
     db.session.commit()
 
 
-with app.app_context():
-    try:
-        db.create_all()
-        ensure_user_schema()
-        ensure_save_data_schema()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        app.logger.warning(
-            "Database initialization skipped because SQLite is unavailable. %s",
-            getattr(error, "orig", error)
-        )
+def ensure_message_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "message" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("message")}
+    required_columns = {
+        "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
+        "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
+        "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
+        "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
+        "recipient_key_id": "ALTER TABLE message ADD COLUMN recipient_key_id VARCHAR(64)",
+        "recipient_public_key": "ALTER TABLE message ADD COLUMN recipient_public_key TEXT",
+        "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+
+def is_flask_db_command():
+    # Alembic imports the app before comparing metadata; do not let legacy
+    # startup helpers create or alter tables during Flask-Migrate commands.
+    return "db" in sys.argv[1:]
+
+
+def initialize_runtime_database():
+    with app.app_context():
+        try:
+            verify_sqlcipher_database()
+            db.create_all()
+            ensure_user_schema()
+            ensure_save_data_schema()
+            ensure_message_schema()
+        except SQLAlchemyError as error:
+            db.session.rollback()
+            app.logger.warning(
+                "Database initialization skipped because SQLite is unavailable. %s",
+                getattr(error, "orig", error)
+            )
+
+
+if not is_flask_db_command():
+    initialize_runtime_database()
+
 
 def get_friends(user_id):
     friendships = Friend.query.filter_by(user_id=user_id, status="accepted").all()
@@ -249,13 +421,67 @@ def parse_friend_id(value):
 
 
 def serialize_chat_message(message):
-    return asdict(ChatMessagePayload(
-        id=message.id,
-        sender_id=message.sender_id,
-        receiver_id=message.receiver_id,
-        message=message.message,
-        timestamp=message.timestamp.isoformat() if message.timestamp else None,
-    ))
+    return {
+        "id": message.id,
+        "sender_id": message.sender_id,
+        "receiver_id": message.receiver_id,
+        "ciphertext": message.ciphertext,
+        "nonce": message.nonce,
+        "sender_key_id": message.sender_key_id,
+        "sender_public_key": message.sender_public_key,
+        "recipient_key_id": message.recipient_key_id,
+        "recipient_public_key": message.recipient_public_key,
+        "encryption_version": message.encryption_version,
+        "timestamp": message.timestamp.isoformat() if message.timestamp else None,
+    }
+
+
+def build_chat_key_id(public_key):
+    return hashlib.sha256(public_key.encode("utf-8")).hexdigest()[:32]
+
+
+def serialize_chat_public_key(user):
+    if user is None or not user.chat_public_key or not user.chat_key_id:
+        return None
+
+    return {
+        "user_id": user.id,
+        "public_key": user.chat_public_key,
+        "key_id": user.chat_key_id,
+        "created_at": user.chat_key_created_at.isoformat() if user.chat_key_created_at else None,
+    }
+
+
+def validate_encrypted_chat_payload(payload):
+    if not isinstance(payload, dict):
+        return None
+
+    ciphertext = str(payload.get("ciphertext", "")).strip()
+    nonce = str(payload.get("nonce", "")).strip()
+    sender_public_key = str(payload.get("sender_public_key", "")).strip()
+    sender_key_id = str(payload.get("sender_key_id", "")).strip()
+    recipient_public_key = str(payload.get("recipient_public_key", "")).strip()
+    recipient_key_id = str(payload.get("recipient_key_id", "")).strip()
+
+    if not ciphertext or not nonce or not sender_public_key or not sender_key_id:
+        return None
+
+    if sender_key_id != build_chat_key_id(sender_public_key):
+        return None
+
+    if recipient_public_key and recipient_key_id != build_chat_key_id(recipient_public_key):
+        return None
+
+    return {
+        "ciphertext": ciphertext,
+        "nonce": nonce,
+        "sender_public_key": sender_public_key,
+        "sender_key_id": sender_key_id,
+        "recipient_public_key": recipient_public_key or None,
+        "recipient_key_id": recipient_key_id or None,
+        "encryption_version": coerce_int(payload.get("encryption_version"), 1),
+    }
+
 
 def get_user_stats(user_id):
     all_saves = SaveData.query.filter_by(user_id=user_id).all()
@@ -690,9 +916,48 @@ def get_fallback_save_path(user_id, character_id):
     return SAVE_FALLBACK_DIR / f"user_{user_id}_{safe_character}.json"
 
 
+def encrypt_save_payload(payload):
+    nonce = os.urandom(12)
+    key = SAVE_PAYLOAD_KEY_RING[SAVE_PAYLOAD_ACTIVE_KEY_ID]
+    plaintext = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
+
+    return {
+        "encrypted": True,
+        "version": 1,
+        "key_id": SAVE_PAYLOAD_ACTIVE_KEY_ID,
+        "nonce": base64.urlsafe_b64encode(nonce).decode("ascii").rstrip("="),
+        "ciphertext": base64.urlsafe_b64encode(ciphertext).decode("ascii").rstrip("="),
+    }
+
+
+def decode_envelope_value(value):
+    return base64.urlsafe_b64decode(str(value) + "=" * (-len(str(value)) % 4))
+
+
+def decrypt_save_payload(envelope):
+    if not isinstance(envelope, dict) or not envelope.get("encrypted"):
+        if ALLOW_PLAINTEXT_SAVE_FALLBACKS:
+            return envelope
+        return None
+
+    key_id = envelope.get("key_id")
+    key = SAVE_PAYLOAD_KEY_RING.get(key_id)
+    if key is None:
+        return None
+
+    try:
+        nonce = decode_envelope_value(envelope.get("nonce", ""))
+        ciphertext = decode_envelope_value(envelope.get("ciphertext", ""))
+        plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
+        return json.loads(plaintext.decode("utf-8"))
+    except (InvalidTag, OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def write_fallback_save(user_id, character_id, payload):
     path = get_fallback_save_path(user_id, character_id)
-    path.write_text(json.dumps(payload), encoding="utf-8")
+    path.write_text(json.dumps(encrypt_save_payload(payload), separators=(",", ":")), encoding="utf-8")
 
 
 def read_fallback_save(user_id, character_id):
@@ -702,7 +967,8 @@ def read_fallback_save(user_id, character_id):
         return None
 
     try:
-        return normalize_save_payload(json.loads(path.read_text(encoding="utf-8")))
+        envelope = json.loads(path.read_text(encoding="utf-8"))
+        return normalize_save_payload(decrypt_save_payload(envelope))
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -713,7 +979,8 @@ def list_fallback_save_payloads(user_id):
 
     for path in SAVE_FALLBACK_DIR.glob(pattern):
         try:
-            payload = normalize_save_payload(json.loads(path.read_text(encoding="utf-8")))
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+            payload = normalize_save_payload(decrypt_save_payload(envelope))
         except (OSError, json.JSONDecodeError):
             continue
 
@@ -898,12 +1165,9 @@ def build_save_payload(save_data):
     }
 
 
-import sys
 sys.modules.setdefault("app", sys.modules[__name__])
 
 import routes
 
-
 if __name__ == "__main__":
     socketio.run(app, debug=True)
-
