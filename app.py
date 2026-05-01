@@ -222,7 +222,19 @@ def load_required_env_secret(name, minimum_length=32):
     return value
 
 
+def allow_plaintext_test_database(database_url):
+    if os.environ.get("ALLOW_PLAINTEXT_TEST_DATABASES", "").lower() not in {"1", "true", "yes"}:
+        return False
+
+    normalized_url = str(database_url or "").replace("\\", "/")
+    database_name = normalized_url.rsplit("/", 1)[-1]
+    return database_name.startswith(("pytest_", "selenium_"))
+
+
 def configure_sqlcipher_database_uri(database_url, sqlcipher_key):
+    if allow_plaintext_test_database(database_url):
+        return database_url
+
     if sqlcipher3 is None:
         raise RuntimeError("sqlcipher3 is required for encrypted SQLite databases.")
 
@@ -329,6 +341,9 @@ def protect_csrf_requests():
 
 
 def verify_sqlcipher_database():
+    if allow_plaintext_test_database(app.config.get("SQLALCHEMY_DATABASE_URI")):
+        return
+
     cipher_version = db.session.execute(text("PRAGMA cipher_version")).scalar()
     if not cipher_version:
         raise RuntimeError("SQLCipher is not active for the configured SQLite database.")

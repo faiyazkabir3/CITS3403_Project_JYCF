@@ -1,17 +1,24 @@
 # Sanity Checks Guide
 
-This guide explains how to run the sanity checks that were added for the JavaScript tooling and Playwright smoke-test setup.
+This guide explains how to run the sanity checks for Python unit tests, Selenium browser tests, JavaScript tooling, and Playwright smoke tests.
 
 ## What We Added
 
-There are now two main sanity layers:
+There are now four main sanity layers:
 
-1. **JavaScript sanity**
+1. **Python unit tests**
+   - pytest tests for validation, save payload, chat payload, and achievement helpers
+
+2. **Selenium browser tests**
+   - Selenium WebDriver tests that launch the real Flask app in Chrome
+   - 5 rubric-focused browser flows
+
+3. **JavaScript sanity**
    - ESLint for the browser JS files in `static/js`
    - a Node-based checker for missing imports and missing static asset references
 
-2. **Browser smoke tests**
-   - Playwright tests that launch the real Flask app in Microsoft Edge
+4. **Playwright browser smoke tests**
+   - Playwright tests that launch the real Flask app
    - guest and registered-user flows
    - settings, achievements, play flow, save, and load checks
 
@@ -50,7 +57,46 @@ npm install
 
 ## Main Commands
 
-### 1. Lint only
+### 1. Python unit tests
+
+Runs the pytest unit suite:
+
+```powershell
+python -m pytest tests/unit
+```
+
+### 2. Selenium browser tests
+
+Runs the Selenium suite against Chrome by default:
+
+```powershell
+python -m pytest tests/selenium
+```
+
+Use Edge instead when needed:
+
+```powershell
+$env:SELENIUM_BROWSER = "edge"
+python -m pytest tests/selenium
+```
+
+### 3. All Python tests
+
+Runs both the unit tests and Selenium tests:
+
+```powershell
+python -m pytest
+```
+
+To confirm the rubric count, collect the tests without running them:
+
+```powershell
+python -m pytest --collect-only
+```
+
+The collection output should show at least 5 unit tests and 5 Selenium tests.
+
+### 4. Lint only
 
 Runs ESLint on the game and UI scripts:
 
@@ -60,7 +106,7 @@ npm run lint:js
 
 Use this when you only want fast feedback on JS syntax/style problems.
 
-### 2. Full JS sanity
+### 5. Full JS sanity
 
 Runs ESLint and the Node-based repo checks together:
 
@@ -75,7 +121,7 @@ This checks:
 - missing `/static/...` asset references in JS
 - missing `url_for(..., filename=...)` assets in templates
 
-### 3. Browser smoke tests
+### 6. Playwright browser smoke tests
 
 Runs the Playwright smoke suite:
 
@@ -93,7 +139,7 @@ This covers:
 - achievements page
 - save and load flow
 
-### 4. Everything
+### 7. JavaScript and Playwright checks
 
 Runs both the JS sanity checks and the browser smoke suite:
 
@@ -102,6 +148,13 @@ npm run sanity:all
 ```
 
 This is the main "check everything" command.
+
+For all Python and JavaScript checks, run:
+
+```powershell
+python -m pytest
+npm run sanity:all
+```
 
 ## Extra Playwright Commands
 
@@ -137,6 +190,16 @@ instance/playwright_smoke.db
 
 That keeps smoke-test users and saves out of your normal local app data.
 
+## How Selenium Is Configured
+
+- Test files: `tests/selenium/*.py`
+- Test server launcher: `scripts/run_selenium_server.py`
+- Default browser: Chrome
+- Alternate browser: set `SELENIUM_BROWSER=edge`
+- Test server URL: `http://127.0.0.1:5001`
+
+The Selenium server uses an isolated temporary database so browser tests do not touch normal local app data.
+
 ## Expected Results
 
 ### JS sanity
@@ -155,6 +218,15 @@ You should see output like:
 3 passed
 ```
 
+### Python tests
+
+You should see at least:
+
+```text
+8 passed
+5 passed
+```
+
 ## Troubleshooting
 
 ### `node` or `npm` is not recognized
@@ -169,7 +241,17 @@ Make sure Python dependencies are installed:
 pip install -r requirements.txt
 ```
 
-### Browser tests fail because Edge cannot launch
+### Selenium tests cannot find Chrome or a driver
+
+Install Google Chrome, then rerun:
+
+```powershell
+python -m pytest tests/selenium
+```
+
+Selenium Manager downloads the matching driver automatically when network access is available.
+
+### Playwright browser tests fail because Edge cannot launch
 
 Make sure Microsoft Edge is installed on the machine. The Playwright config is currently set to use the `msedge` channel.
 
@@ -187,11 +269,13 @@ Those folders are ignored by git.
 For normal development:
 
 ```powershell
+python -m pytest tests/unit
 npm run sanity:js
 ```
 
 Before pushing or handing work off:
 
 ```powershell
+python -m pytest
 npm run sanity:all
 ```
