@@ -263,6 +263,8 @@ body::before {
 .menu-page .top-bar {
   position: relative;
   z-index: 1;
+  height: auto;
+  min-height: 64px;
   margin: 0 10px;
   padding: 16px 20px 12px;
   border: 2px solid #d1c2a5;
@@ -2180,6 +2182,16 @@ body::before {
 }
 
 @media (max-width: 700px) {
+  .menu-page .menu-container {
+    width: 94%;
+    padding: 70px 12px 16px;
+  }
+
+  .menu-page .top-bar,
+  .menu-page .menu-content {
+    margin-inline: 4px;
+  }
+
   .menu-page .menu-content {
     flex-direction: column;
   }
@@ -2435,6 +2447,58 @@ body::before {
     border-color: #00ffcc;
     background: rgba(0, 255, 204, 0.12);
     outline: none;
+}
+
+.menu-page .friends-btn {
+    width: auto;
+    min-width: 112px;
+    border-color: #2f261b;
+    background: #f7f1df;
+    color: #1f1810;
+}
+
+.menu-page .friends-btn:hover {
+    background: #2f261b;
+    color: #f7f1df;
+}
+
+.menu-page .friends-dropdown {
+    background: #f1e6cf;
+    border-color: #2f261b;
+    box-shadow: 5px 5px 0 rgba(47, 38, 27, 0.28);
+}
+
+.menu-page .friends-dropdown a {
+    color: #1f1810;
+}
+
+.menu-page .friends-dropdown a:hover {
+    background: #2f261b;
+    color: #f7f1df;
+}
+
+.menu-page .friends-hub-link {
+    border-bottom-color: rgba(47, 38, 27, 0.28);
+}
+
+.menu-page .no-friends {
+    color: #6d5b45;
+}
+
+.menu-page .operator-bar .logo {
+    border-color: rgba(47, 38, 27, 0.72);
+    background: rgba(255, 252, 242, 0.52);
+}
+
+.menu-page .mode-chip {
+    border-color: #2f261b;
+    color: #2f261b;
+}
+
+.menu-page .operator-link:hover,
+.menu-page .operator-link:focus-visible {
+    border-color: #2f261b;
+    background: rgba(47, 38, 27, 0.12);
 }
 
 .profile-page .menu-container {
