@@ -13,6 +13,51 @@
 </head>
 <body class="menu-page" data-user-id="{{ user_id or '' }}">
 
+  <aside class="agent-clipboard" aria-label="Agent information">
+    <div class="agent-clip" aria-hidden="true"></div>
+    <section class="agent-paper">
+      <h1>AGENT INFORMATION</h1>
+
+      <div class="agent-profile-row">
+        <div class="agent-photo-frame">
+          <img src="{{ url_for('static', filename=profile_image) }}" alt="Agent profile picture">
+        </div>
+        <div class="agent-identity">
+          <span class="agent-label">AGENT NAME</span>
+          <strong>{{ username }}</strong>
+        </div>
+      </div>
+
+      <dl class="agent-details">
+        <div>
+          <dt>AGE</dt>
+          <dd>26</dd>
+        </div>
+        <div>
+          <dt>HEIGHT</dt>
+          <dd>5&quot;10</dd>
+        </div>
+      </dl>
+
+      <div class="agent-divider" aria-hidden="true"></div>
+
+      <div class="agent-date">
+        <span class="agent-label">DATE JOINED</span>
+        <strong>PLACEHOLDER</strong>
+      </div>
+
+      <a href="{{ url_for('show_achievements') }}" class="agent-achievements">
+        ACHIEVEMENTS
+      </a>
+
+      <img
+        src="{{ url_for('static', filename='images/fbi_seal.png') }}"
+        class="agent-seal"
+        alt="Federal Bureau of Investigation seal"
+      >
+    </section>
+  </aside>
+
   <div class="menu-container">
     <div class="top-bar">
       <div class="friends-menu" data-friends-menu>
