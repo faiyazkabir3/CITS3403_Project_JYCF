@@ -45,13 +45,16 @@ body::before {
   --overlay-opacity: 0.6;
 }
 
-.menu-page,
 .achievements-page {
   --overlay-opacity: 0.3;
 }
 
+.menu-page,
 .play-page {
   --overlay-opacity: 0.65;
+}
+
+.play-page {
   align-items: stretch;
 }
 
