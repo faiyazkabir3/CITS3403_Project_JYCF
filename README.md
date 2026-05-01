@@ -1,6 +1,14 @@
 # CITS3403_Project_JYCF
 A collaborative full-stack web application built using Flask, SQLAlchemy, and Bootstrap. Developed using Agile methodologies to deliver a user-centric, data-persistent platform. Created by JYCF
 
+## Group Members
+
+| UWA ID   | Name          | GitHub username  |
+| ---      | ---           | ---              |
+| 24773532 | Faiyaz Kabir  | faiyazkabir3     |
+| 24112617 | Looi Yong Lun | looiyonglun-cmyk |
+|  |  |  |
+
 ## Documentation
 
 - [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
