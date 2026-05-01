@@ -14,7 +14,7 @@ from selenium.webdriver.edge.options import Options as EdgeOptions
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_URL = "http://127.0.0.1:5001"
+BASE_URL = "http://127.0.0.1:5000"
 SELENIUM_CACHE_DIR = Path(tempfile.gettempdir()) / "selenium-manager-cache"
 SELENIUM_CACHE_DIR.mkdir(exist_ok=True)
 os.environ.setdefault("SE_CACHE_PATH", str(SELENIUM_CACHE_DIR))
