@@ -5,6 +5,7 @@ import re
 import base64
 import hashlib
 import sys
+import click
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,7 +26,7 @@ from flask_socketio import SocketIO, join_room, leave_room
 from flask_wtf.csrf import CSRFProtect
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -366,116 +367,177 @@ def parse_iso_datetime(value):
         return None
 
 
-def ensure_user_schema():
-    inspector = inspect(db.engine)
-    table_names = set(inspector.get_table_names())
-
-    if "user" not in table_names:
-        return
-
-    existing_columns = {column["name"] for column in inspector.get_columns("user")}
-    required_columns = {
-        "display_name": 'ALTER TABLE "user" ADD COLUMN display_name VARCHAR(80)',
-        "profile_image": (
-            'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
-            f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
-        ),
-        "profile_background": 'ALTER TABLE "user" ADD COLUMN profile_background VARCHAR(20) NOT NULL DEFAULT "default"',
-        "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
-        "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
-        "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
-        "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
-        "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
-        "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
-        "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
-        "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
-        "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
-    }
-
-    for column_name, statement in required_columns.items():
-        if column_name not in existing_columns:
-            db.session.execute(text(statement))
-
-    db.session.commit()
-
-
-def ensure_save_data_schema():
-    inspector = inspect(db.engine)
-    table_names = set(inspector.get_table_names())
-
-    if "save_data" not in table_names:
-        return
-
-    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
-    required_columns = {
-        "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
-        "kills": "ALTER TABLE save_data ADD COLUMN kills INTEGER NOT NULL DEFAULT 0",
-        "damage_dealt": "ALTER TABLE save_data ADD COLUMN damage_dealt INTEGER NOT NULL DEFAULT 0",
-        "damage_taken": "ALTER TABLE save_data ADD COLUMN damage_taken INTEGER NOT NULL DEFAULT 0",
-        "pistol_shots": "ALTER TABLE save_data ADD COLUMN pistol_shots INTEGER NOT NULL DEFAULT 0",
-        "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
-        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0",
-        "reloads": "ALTER TABLE save_data ADD COLUMN reloads INTEGER NOT NULL DEFAULT 0",
-        "knife_uses": "ALTER TABLE save_data ADD COLUMN knife_uses INTEGER NOT NULL DEFAULT 0"
-    }
-
-    for column_name, statement in required_columns.items():
-        if column_name not in existing_columns:
-            db.session.execute(text(statement))
-
-    db.session.commit()
-
-
-def ensure_message_schema():
-    inspector = inspect(db.engine)
-    table_names = set(inspector.get_table_names())
-
-    if "message" not in table_names:
-        return
-
-    existing_columns = {column["name"] for column in inspector.get_columns("message")}
-    required_columns = {
-        "read_at": "ALTER TABLE message ADD COLUMN read_at DATETIME",
-        "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
-        "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
-        "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
-        "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
-        "recipient_key_id": "ALTER TABLE message ADD COLUMN recipient_key_id VARCHAR(64)",
-        "recipient_public_key": "ALTER TABLE message ADD COLUMN recipient_public_key TEXT",
-        "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
-    }
-
-    for column_name, statement in required_columns.items():
-        if column_name not in existing_columns:
-            db.session.execute(text(statement))
-
-    db.session.commit()
-
-
 def is_flask_db_command():
-    # Alembic imports the app before comparing metadata; do not let legacy
-    # startup helpers create or alter tables during Flask-Migrate commands.
+    # Alembic imports the app before applying or comparing migrations, so
+    # strict startup checks must not run during Flask-Migrate commands.
     return "db" in sys.argv[1:]
 
 
-def initialize_runtime_database():
+MIGRATION_REQUIRED_TABLES = {
+    "alembic_version",
+    "user",
+    "save_data",
+    "friend",
+    "friend_request",
+    "message",
+    "user_achievement",
+    "profile_reaction",
+    "profile_comment",
+}
+
+
+def get_database_table_names():
+    rows = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type = 'table'")
+    ).all()
+    return {row[0] for row in rows}
+
+
+def require_migrated_database():
     with app.app_context():
         try:
             verify_sqlcipher_database()
-            db.create_all()
-            ensure_user_schema()
-            ensure_save_data_schema()
-            ensure_message_schema()
+            table_names = get_database_table_names()
         except SQLAlchemyError as error:
             rollback_database_session("Database initialization")
-            app.logger.warning(
-                "Database initialization skipped because SQLite is unavailable. %s",
-                getattr(error, "orig", error)
+            raise RuntimeError(
+                "Database check failed. Confirm the encrypted SQLite database is "
+                "available, then run `flask db upgrade` from the project root."
+            ) from error
+
+        missing_tables = sorted(MIGRATION_REQUIRED_TABLES - table_names)
+        if missing_tables:
+            raise RuntimeError(
+                "Database is not migrated. Run `flask db upgrade` from the "
+                "project root before starting the app. Missing tables: "
+                + ", ".join(missing_tables)
             )
 
 
+@app.cli.command("seed-demo")
+def seed_demo_command():
+    """Create deterministic demo users and saves for local development."""
+    demo_password = "RouteZero123!"
+    now = datetime.utcnow()
+    demo_specs = [
+        {
+            "username": "leon_demo",
+            "display_name": "Leon Demo",
+            "favorite_character": "leon",
+            "profile_image": "images/players/leon_idle.png",
+            "save": {
+                "difficulty": "HARD",
+                "character_id": "leon",
+                "health": 82,
+                "medkits": 1,
+                "grenades": 1,
+                "kills": 8,
+                "damage_dealt": 760,
+                "damage_taken": 46,
+                "pistol_shots": 22,
+                "grenades_used": 2,
+                "medkits_used": 1,
+                "reloads": 3,
+                "knife_uses": 4,
+                "ammo_in_gun": 5,
+                "ammo_in_bag": 12,
+                "mag_capacity": 8,
+                "laser_upgrade": True,
+                "shield_owned": True,
+                "shield_on": True,
+                "current_level_id": "5D",
+                "enemies_remaining": 2,
+            },
+        },
+        {
+            "username": "quite_demo",
+            "display_name": "Quite Demo",
+            "favorite_character": "quite",
+            "profile_image": "images/players/quite_idle.png",
+            "save": {
+                "difficulty": "EASY",
+                "character_id": "quite",
+                "health": 91,
+                "medkits": 2,
+                "grenades": 0,
+                "kills": 11,
+                "damage_dealt": 940,
+                "damage_taken": 28,
+                "pistol_shots": 27,
+                "grenades_used": 1,
+                "medkits_used": 1,
+                "reloads": 4,
+                "knife_uses": 7,
+                "ammo_in_gun": 6,
+                "ammo_in_bag": 10,
+                "mag_capacity": 8,
+                "laser_upgrade": True,
+                "shield_owned": False,
+                "shield_on": False,
+                "current_level_id": "5A",
+                "enemies_remaining": 1,
+            },
+        },
+    ]
+
+    created_users = 0
+    created_saves = 0
+
+    for spec in demo_specs:
+        user = User.query.filter_by(username=spec["username"]).first()
+        if user is None:
+            user = User(
+                username=spec["username"],
+                display_name=spec["display_name"],
+                password_hash=generate_password_hash(
+                    demo_password,
+                    method="pbkdf2:sha256"
+                ),
+            )
+            db.session.add(user)
+            db.session.flush()
+            created_users += 1
+
+        user.display_name = spec["display_name"]
+        user.profile_image = spec["profile_image"]
+        user.favorite_character = spec["favorite_character"]
+        user.hide_from_leaderboard = False
+        user.show_stats_to_friends = True
+        user.allow_friend_messages = True
+
+        save_values = spec["save"]
+        save_data = SaveData.query.filter_by(
+            user_id=user.id,
+            character_id=save_values["character_id"],
+        ).first()
+        if save_data is None:
+            save_data = SaveData(
+                user_id=user.id,
+                character_id=save_values["character_id"],
+            )
+            db.session.add(save_data)
+            created_saves += 1
+
+        for field, value in save_values.items():
+            setattr(save_data, field, value)
+
+        save_data.level_complete = False
+        save_data.awaiting_choice = False
+        save_data.game_won = False
+        save_data.has_started_game = True
+        save_data.run_state_json = None
+        save_data.updated_at = now
+
+    db.session.commit()
+    click.echo(
+        "Demo seed complete. "
+        f"Users created: {created_users}. Saves created: {created_saves}. "
+        f"Demo password: {demo_password}"
+    )
+
+
 if not is_flask_db_command():
-    initialize_runtime_database()
+    require_migrated_database()
 
 @app.before_request
 def refresh_current_user_presence():

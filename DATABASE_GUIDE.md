@@ -85,9 +85,36 @@ Use the values generated in step 4. Do not commit `.env`.
 
 ---
 
-## Run the app and create the DB
+## Create the DB and run the app
 
-After `.env` is ready, start the app:
+After `.env` is ready, apply the committed migrations:
+
+```bash
+export FLASK_APP=app.py
+flask db upgrade
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:FLASK_APP = "app.py"
+flask db upgrade
+```
+
+Optional: create shared demo users and sample save rows:
+
+```bash
+flask seed-demo
+```
+
+The demo accounts are:
+
+```text
+leon_demo / RouteZero123!
+quite_demo / RouteZero123!
+```
+
+Then start the app:
 
 ```bash
 python app.py
@@ -99,7 +126,7 @@ Then open:
 http://127.0.0.1:5000
 ```
 
-For local development, the app creates the encrypted database when it starts and the schema is initialized. The default DB path is:
+For local development, `flask db upgrade` creates or updates the encrypted database. The default DB path is:
 
 ```text
 project.db
@@ -107,11 +134,11 @@ project.db
 
 That file is local to your machine and ignored by Git.
 
-If you already have an old plaintext `project.db`, SQLCipher may fail to open it. Rename the old file and let the app create a fresh encrypted one:
+If you already have an old plaintext `project.db`, SQLCipher may fail to open it. Rename the old file and let migrations create a fresh encrypted one:
 
 ```bash
 mv project.db project.plaintext.backup.db
-python app.py
+flask db upgrade
 ```
 
 If your DB is inside `instance/`, use that path instead.
@@ -136,18 +163,18 @@ On Windows PowerShell:
 $env:FLASK_APP = "app.py"
 ```
 
-If the repo does **not** have a `migrations/` folder yet, initialize migrations once:
+This repo already has a committed `migrations/` folder. Do not run `flask db init` again during normal setup.
+
+Apply existing migrations to your local encrypted DB:
 
 ```bash
-flask db init
-flask db migrate -m "initial migration"
 flask db upgrade
 ```
 
-If the repo already has a `migrations/` folder, do not run `flask db init` again. Just apply existing migrations to your local encrypted DB:
+After changing `models.py`, generate a new migration:
 
 ```bash
-flask db upgrade
+flask db migrate -m "describe schema change"
 ```
 
 Rules for migrations:
@@ -155,8 +182,16 @@ Rules for migrations:
 - run commands from the project root
 - make sure `.env` exists before running `flask db ...`
 - review generated migration files before committing
-- do not blindly apply an initial table-creating migration to an existing populated database
-- for existing populated DBs, use a careful baseline/stamp workflow instead
+- commit migration files, not live database files
+- run `flask db upgrade` before starting the app
+
+For an intentional fresh local wipe, delete only ignored DB/save state:
+
+```bash
+rm -f project.db instance/*.db instance/save_fallbacks/*.json
+flask db upgrade
+flask seed-demo
+```
 
 ---
 
@@ -164,13 +199,14 @@ Rules for migrations:
 
 Our database supports the backend side of the zombie game web app.
 
-At the moment, it mainly supports five areas:
+At the moment, it mainly supports these areas:
 
 1. registered user accounts
 2. saved game progress
 3. profile information
 4. social features such as friends and friend requests
 5. direct messages between users
+6. achievements, profile reactions, and profile comments
 
 So in simple terms, the database remembers who the users are, what profile they use, what game progress they have made, and how they interact with other users.
 
@@ -222,15 +258,18 @@ This separation is useful because it keeps storage, page rendering, and request 
 
 ## Current database tables
 
-The current database has 5 main tables:
+The current database has 8 app tables, plus Alembic's migration-version table:
 
 1. `user`
 2. `save_data`
 3. `friend`
 4. `friend_request`
 5. `message`
+6. `user_achievement`
+7. `profile_reaction`
+8. `profile_comment`
 
-The `user` table is the central table because the other four all connect back to users in some way.
+The `user` table is the central table because the other app tables all connect back to users in some way.
 
 ---
 
