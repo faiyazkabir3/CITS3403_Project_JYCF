@@ -13,7 +13,18 @@
 </head>
 <body class="menu-page" data-user-id="{{ user_id or '' }}">
 
-  <div class="menu-container">
+  <div class="menu-shell">
+    <div class="route-zero-brand menu-brand-row">
+      <img
+        src="{{ url_for('static', filename='images/icons/game_logo.svg') }}"
+        class="game-logo menu-game-logo"
+        alt=""
+        aria-hidden="true"
+      >
+      <span class="route-zero-wordmark">ROUTE ZERO</span>
+    </div>
+
+    <div class="menu-container">
     <div class="top-bar">
       <div class="friends-menu" data-friends-menu>
         {% if is_guest %}
@@ -102,6 +113,7 @@
         </form>
       </div>
     </div>
+  </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/friends-menu.js') }}" defer></script>

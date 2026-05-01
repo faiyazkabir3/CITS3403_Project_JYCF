@@ -72,6 +72,49 @@ body::before {
   box-shadow: var(--panel-shadow);
 }
 
+.game-logo {
+  display: block;
+  object-fit: contain;
+}
+
+.route-zero-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  animation: route-zero-pulse 2.2s ease-in-out infinite;
+}
+
+.route-zero-wordmark {
+  display: inline-block;
+  color: #f8fafc;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1;
+  text-shadow:
+    0 0 8px rgba(239, 83, 80, 0.78),
+    0 0 16px rgba(95, 17, 17, 0.68),
+    0 0 20px rgba(216, 161, 45, 0.18);
+}
+
+.auth-page .auth-game-logo {
+  width: 72px;
+  height: 72px;
+  filter: drop-shadow(0 0 10px rgba(239, 83, 80, 0.52))
+    drop-shadow(0 0 18px rgba(95, 17, 17, 0.5));
+}
+
+.auth-page .auth-route-zero-brand {
+  margin: 0 auto 14px;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.auth-page .auth-route-zero-brand .route-zero-wordmark {
+  font-size: 1.18rem;
+}
+
 .auth-page h1 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -199,6 +242,18 @@ body::before {
   scrollbar-gutter: stable;
 }
 
+.menu-page .menu-shell {
+  position: relative;
+  z-index: 1;
+  width: 90%;
+  max-width: 900px;
+  margin-top: 78px;
+}
+
+.menu-page .menu-shell .menu-container {
+  width: 100%;
+}
+
 .menu-page .top-bar,
 .achievements-page .top-bar {
   display: flex;
@@ -225,6 +280,46 @@ body::before {
 
 .menu-page .version {
   font-size: 0.7rem;
+}
+
+.menu-page .menu-brand-row {
+  position: absolute;
+  left: 50%;
+  top: -238px;
+  z-index: 3;
+  min-width: 250px;
+  padding: 0;
+  flex-direction: column;
+  gap: 13px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.menu-page .menu-game-logo {
+  width: 118px;
+  height: 118px;
+  filter: drop-shadow(0 0 16px rgba(239, 83, 80, 0.7))
+    drop-shadow(0 0 28px rgba(95, 17, 17, 0.72));
+}
+
+.menu-page .menu-brand-row .route-zero-wordmark {
+  font-size: 1.5rem;
+  text-shadow:
+    0 0 10px rgba(239, 83, 80, 0.86),
+    0 0 20px rgba(95, 17, 17, 0.74),
+    0 0 26px rgba(216, 161, 45, 0.24);
+}
+
+@keyframes route-zero-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(95, 17, 17, 0.42));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 12px rgba(239, 83, 80, 0.82))
+      drop-shadow(0 0 22px rgba(95, 17, 17, 0.7));
+  }
 }
 
 .menu-page .menu-content {
@@ -2085,6 +2180,25 @@ body::before {
     flex-direction: column;
   }
 
+  .menu-page .menu-shell {
+    margin-top: 112px;
+  }
+
+  .menu-page .menu-brand-row {
+    top: -142px;
+    min-width: 220px;
+    gap: 10px;
+  }
+
+  .menu-page .menu-game-logo {
+    width: 88px;
+    height: 88px;
+  }
+
+  .menu-page .menu-brand-row .route-zero-wordmark {
+    font-size: 1.12rem;
+  }
+
   .play-page .panel {
     padding: 28px 20px 24px;
   }
@@ -2145,6 +2259,19 @@ body::before {
     padding: 22px;
   }
 
+  .auth-page .auth-game-logo {
+    width: 62px;
+    height: 62px;
+  }
+
+  .auth-page .auth-route-zero-brand {
+    margin-bottom: 12px;
+  }
+
+  .auth-page .auth-route-zero-brand .route-zero-wordmark {
+    font-size: 1rem;
+  }
+
   .auth-page h1 {
     font-size: 1.4rem;
   }
@@ -2190,6 +2317,10 @@ body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .route-zero-brand {
+    animation: none;
+  }
+
   .play-page .battle-player-resources[data-health-state="low"] .battle-resource-row-health .battle-resource-icon,
   .play-page .battle-player-resources[data-health-state="low"] .battle-resource-row-health .battle-resource-value,
   .play-page .battle-player-resources[data-health-state="critical"] .battle-resource-row-health .battle-resource-icon,
