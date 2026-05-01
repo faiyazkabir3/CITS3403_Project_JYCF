@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-label="Route Zero logo">
+  <title>Route Zero logo</title>
+  <defs>
+    <linearGradient id="route-ring" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff6b61"/>
+      <stop offset="0.48" stop-color="#a9212f"/>
+      <stop offset="1" stop-color="#321018"/>
+    </linearGradient>
+    <linearGradient id="route-core" x1="7" y1="6" x2="17" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff082"/>
+      <stop offset="0.56" stop-color="#d8a12d"/>
+      <stop offset="1" stop-color="#ef5350"/>
+    </linearGradient>
+    <filter id="route-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="0.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .danger-node {
+        animation: route-zero-node-blink 2.1s ease-in-out infinite;
+        transform-origin: 18px 8px;
+      }
+
+      @keyframes route-zero-node-blink {
+        0%, 62%, 100% {
+          opacity: 0.72;
+          transform: scale(1);
+        }
+        72%, 86% {
+          opacity: 1;
+          transform: scale(1.18);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .danger-node {
+          animation: none;
+        }
+      }
+    </style>
+  </defs>
+
+  <circle cx="12" cy="12" r="10.4" fill="#071019"/>
+  <path
+    fill="url(#route-ring)"
+    d="M12 1.7a10.3 10.3 0 1 0 0 20.6 10.3 10.3 0 0 0 0-20.6Zm0 4.15a6.15 6.15 0 1 1 0 12.3 6.15 6.15 0 0 1 0-12.3Z"
+    filter="url(#route-glow)"
+  />
+  <circle cx="12" cy="12" r="6.55" fill="#071019"/>
+
+  <path
+    fill="none"
+    stroke="#12314a"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="5.2"
+    d="M6.2 17.6 9.4 14l2.1-4.1L15 7.2l3 .8"
+  />
+  <path
+    fill="none"
+    stroke="url(#route-core)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2.15"
+    d="M6.2 17.6 9.4 14l2.1-4.1L15 7.2l3 .8"
+  />
+  <path fill="none" stroke="#d65a5a" stroke-linecap="round" stroke-width="1.45" d="M9.4 14 15.8 15.9"/>
+  <path fill="none" stroke="#5f1111" stroke-linecap="round" stroke-width="1.2" d="M11.5 9.9 8.2 7.4"/>
+
+  <g fill="#071019">
+    <circle cx="6.2" cy="17.6" r="1.85"/>
+    <circle cx="9.4" cy="14" r="1.75"/>
+    <circle cx="11.5" cy="9.9" r="1.75"/>
+    <circle cx="15" cy="7.2" r="1.75"/>
+    <circle cx="15.8" cy="15.9" r="1.6"/>
+    <circle cx="8.2" cy="7.4" r="1.45"/>
+  </g>
+  <g fill="#f8fafc">
+    <circle cx="6.2" cy="17.6" r="0.86"/>
+    <circle cx="9.4" cy="14" r="0.76"/>
+    <circle cx="11.5" cy="9.9" r="0.76"/>
+  </g>
+  <g fill="#d65a5a">
+    <circle cx="15" cy="7.2" r="0.82"/>
+    <circle cx="15.8" cy="15.9" r="0.66"/>
+    <circle cx="8.2" cy="7.4" r="0.56"/>
+  </g>
+
+  <g class="danger-node">
+    <circle cx="18" cy="8" r="2.05" fill="#071019"/>
+    <circle cx="18" cy="8" r="1.18" fill="#ef5350"/>
+    <path d="M17.5 7.5 18.5 8.5M18.5 7.5 17.5 8.5" stroke="#f8fafc" stroke-linecap="round" stroke-width="0.52"/>
+  </g>
+</svg>
