@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     allow_friend_messages = db.Column(db.Boolean, nullable=False, default=True)
     hide_from_leaderboard = db.Column(db.Boolean, nullable=False, default=False)
     last_seen = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     password_hash = db.Column(db.String(255), nullable=False)
     chat_public_key = db.Column(db.Text, nullable=True)
     chat_key_id = db.Column(db.String(64), nullable=True)

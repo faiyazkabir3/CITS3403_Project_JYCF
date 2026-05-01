@@ -387,6 +387,7 @@ def ensure_user_schema():
         "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
         "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
         "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
+        "created_at": 'ALTER TABLE "user" ADD COLUMN created_at DATETIME',
         "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
         "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
         "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
@@ -396,6 +397,9 @@ def ensure_user_schema():
         if column_name not in existing_columns:
             db.session.execute(text(statement))
 
+    db.session.execute(
+        text('UPDATE "user" SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL')
+    )
     db.session.commit()
 
 

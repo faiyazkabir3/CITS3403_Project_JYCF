@@ -62,7 +62,7 @@ body::before {
 
 .menu-page {
   justify-content: flex-end;
-  padding: 32px 5vw 32px 42vw;
+  padding: 32px 4vw 32px 46vw;
 }
 
 .play-page {
@@ -217,35 +217,42 @@ body::before {
   position: fixed;
   z-index: 1;
   top: 50%;
-  left: 24px;
-  width: min(40vw, 520px);
-  max-height: calc(100dvh - 48px);
-  padding: 56px 18px 18px;
+  left: 28px;
+  width: min(43vw, 590px);
+  max-height: calc(100dvh - 40px);
+  padding: 70px 24px 24px;
+  overflow-y: auto;
   transform: translateY(-50%);
-  border: 4px solid #24170f;
-  border-radius: 8px;
+  border: 5px solid #25170e;
+  border-radius: 10px;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07), transparent 18%, rgba(0, 0, 0, 0.18)),
+    radial-gradient(circle at 18% 16%, rgba(255, 214, 142, 0.18), transparent 22%),
+    repeating-linear-gradient(93deg, rgba(255, 255, 255, 0.045) 0 7px, rgba(0, 0, 0, 0.045) 8px 14px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent 18%, rgba(0, 0, 0, 0.22) 100%),
     #5a3924;
   box-shadow:
-    0 22px 42px rgba(0, 0, 0, 0.58),
-    inset 0 0 0 5px rgba(255, 255, 255, 0.08),
-    inset 0 -16px 34px rgba(0, 0, 0, 0.22);
+    0 26px 52px rgba(0, 0, 0, 0.64),
+    inset 0 0 0 6px rgba(255, 255, 255, 0.07),
+    inset 0 0 36px rgba(37, 23, 14, 0.44),
+    inset 0 -18px 36px rgba(0, 0, 0, 0.24);
 }
 
 .agent-clip {
   position: absolute;
-  top: 12px;
+  top: 14px;
   left: 50%;
-  width: min(190px, 54%);
-  height: 48px;
+  width: min(230px, 56%);
+  height: 56px;
   transform: translateX(-50%);
-  border: 3px solid #4c5254;
+  border: 3px solid #34393c;
   border-radius: 8px 8px 18px 18px;
-  background: linear-gradient(180deg, #d8d5ca 0%, #858987 48%, #3f4445 100%);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.38), transparent 26%, rgba(0, 0, 0, 0.12) 72%),
+    linear-gradient(180deg, #e6e1d3 0%, #9b9f9d 46%, #3f4445 100%);
   box-shadow:
-    0 7px 0 rgba(0, 0, 0, 0.28),
-    inset 0 7px 0 rgba(255, 255, 255, 0.42);
+    0 8px 0 rgba(0, 0, 0, 0.3),
+    inset 0 8px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -5px 8px rgba(0, 0, 0, 0.28);
 }
 
 .agent-clip::after {
@@ -264,18 +271,29 @@ body::before {
 .agent-paper {
   position: relative;
   display: grid;
-  min-height: min(640px, calc(100dvh - 122px));
-  padding: 24px 22px 22px;
+  min-height: min(700px, calc(100dvh - 142px));
+  padding: 30px 28px 28px;
   border: 2px solid #d1c2a5;
   border-radius: 4px;
   background:
-    repeating-linear-gradient(180deg, transparent 0 31px, rgba(70, 103, 120, 0.13) 32px 33px),
-    linear-gradient(90deg, rgba(137, 91, 57, 0.1), transparent 18%, rgba(83, 51, 30, 0.08)),
+    radial-gradient(circle at 18% 14%, rgba(117, 74, 40, 0.12), transparent 22%),
+    repeating-linear-gradient(180deg, transparent 0 31px, rgba(70, 103, 120, 0.12) 32px 33px),
+    linear-gradient(90deg, rgba(137, 91, 57, 0.12), transparent 18%, rgba(83, 51, 30, 0.09)),
     #eee4cf;
   color: #231c14;
   box-shadow:
-    0 16px 24px rgba(0, 0, 0, 0.32),
-    inset 0 -18px 28px rgba(116, 74, 45, 0.11);
+    0 18px 28px rgba(0, 0, 0, 0.36),
+    3px 3px 0 rgba(89, 57, 34, 0.22),
+    inset 0 0 24px rgba(116, 74, 45, 0.13),
+    inset 0 -20px 32px rgba(116, 74, 45, 0.11);
+}
+
+.agent-paper::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+  border: 1px solid rgba(92, 66, 40, 0.22);
 }
 
 .agent-paper h1 {
@@ -366,7 +384,7 @@ body::before {
 .agent-achievements {
   display: grid;
   min-height: 74px;
-  margin-bottom: 96px;
+  margin-bottom: 114px;
   place-items: center;
   border: 3px solid #d6a91f;
   background: rgba(224, 182, 52, 0.24);
@@ -381,9 +399,9 @@ body::before {
 
 .agent-seal {
   position: absolute;
-  left: 18px;
-  bottom: 18px;
-  width: min(118px, 30%);
+  right: 22px;
+  bottom: 20px;
+  width: min(150px, 34%);
   height: auto;
   filter: drop-shadow(0 7px 8px rgba(0, 0, 0, 0.35));
 }
