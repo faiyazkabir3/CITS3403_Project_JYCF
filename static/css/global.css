@@ -47,6 +47,7 @@ body::before {
 
 .auth-page,
 .menu-page,
+.achievements-page,
 .play-page {
   --page-background-image: url("../images/eerie_forest_background.jpg");
 }
@@ -362,12 +363,28 @@ body::before {
   border: 4px solid #4da370;
   background: rgba(71, 151, 104, 0.2);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.34);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .agent-photo-frame img {
   max-width: 94px;
   max-height: 94px;
   object-fit: contain;
+}
+
+a.agent-photo-frame {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+a.agent-photo-frame:hover,
+a.agent-photo-frame:focus-visible {
+  border-color: #e0b634;
+  box-shadow:
+    0 0 0 3px rgba(224, 182, 52, 0.28),
+    inset 0 0 0 3px rgba(255, 255, 255, 0.34);
+  transform: translateY(-2px);
+  outline: none;
 }
 
 .agent-label {

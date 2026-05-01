@@ -19,9 +19,15 @@
       <h1>AGENT INFORMATION</h1>
 
       <div class="agent-profile-row">
-        <div class="agent-photo-frame">
-          <img src="{{ url_for('static', filename=profile_image) }}" alt="Agent profile picture">
-        </div>
+        {% if is_guest %}
+          <div class="agent-photo-frame">
+            <img src="{{ url_for('static', filename=profile_image) }}" alt="Agent profile picture">
+          </div>
+        {% else %}
+          <a href="{{ url_for('profile') }}" class="agent-photo-frame" aria-label="Customize profile">
+            <img src="{{ url_for('static', filename=profile_image) }}" alt="Agent profile picture">
+          </a>
+        {% endif %}
         <div class="agent-identity">
           <span class="agent-label">AGENT NAME</span>
           <strong>{{ username }}</strong>
