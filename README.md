@@ -130,7 +130,31 @@ You can also generate all three secret lines quickly:
 python -c "import base64, secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32)); print('SQLCIPHER_DATABASE_KEY=' + secrets.token_urlsafe(32)); print('SAVE_PAYLOAD_KEYS=v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
 ```
 
-3. Run the Flask app:
+3. Create or update your local encrypted database from migrations:
+
+macOS/Linux:
+
+```bash
+export FLASK_APP=app.py
+flask db upgrade
+```
+
+Windows PowerShell:
+
+```powershell
+$env:FLASK_APP = "app.py"
+flask db upgrade
+```
+
+Optional: add shared demo users and sample save data:
+
+```powershell
+flask seed-demo
+```
+
+The demo accounts are `leon_demo` and `quite_demo`; both use the password `RouteZero123!`.
+
+4. Run the Flask app:
 
 ```powershell
 python app.py
@@ -142,11 +166,11 @@ Then open:
 http://127.0.0.1:5000
 ```
 
-If you already have an old plaintext `project.db`, SQLCipher may reject it because this branch expects a fresh encrypted database. For local development, rename the old file and let the app create a new encrypted one:
+If you already have an old plaintext `project.db`, SQLCipher may reject it because this branch expects a fresh encrypted database. For local development, rename the old file and let migrations create a new encrypted one:
 
 ```powershell
 mv project.db project.plaintext.backup.db
-python app.py
+flask db upgrade
 ```
 
 If you see `RuntimeError: SQLCIPHER_DATABASE_KEY is missing`, your `.env` file is missing that line or the server was started from a terminal that cannot see the `.env` file.
@@ -167,16 +191,12 @@ On Windows PowerShell, use:
 $env:FLASK_APP = "app.py"
 ```
 
-Initialize Alembic only once, and only if the `migrations/` folder does not already exist:
+The repo already includes the `migrations/` folder. Do not run `flask db init` during normal setup.
+
+Create a new migration script after changing models:
 
 ```bash
-flask db init
-```
-
-Create a migration script after changing models:
-
-```bash
-flask db migrate -m "initial migration"
+flask db migrate -m "describe schema change"
 ```
 
 Review the generated migration file before committing or applying it. Alembic autogenerate is helpful, but it can miss or misread schema details.
@@ -203,12 +223,17 @@ For a fresh encrypted database, the usual setup flow is:
 
 ```bash
 export FLASK_APP=app.py
-flask db init
-flask db migrate -m "initial migration"
 flask db upgrade
+flask seed-demo
 ```
 
-Warning: this fresh-database flow assumes the target database is empty or disposable. If you already have an existing populated encrypted database, do not blindly apply a table-creating initial migration to it. Use a baseline/stamp workflow instead.
+`flask seed-demo` is optional and safe to re-run. It creates only the shared demo users/saves if they are missing.
+
+For an intentional fresh local wipe, delete only ignored local state before running `flask db upgrade`:
+
+```bash
+rm -f project.db instance/*.db instance/save_fallbacks/*.json
+```
 
 The migration commands still require `SECRET_KEY`, `SQLCIPHER_DATABASE_KEY`, and `SAVE_PAYLOAD_KEYS`. If any of those values are missing, the app should fail instead of creating a plaintext database by accident.
 

@@ -152,8 +152,8 @@ The startup flow in `app.py` is deliberately strict:
 9. Initialize Flask-Login.
 10. Initialize Socket.IO.
 11. For normal app startup, run `PRAGMA cipher_version` to confirm SQLCipher is active.
-12. For normal app startup, run legacy schema compatibility helpers.
-13. For `flask db ...` migration commands, skip legacy schema helpers so Alembic sees the real database state.
+12. For normal app startup, require the Alembic migration table and app tables to exist.
+13. For `flask db ...` migration commands, skip strict startup checks so Alembic can create or compare the schema.
 
 This means the app should fail early instead of silently creating a plaintext database or running with weak session secrets.
 
@@ -345,21 +345,20 @@ Documented migration commands:
 
 ```bash
 export FLASK_APP=app.py
-flask db init
-flask db migrate -m "message"
 flask db upgrade
+flask db migrate -m "describe schema change"
 flask db downgrade
 ```
 
 Important migration rules:
 
-- Run `flask db init` only once, and only if `migrations/` does not exist.
+- The repo already has a committed `migrations/` folder; do not run `flask db init` during normal setup.
 - Always review generated migration files before committing.
 - Migration commands must load `.env`, because they connect through SQLCipher.
-- Do not run a table-creating initial migration blindly against an existing populated database.
-- For an existing DB, use a careful baseline/stamp workflow instead.
+- Commit migration files, not live database files.
+- Run `flask db upgrade` before starting the app.
 
-During `flask db ...`, legacy `db.create_all()` and schema helper code is skipped. This prevents Alembic autogenerate from seeing tables that were created by app startup before migration comparison.
+During `flask db ...`, strict startup checks are skipped. This lets Alembic create the database schema instead of relying on runtime `db.create_all()` or compatibility helpers.
 
 ## Fallback Save Encryption
 
@@ -751,7 +750,7 @@ pip install -r requirements.txt
 This usually means one of two things:
 
 - A normal SQLite tool is trying to open the encrypted SQLCipher DB. That failure is expected.
-- The app is trying to open an old plaintext DB with SQLCipher. Rename the old DB and let the app create a fresh encrypted one.
+- The app is trying to open an old plaintext DB with SQLCipher. Rename the old DB and run `flask db upgrade` to create a fresh encrypted one.
 
 ### CSRF Token Missing Or Invalid
 

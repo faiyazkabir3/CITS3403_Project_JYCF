@@ -581,7 +581,7 @@ def view_profile(user_id):
 
 @app.route("/favicon.ico")
 def favicon():
-    return app.send_static_file("images/icons/settings.svg")
+    return app.send_static_file("images/icons/game_logo.svg")
 
 
 @app.route("/play")

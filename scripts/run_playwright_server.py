@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +15,13 @@ os.environ.setdefault("SECRET_KEY", "playwright-smoke-secret-key-for-local-brows
 os.environ.setdefault("SQLCIPHER_DATABASE_KEY", "playwright-sqlcipher-key-for-local-browser-tests")
 os.environ.setdefault("SAVE_PAYLOAD_KEYS", "v1:cGxheXdyaWdodC1zYXZlLWtleS0zMi1ieXRlcyEhISE")
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{db_path.as_posix()}")
+
+subprocess.run(
+    [sys.executable, "-m", "flask", "--app", "app.py", "db", "upgrade"],
+    cwd=ROOT,
+    env=os.environ.copy(),
+    check=True,
+)
 
 from app import app, socketio  # noqa: E402
 

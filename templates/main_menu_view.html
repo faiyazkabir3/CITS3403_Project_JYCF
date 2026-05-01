@@ -58,80 +58,92 @@
     </section>
   </aside>
 
-  <div class="menu-container">
-    <div class="top-bar">
-      <div class="friends-menu" data-friends-menu>
-        {% if is_guest %}
-          <button type="button" class="friends-btn" disabled title="Friends are only available for registered players.">
-            FRIENDS
-          </button>
-        {% else %}
-          <button
-            type="button"
-            class="friends-btn"
-            data-friends-toggle
-            aria-haspopup="true"
-            aria-expanded="false"
-            aria-controls="friends-dropdown"
-          >
-            FRIENDS{% if unread_message_count %} ({{ unread_message_count }}){% endif %} &#9662;
-          </button>
-          <div id="friends-dropdown" class="friends-dropdown" data-friends-dropdown>
-            <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
-            {% if friends %}
-              {% for friend in friends %}
-                {% set presence = get_friend_presence(friend) %}
-                <a href="{{ url_for('view_profile', user_id=friend.id) }}">
-                  <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
-                  {{ friend.display_name or friend.username }}
-                  <span class="presence-label">{{ presence.label }}</span>
-                </a>
-              {% endfor %}
-            {% else %}
-              <span class="no-friends">No friends yet</span>
-            {% endif %}
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="version">v0.1</div>
+  <div class="menu-shell">
+    <div class="route-zero-brand menu-brand-row">
+      <img
+        src="{{ url_for('static', filename='images/icons/game_logo.svg') }}"
+        class="game-logo menu-game-logo"
+        alt=""
+        aria-hidden="true"
+      >
+      <span class="route-zero-wordmark">ROUTE ZERO</span>
     </div>
 
-    <div class="menu-content">
-      <div class="leaderboard">
-        <h2>GLOBAL LEADERBOARD</h2>
-        <ul>
-          {% if leaderboard %}
-            {% for entry in leaderboard %}
-              <li>
-                <span>#{{ entry.rank }}</span>
-                {% if can_view_profiles %}
-                  <a
-                    href="{{ url_for('view_profile', user_id=entry.user_id) }}"
-                    class="leaderboard-name{% if entry.is_current_user %} leaderboard-name-current{% endif %}"
-                  >
-                    {{ entry.display_name }}
-                  </a>
-                {% else %}
-                  <span class="leaderboard-name">{{ entry.display_name }}</span>
-                {% endif %}
-                <span>- {{ entry.score }}</span>
-              </li>
-            {% endfor %}
+    <div class="menu-container">
+      <div class="top-bar">
+        <div class="friends-menu" data-friends-menu>
+          {% if is_guest %}
+            <button type="button" class="friends-btn" disabled title="Friends are only available for registered players.">
+              FRIENDS
+            </button>
           {% else %}
-            <li>No scores yet</li>
+            <button
+              type="button"
+              class="friends-btn"
+              data-friends-toggle
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="friends-dropdown"
+            >
+              FRIENDS{% if unread_message_count %} ({{ unread_message_count }}){% endif %} &#9662;
+            </button>
+            <div id="friends-dropdown" class="friends-dropdown" data-friends-dropdown>
+              <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
+              {% if friends %}
+                {% for friend in friends %}
+                  {% set presence = get_friend_presence(friend) %}
+                  <a href="{{ url_for('view_profile', user_id=friend.id) }}">
+                    <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
+                    {{ friend.display_name or friend.username }}
+                    <span class="presence-label">{{ presence.label }}</span>
+                  </a>
+                {% endfor %}
+              {% else %}
+                <span class="no-friends">No friends yet</span>
+              {% endif %}
+            </div>
           {% endif %}
-        </ul>
+        </div>
+
+        <div class="version">v0.1</div>
       </div>
 
-      <div class="menu-buttons">
-        <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
-        <button type="button" id="open-settings-btn">SETTINGS</button>
-        <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
-        <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit">LOG OUT</button>
-        </form>
+      <div class="menu-content">
+        <div class="leaderboard">
+          <h2>GLOBAL LEADERBOARD</h2>
+          <ul>
+            {% if leaderboard %}
+              {% for entry in leaderboard %}
+                <li>
+                  <span>#{{ entry.rank }}</span>
+                  {% if can_view_profiles %}
+                    <a
+                      href="{{ url_for('view_profile', user_id=entry.user_id) }}"
+                      class="leaderboard-name{% if entry.is_current_user %} leaderboard-name-current{% endif %}"
+                    >
+                      {{ entry.display_name }}
+                    </a>
+                  {% else %}
+                    <span class="leaderboard-name">{{ entry.display_name }}</span>
+                  {% endif %}
+                  <span>- {{ entry.score }}</span>
+                </li>
+              {% endfor %}
+            {% else %}
+              <li>No scores yet</li>
+            {% endif %}
+          </ul>
+        </div>
+
+        <div class="menu-buttons">
+          <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
+          <button type="button" id="open-settings-btn">SETTINGS</button>
+          <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
+          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">LOG OUT</button>
+          </form>
+        </div>
       </div>
     </div>
   </div>
