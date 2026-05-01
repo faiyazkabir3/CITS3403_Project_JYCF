@@ -285,19 +285,29 @@ body::before {
 .menu-page .menu-brand-row {
   position: absolute;
   left: 50%;
-  top: -82px;
+  top: -238px;
   z-index: 3;
   min-width: 250px;
   padding: 0;
+  flex-direction: column;
+  gap: 13px;
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .menu-page .menu-game-logo {
-  width: 76px;
-  height: 76px;
-  filter: drop-shadow(0 0 12px rgba(239, 83, 80, 0.62))
-    drop-shadow(0 0 20px rgba(95, 17, 17, 0.68));
+  width: 118px;
+  height: 118px;
+  filter: drop-shadow(0 0 16px rgba(239, 83, 80, 0.7))
+    drop-shadow(0 0 28px rgba(95, 17, 17, 0.72));
+}
+
+.menu-page .menu-brand-row .route-zero-wordmark {
+  font-size: 1.5rem;
+  text-shadow:
+    0 0 10px rgba(239, 83, 80, 0.86),
+    0 0 20px rgba(95, 17, 17, 0.74),
+    0 0 26px rgba(216, 161, 45, 0.24);
 }
 
 @keyframes route-zero-pulse {
@@ -2170,18 +2180,23 @@ body::before {
     flex-direction: column;
   }
 
+  .menu-page .menu-shell {
+    margin-top: 112px;
+  }
+
   .menu-page .menu-brand-row {
-    top: -72px;
+    top: -142px;
     min-width: 220px;
+    gap: 10px;
   }
 
   .menu-page .menu-game-logo {
-    width: 64px;
-    height: 64px;
+    width: 88px;
+    height: 88px;
   }
 
-  .menu-page .route-zero-wordmark {
-    font-size: 0.92rem;
+  .menu-page .menu-brand-row .route-zero-wordmark {
+    font-size: 1.12rem;
   }
 
   .play-page .panel {
