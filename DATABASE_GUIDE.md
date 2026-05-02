@@ -386,6 +386,12 @@ So the current schema should **not** be described as a strict “one user -> one
 - tracking player stats for achievements/leaderboards/stats pages
 - storing extra run data in JSON form when needed
 
+### Note on achievement tiers
+
+The bronze/silver/gold achievement tiers are not stored as separate database rows.
+
+The app derives tier progress from `save_data` counters and stores only the base unlock in `user_achievement`. For example, kill totals from `save_data.kills` can unlock and tier the First Blood and No Mercy badge families, while `save_data.medkits_used` drives the Medic badge family.
+
 ### Note on `run_state_json`
 
 Most core values are stored in normal columns.
@@ -496,6 +502,76 @@ Direct chat is now designed for end-to-end encrypted payloads. Flask stores and 
 
 ---
 
+## Table 6: `user_achievement`
+
+### What it stores
+
+This table stores which base achievements a registered user has unlocked.
+
+### Columns
+
+- `id` - primary key
+- `user_id` - foreign key to `user.id`
+- `achievement_id` - stable achievement identifier such as `first_blood` or `medic`
+- `unlocked_at` - when the achievement was first unlocked
+
+### Key points
+
+- the unique constraint on `user_id` and `achievement_id` prevents duplicate unlock rows
+- tier names are not stored here
+- bronze/silver/gold tiers are recalculated from gameplay stats when achievements are displayed
+
+### What it is used for
+
+- showing persistent achievement unlock state
+- recording unlock dates
+- feeding achievement badges on the achievements page, public profile, and main-menu clipboard
+
+---
+
+## Table 7: `profile_reaction`
+
+### What it stores
+
+This table stores one reaction from one user to another user's public profile.
+
+### Columns
+
+- `id` - primary key
+- `profile_user_id` - profile receiving the reaction
+- `reactor_user_id` - user who reacted
+- `reaction_type`
+- `created_at`
+- `updated_at`
+
+### Key points
+
+- one user can have only one active reaction per target profile
+- changing the reaction updates the existing row instead of creating duplicates
+
+---
+
+## Table 8: `profile_comment`
+
+### What it stores
+
+This table stores public comments left on user profiles.
+
+### Columns
+
+- `id` - primary key
+- `profile_user_id` - profile receiving the comment
+- `author_user_id` - user who wrote the comment
+- `comment`
+- `created_at`
+
+### What it is used for
+
+- rendering the public profile comment list
+- linking each comment back to the author account
+
+---
+
 ## How the tables connect
 
 ### `user` -> `save_data`
@@ -513,6 +589,9 @@ A user can be connected to many other users through friendship rows.
 
 ### `user` -> `message`
 A user can send many messages and receive many messages.
+
+### `user` -> `user_achievement`
+A user can unlock many base achievements. Each base achievement can appear once per user.
 
 So overall, `user` is the central table and the other tables describe progress and interaction around that user.
 
