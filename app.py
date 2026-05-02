@@ -367,6 +367,96 @@ def parse_iso_datetime(value):
         return None
 
 
+def ensure_user_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "user" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("user")}
+    required_columns = {
+        "display_name": 'ALTER TABLE "user" ADD COLUMN display_name VARCHAR(80)',
+        "profile_image": (
+            'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
+            f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
+        ),
+        "profile_background": 'ALTER TABLE "user" ADD COLUMN profile_background VARCHAR(20) NOT NULL DEFAULT "default"',
+        "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
+        "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
+        "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
+        "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+        "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
+        "created_at": 'ALTER TABLE "user" ADD COLUMN created_at DATETIME',
+        "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
+        "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
+        "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.execute(
+        text('UPDATE "user" SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL')
+    )
+    db.session.commit()
+
+
+def ensure_save_data_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "save_data" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+    required_columns = {
+        "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
+        "kills": "ALTER TABLE save_data ADD COLUMN kills INTEGER NOT NULL DEFAULT 0",
+        "damage_dealt": "ALTER TABLE save_data ADD COLUMN damage_dealt INTEGER NOT NULL DEFAULT 0",
+        "damage_taken": "ALTER TABLE save_data ADD COLUMN damage_taken INTEGER NOT NULL DEFAULT 0",
+        "pistol_shots": "ALTER TABLE save_data ADD COLUMN pistol_shots INTEGER NOT NULL DEFAULT 0",
+        "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
+        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0",
+        "reloads": "ALTER TABLE save_data ADD COLUMN reloads INTEGER NOT NULL DEFAULT 0",
+        "knife_uses": "ALTER TABLE save_data ADD COLUMN knife_uses INTEGER NOT NULL DEFAULT 0"
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+
+def ensure_message_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "message" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("message")}
+    required_columns = {
+        "read_at": "ALTER TABLE message ADD COLUMN read_at DATETIME",
+        "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
+        "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
+        "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
+        "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
+        "recipient_key_id": "ALTER TABLE message ADD COLUMN recipient_key_id VARCHAR(64)",
+        "recipient_public_key": "ALTER TABLE message ADD COLUMN recipient_public_key TEXT",
+        "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+
 def is_flask_db_command():
     # Alembic imports the app before applying or comparing migrations, so
     # strict startup checks must not run during Flask-Migrate commands.

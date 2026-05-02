@@ -1,7 +1,7 @@
 """initial migration
 
 Revision ID: 59378b41d041
-Revises: 
+Revises:
 Create Date: 2026-05-01 11:20:51.219440
 
 """
@@ -30,6 +30,7 @@ def upgrade():
     sa.Column('allow_friend_messages', sa.Boolean(), nullable=False),
     sa.Column('hide_from_leaderboard', sa.Boolean(), nullable=False),
     sa.Column('last_seen', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
     sa.Column('chat_public_key', sa.Text(), nullable=True),
     sa.Column('chat_key_id', sa.String(length=64), nullable=True),

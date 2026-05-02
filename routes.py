@@ -257,6 +257,14 @@ def logout():
     return redirect(url_for("show_login"))
 
 
+def format_agent_joined_date(user):
+    joined_at = getattr(user, "created_at", None)
+    if not joined_at:
+        return "UNKNOWN"
+
+    return joined_at.strftime("%d %b %Y").upper()
+
+
 @app.route("/main-menu")
 @app.route("/main_menu")
 def main_menu():
@@ -264,6 +272,7 @@ def main_menu():
     username = get_display_name(current_user) if current_user.is_authenticated else session.get("username")
     user_id = current_user.id if current_user.is_authenticated else session.get("user_id")
     profile_image = PROFILE_IMAGE_DEFAULT
+    agent_joined_date = "GUEST SESSION"
 
     if not username:
         return redirect(url_for("show_login"))
@@ -275,6 +284,7 @@ def main_menu():
         user = current_user
         username = get_display_name(user)
         profile_image = get_profile_image(user)
+        agent_joined_date = format_agent_joined_date(user)
         session["user_id"] = user.id
         session["username"] = user.username
         session["display_name"] = username
@@ -291,6 +301,7 @@ def main_menu():
         is_guest=is_guest,
         user_id=user_id,
         profile_image=profile_image,
+        agent_joined_date=agent_joined_date,
         leaderboard=get_leaderboard(current_user_id=user_id),
         unread_message_count=unread_message_count,
         can_view_profiles=not is_guest
