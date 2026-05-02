@@ -87,10 +87,12 @@ This covers:
 
 - unauthenticated route protection
 - guest login flow
+- agent clipboard dossier fields
 - settings modal interaction
 - new game boot
 - registered-user register/login
 - achievements page
+- achievement badge asset loading
 - save and load flow
 
 ### 4. Everything

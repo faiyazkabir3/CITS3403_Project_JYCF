@@ -3,6 +3,7 @@ A collaborative full-stack web application built using Flask, SQLAlchemy, and Bo
 
 ## Documentation
 
+- [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
 - [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
 - [Realtime Chat](REALTIME_CHAT.md)
 - [Security Upgrade](SECURITY_UPGRADE.md)
