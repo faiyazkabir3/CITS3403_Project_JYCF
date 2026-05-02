@@ -273,6 +273,8 @@ def main_menu():
     user_id = current_user.id if current_user.is_authenticated else session.get("user_id")
     profile_image = PROFILE_IMAGE_DEFAULT
     agent_joined_date = "GUEST SESSION"
+    agent_dossier = get_agent_dossier()
+    agent_showcase_badges = []
 
     if not username:
         return redirect(url_for("show_login"))
@@ -285,6 +287,9 @@ def main_menu():
         username = get_display_name(user)
         profile_image = get_profile_image(user)
         agent_joined_date = format_agent_joined_date(user)
+        achievements = get_user_achievements(user.id)
+        agent_dossier = get_agent_dossier(user)
+        agent_showcase_badges = get_agent_showcase_badges(achievements)
         session["user_id"] = user.id
         session["username"] = user.username
         session["display_name"] = username
@@ -302,6 +307,8 @@ def main_menu():
         user_id=user_id,
         profile_image=profile_image,
         agent_joined_date=agent_joined_date,
+        agent_dossier=agent_dossier,
+        agent_showcase_badges=agent_showcase_badges,
         leaderboard=get_leaderboard(current_user_id=user_id),
         unread_message_count=unread_message_count,
         can_view_profiles=not is_guest
