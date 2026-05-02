@@ -32,17 +32,20 @@
           <span class="agent-label">AGENT NAME</span>
           <strong>{{ username }}</strong>
         </div>
+        <img
+          src="{{ url_for('static', filename='images/fbi_seal.png') }}"
+          class="agent-header-seal"
+          alt="Federal Bureau of Investigation seal"
+        >
       </div>
 
       <dl class="agent-details">
-        <div>
-          <dt>AGE</dt>
-          <dd>26</dd>
-        </div>
-        <div>
-          <dt>HEIGHT</dt>
-          <dd>5&quot;10</dd>
-        </div>
+        {% for detail in agent_dossier %}
+          <div data-agent-field="{{ detail.key }}">
+            <dt>{{ detail.label }}</dt>
+            <dd>{{ detail.value }}</dd>
+          </div>
+        {% endfor %}
       </dl>
 
       <div class="agent-divider" aria-hidden="true"></div>
@@ -56,11 +59,25 @@
         ACHIEVEMENTS
       </a>
 
-      <img
-        src="{{ url_for('static', filename='images/fbi_seal.png') }}"
-        class="agent-seal"
-        alt="Federal Bureau of Investigation seal"
-      >
+      <section class="agent-badge-strip" aria-label="Top achievement badges">
+        {% for badge in agent_showcase_badges %}
+          <a
+            href="{{ url_for('show_achievements') }}"
+            class="agent-showcase-badge agent-showcase-{{ badge.tier_name }}"
+            title="{{ badge.label }} - {{ badge.tier_label }}"
+            data-agent-showcase-badge
+          >
+            <img src="{{ url_for('static', filename=badge.image) }}" alt="">
+            <span>{{ badge.tier_label }}</span>
+          </a>
+        {% else %}
+          {% for index in range(3) %}
+            <div class="agent-showcase-badge agent-showcase-empty" aria-hidden="true">
+              <span>LOCKED</span>
+            </div>
+          {% endfor %}
+        {% endfor %}
+      </section>
     </section>
   </aside>
 

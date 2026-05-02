@@ -68,6 +68,25 @@ async function saveProgress(page, overrides = {}) {
   return response.json();
 }
 
+async function expectImagesLoaded(page, selector) {
+  const imageState = await page.evaluate(async (imageSelector) => {
+    const images = Array.from(document.querySelectorAll(imageSelector));
+    await Promise.all(images.map((image) => image.decode?.().catch(() => undefined)));
+    return images.map((image) => ({
+      complete: image.complete,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    }));
+  }, selector);
+
+  expect(imageState.length).toBeGreaterThan(0);
+  for (const image of imageState) {
+    expect(image.complete).toBe(true);
+    expect(image.width).toBeGreaterThan(0);
+    expect(image.height).toBeGreaterThan(0);
+  }
+}
+
 async function sendFriendRequest(page, friendUsername) {
   await page.goto("/friends");
   await page.locator("[data-friend-username]").fill(friendUsername);
@@ -88,15 +107,66 @@ test("saving progress unlocks achievement badges", async ({ page }) => {
 
   await registerAndLogin(page, user);
   const saveResult = await saveProgress(page, {
-    kills: 1,
-    damage_dealt: 120,
-    current_level_id: "1",
+    kills: 10,
+    damage_dealt: 500,
+    medkits_used: 15,
+    pistol_shots: 10,
+    current_level_id: "3",
   });
 
   expect(saveResult.achievements_unlocked).toContain("First Blood");
+  expect(saveResult.achievements_unlocked).toContain("No Mercy");
+  expect(saveResult.achievements_unlocked).toContain("Medic");
 
   await page.goto("/achievements");
   await expect(page.locator(".achievement-badge", { hasText: "First Blood" })).toContainText("Unlocked");
+  await expect(page.locator(".achievement-badge", { hasText: "First Blood" })).toContainText("SILVER");
+  await expect(page.locator(".achievement-badge", { hasText: "No Mercy" })).toContainText("BRONZE");
+  await expect(page.locator(".achievement-badge", { hasText: "Medic" })).toContainText("GOLD");
+  await expectImagesLoaded(page, "[data-achievement-badge-image]");
+});
+
+test("main menu dossier and top badge strip use earned tiers", async ({ page }) => {
+  const user = uniqueCredentials("dossier");
+
+  await registerAndLogin(page, user);
+  const userId = await page.locator("body").getAttribute("data-user-id");
+
+  await expect(page.locator('[data-agent-field="agent-id"]')).toContainText(`#${String(userId).padStart(5, "0")}`);
+  await expect(page.locator('[data-agent-field="licence"]')).toContainText("RZ-74291863");
+  await expect(page.locator('[data-agent-field="blood-group"]')).toContainText("O+");
+
+  await saveProgress(page, {
+    kills: 30,
+    damage_dealt: 1500,
+    medkits_used: 15,
+    pistol_shots: 10,
+    current_level_id: "7",
+  });
+
+  await page.goto("/main_menu");
+  await expect(page.locator("[data-agent-showcase-badge]")).toHaveCount(3);
+  await expect(page.locator("[data-agent-showcase-badge]").first()).toContainText("GOLD");
+  await expectImagesLoaded(page, ".agent-showcase-badge img");
+
+  const layout = await page.evaluate(() => {
+    const clipboard = document.querySelector(".agent-clipboard")?.getBoundingClientRect();
+    const shell = document.querySelector(".menu-shell")?.getBoundingClientRect();
+    const brand = document.querySelector(".menu-brand-row")?.getBoundingClientRect();
+    const availableLeft = clipboard?.right ?? 0;
+    const availableCenter = availableLeft + (window.innerWidth - availableLeft) / 2;
+    return {
+      clipboardRight: clipboard?.right ?? 0,
+      shellLeft: shell?.left ?? 0,
+      shellCenter: shell ? shell.left + shell.width / 2 : 0,
+      brandCenter: brand ? brand.left + brand.width / 2 : 0,
+      availableCenter,
+    };
+  });
+
+  expect(layout.clipboardRight).toBeLessThan(layout.shellLeft);
+  expect(Math.abs(layout.shellCenter - layout.availableCenter)).toBeLessThanOrEqual(90);
+  expect(Math.abs(layout.brandCenter - layout.shellCenter)).toBeLessThanOrEqual(2);
 });
 
 test("main menu keeps only the global leaderboard", async ({ browser, page }) => {

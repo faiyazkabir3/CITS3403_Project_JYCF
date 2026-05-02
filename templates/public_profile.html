@@ -91,9 +91,17 @@
         <div class="profile-badge-grid">
           {% for badge in profile_badges %}
             <div class="profile-badge profile-badge-{{ badge.kind }}">
-              <span>{{ badge.symbol }}</span>
+              <span class="profile-badge-icon">
+                {% if badge.image %}
+                  <img src="{{ url_for('static', filename=badge.image) }}" alt="">
+                {% else %}
+                  {{ badge.symbol }}
+                {% endif %}
+              </span>
               <div>
-                <strong>{{ badge.label }}</strong>
+                <strong>
+                  {{ badge.label }}{% if badge.tier_label %} {{ badge.tier_label }}{% endif %}
+                </strong>
                 <p>{{ badge.description }}</p>
               </div>
             </div>
