@@ -413,6 +413,9 @@ test("guest login can reach main menu, settings, and start a new game", async ({
 
   await expect(page).toHaveURL(/\/main[-_]menu$/);
   await expect(page.getByText("GUEST MODE")).toBeVisible();
+  await expect(page.locator('[data-agent-field="agent-id"]')).toContainText("GUEST");
+  await expect(page.locator('[data-agent-field="licence"]')).toContainText("RZ-74291863");
+  await expect(page.locator('[data-agent-field="blood-group"]')).toContainText("O+");
   await expect(page.locator("#open-settings-btn")).toBeVisible();
 
   const menuMetrics = await page.evaluate(() => {

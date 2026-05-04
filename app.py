@@ -182,6 +182,22 @@ class AchievementDefinition:
     target: int
     metric: str
     icon: str
+    tier_thresholds: tuple
+    badge_family: str
+
+
+AGENT_LICENSE_NUMBER = "RZ-74291863"
+AGENT_BLOOD_GROUP = "O+"
+ACHIEVEMENT_TIER_ORDER = ("bronze", "silver", "gold")
+ACHIEVEMENT_TIER_LABELS = {
+    "bronze": "BRONZE",
+    "silver": "SILVER",
+    "gold": "GOLD",
+}
+ACHIEVEMENT_TIER_RANKS = {
+    tier_name: index + 1
+    for index, tier_name in enumerate(ACHIEVEMENT_TIER_ORDER)
+}
 
 
 def friend_action_to_dict(friend_action):
@@ -380,6 +396,96 @@ def parse_iso_datetime(value):
         return datetime.fromisoformat(str(value))
     except ValueError:
         return None
+
+
+def ensure_user_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "user" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("user")}
+    required_columns = {
+        "display_name": 'ALTER TABLE "user" ADD COLUMN display_name VARCHAR(80)',
+        "profile_image": (
+            'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
+            f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
+        ),
+        "profile_background": 'ALTER TABLE "user" ADD COLUMN profile_background VARCHAR(20) NOT NULL DEFAULT "default"',
+        "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
+        "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
+        "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
+        "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+        "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
+        "created_at": 'ALTER TABLE "user" ADD COLUMN created_at DATETIME',
+        "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
+        "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
+        "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.execute(
+        text('UPDATE "user" SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL')
+    )
+    db.session.commit()
+
+
+def ensure_save_data_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "save_data" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("save_data")}
+    required_columns = {
+        "run_state_json": "ALTER TABLE save_data ADD COLUMN run_state_json TEXT",
+        "kills": "ALTER TABLE save_data ADD COLUMN kills INTEGER NOT NULL DEFAULT 0",
+        "damage_dealt": "ALTER TABLE save_data ADD COLUMN damage_dealt INTEGER NOT NULL DEFAULT 0",
+        "damage_taken": "ALTER TABLE save_data ADD COLUMN damage_taken INTEGER NOT NULL DEFAULT 0",
+        "pistol_shots": "ALTER TABLE save_data ADD COLUMN pistol_shots INTEGER NOT NULL DEFAULT 0",
+        "grenades_used": "ALTER TABLE save_data ADD COLUMN grenades_used INTEGER NOT NULL DEFAULT 0",
+        "medkits_used": "ALTER TABLE save_data ADD COLUMN medkits_used INTEGER NOT NULL DEFAULT 0",
+        "reloads": "ALTER TABLE save_data ADD COLUMN reloads INTEGER NOT NULL DEFAULT 0",
+        "knife_uses": "ALTER TABLE save_data ADD COLUMN knife_uses INTEGER NOT NULL DEFAULT 0"
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+
+def ensure_message_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "message" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("message")}
+    required_columns = {
+        "read_at": "ALTER TABLE message ADD COLUMN read_at DATETIME",
+        "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
+        "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
+        "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
+        "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
+        "recipient_key_id": "ALTER TABLE message ADD COLUMN recipient_key_id VARCHAR(64)",
+        "recipient_public_key": "ALTER TABLE message ADD COLUMN recipient_public_key TEXT",
+        "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
 
 
 def is_flask_db_command():
@@ -773,7 +879,9 @@ def get_achievement_definitions():
             description="Defeat your first infected.",
             target=1,
             metric="kills",
-            icon="I"
+            icon="I",
+            tier_thresholds=(1, 10, 20),
+            badge_family="first_blood",
         ),
         AchievementDefinition(
             id="survivor",
@@ -781,7 +889,9 @@ def get_achievement_definitions():
             description="Reach level 3 or beyond.",
             target=3,
             metric="levels",
-            icon="III"
+            icon="III",
+            tier_thresholds=(3, 5, 7),
+            badge_family="survivor",
         ),
         AchievementDefinition(
             id="sharpshooter",
@@ -789,7 +899,9 @@ def get_achievement_definitions():
             description="Deal 500 damage with 10 or fewer pistol shots.",
             target=500,
             metric="damage_dealt",
-            icon="S"
+            icon="S",
+            tier_thresholds=(500, 1000, 1500),
+            badge_family="sharpshooter",
         ),
         AchievementDefinition(
             id="medic",
@@ -797,15 +909,19 @@ def get_achievement_definitions():
             description="Use 5 medkits.",
             target=5,
             metric="medkits",
-            icon="+"
+            icon="+",
+            tier_thresholds=(5, 10, 15),
+            badge_family="medic",
         ),
         AchievementDefinition(
             id="no_mercy",
             name="No Mercy",
-            description="Defeat 50 infected.",
-            target=50,
+            description="Defeat 10 infected.",
+            target=10,
             metric="kills",
-            icon="50"
+            icon="10",
+            tier_thresholds=(10, 20, 30),
+            badge_family="no_mercy",
         ),
         AchievementDefinition(
             id="untouchable",
@@ -813,7 +929,9 @@ def get_achievement_definitions():
             description="Save a run after taking no damage.",
             target=1,
             metric="untouchable_runs",
-            icon="0"
+            icon="0",
+            tier_thresholds=(1, 2, 3),
+            badge_family="untouchable",
         ),
     ]
 
@@ -821,17 +939,44 @@ def get_achievement_progress(user_id, stats=None):
     stats = stats or get_user_stats(user_id)
     latest_payload = get_latest_save_payload(user_id)
     latest_level = parse_level_number((latest_payload or {}).get("current_level_id"))
-    latest_damage_taken = coerce_int((latest_payload or {}).get("damage_taken"), 0)
-    latest_started = coerce_bool((latest_payload or {}).get("has_started_game"), False)
 
     return {
         "kills": coerce_int(stats.get("kills"), 0),
         "levels": latest_level,
         "damage_dealt": coerce_int(stats.get("damage_dealt"), 0),
         "medkits": coerce_int(stats.get("medkits"), 0),
-        "untouchable_runs": 1 if latest_started and latest_damage_taken == 0 else 0,
+        "untouchable_runs": count_untouchable_runs(user_id),
         "pistol_shots": coerce_int(stats.get("pistol_shots"), 0),
     }
+
+
+def count_untouchable_runs(user_id):
+    try:
+        payloads = list_db_save_payloads(user_id)
+    except SQLAlchemyError:
+        rollback_database_session("Untouchable run query")
+        payloads = []
+
+    payloads.extend(list_fallback_save_payloads(user_id))
+
+    seen_runs = set()
+    untouchable_count = 0
+    for payload in payloads:
+        run_key = (
+            str(payload.get("character_id", "")),
+            str(payload.get("updated_at", "")),
+        )
+        if run_key in seen_runs:
+            continue
+
+        seen_runs.add(run_key)
+        if (
+            coerce_bool(payload.get("has_started_game"), False)
+            and coerce_int(payload.get("damage_taken"), 0) == 0
+        ):
+            untouchable_count += 1
+
+    return untouchable_count
 
 def achievement_is_unlocked(definition, progress):
     if definition.id == "sharpshooter":
@@ -841,6 +986,39 @@ def achievement_is_unlocked(definition, progress):
         )
 
     return coerce_int(progress.get(definition.metric), 0) >= definition.target
+
+
+def get_achievement_current_value(definition, progress):
+    if definition.id == "sharpshooter":
+        return coerce_int(progress.get("damage_dealt"), 0)
+
+    return coerce_int(progress.get(definition.metric), 0)
+
+
+def get_achievement_tier(definition, current, unlocked):
+    if not unlocked:
+        return None
+
+    earned_tier = None
+    for tier_name, threshold in zip(ACHIEVEMENT_TIER_ORDER, definition.tier_thresholds):
+        if current >= threshold:
+            earned_tier = tier_name
+
+    return earned_tier
+
+
+def get_next_achievement_tier(definition, current):
+    for tier_name, threshold in zip(ACHIEVEMENT_TIER_ORDER, definition.tier_thresholds):
+        if current < threshold:
+            return tier_name, threshold
+
+    return None, None
+
+
+def get_achievement_badge_image(definition, tier_name=None):
+    badge_tier = tier_name or ACHIEVEMENT_TIER_ORDER[0]
+    return f"images/badges/{definition.badge_family}_{badge_tier}.png"
+
 
 def get_user_achievements(user_id):
     unlocked_rows = UserAchievement.query.filter_by(user_id=user_id).all()
@@ -854,19 +1032,71 @@ def get_user_achievements(user_id):
 
     for definition in get_achievement_definitions():
         row = unlocked_by_id.get(definition.id)
-        current = coerce_int(progress.get(definition.metric), 0)
-
-        if definition.id == "sharpshooter":
-            current = coerce_int(progress.get("damage_dealt"), 0)
+        current = get_achievement_current_value(definition, progress)
+        unlocked = row is not None
+        tier_name = get_achievement_tier(definition, current, unlocked)
+        next_tier_name, next_tier_target = get_next_achievement_tier(definition, current)
+        display_tier_name = tier_name or next_tier_name or ACHIEVEMENT_TIER_ORDER[-1]
 
         achievements.append({
             **asdict(definition),
             "current": min(current, definition.target),
-            "unlocked": row is not None,
+            "tier_current": min(current, definition.tier_thresholds[-1]),
+            "tier_target": definition.tier_thresholds[-1],
+            "tier_name": tier_name,
+            "tier_label": ACHIEVEMENT_TIER_LABELS.get(tier_name, "LOCKED"),
+            "tier_rank": ACHIEVEMENT_TIER_RANKS.get(tier_name, 0),
+            "next_tier_name": next_tier_name,
+            "next_tier_label": ACHIEVEMENT_TIER_LABELS.get(next_tier_name),
+            "next_tier_target": next_tier_target,
+            "badge_image": get_achievement_badge_image(definition, display_tier_name),
+            "unlocked": unlocked,
             "unlocked_at": row.unlocked_at if row is not None else None,
         })
 
     return achievements
+
+
+def get_agent_showcase_badges(achievements=None):
+    earned_badges = []
+
+    for achievement in achievements or []:
+        if not achievement.get("tier_name"):
+            continue
+
+        earned_badges.append({
+            "label": achievement["name"],
+            "description": achievement["description"],
+            "tier_name": achievement["tier_name"],
+            "tier_label": achievement["tier_label"],
+            "tier_rank": achievement["tier_rank"],
+            "image": achievement["badge_image"],
+            "current": achievement["tier_current"],
+        })
+
+    return sorted(
+        earned_badges,
+        key=lambda badge: (badge["tier_rank"], badge["current"], badge["label"]),
+        reverse=True
+    )[:3]
+
+
+def format_agent_id(user):
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        return "GUEST"
+
+    return f"#{coerce_int(user_id, 0):05d}"
+
+
+def get_agent_dossier(user=None):
+    return [
+        {"label": "AGE", "value": "26", "key": "age"},
+        {"label": "HEIGHT", "value": "5\"10", "key": "height"},
+        {"label": "AGENT ID", "value": format_agent_id(user), "key": "agent-id"},
+        {"label": "LICENCE NO.", "value": AGENT_LICENSE_NUMBER, "key": "licence"},
+        {"label": "BLOOD GROUP", "value": AGENT_BLOOD_GROUP, "key": "blood-group"},
+    ]
 
 def unlock_achievements_for_user(user_id):
     existing_ids = {
@@ -906,6 +1136,8 @@ def get_profile_badges(user, achievements=None, leaderboard_entry=None):
                 "symbol": achievement["icon"],
                 "description": achievement["description"],
                 "kind": "achievement",
+                "image": achievement.get("badge_image"),
+                "tier_label": achievement.get("tier_label"),
             })
 
     if leaderboard_entry is not None:

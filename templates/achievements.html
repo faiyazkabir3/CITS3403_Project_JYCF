@@ -31,15 +31,31 @@
         {% if achievements %}
           {% for achievement in achievements %}
             <button type="button" class="achievement-box achievement-badge{% if achievement.unlocked %} achievement-unlocked{% else %} achievement-locked{% endif %}">
-              <span class="achievement-icon">{{ achievement.icon }}</span>
+              <span class="achievement-icon achievement-icon-{{ achievement.tier_name or 'locked' }}">
+                <img
+                  src="{{ url_for('static', filename=achievement.badge_image) }}"
+                  alt=""
+                  data-achievement-badge-image
+                >
+              </span>
               <span class="achievement-copy">
-                <span class="achievement-title">{{ achievement.name }}</span>
+                <span class="achievement-title-row">
+                  <span class="achievement-title">{{ achievement.name }}</span>
+                  <span class="achievement-tier achievement-tier-{{ achievement.tier_name or 'locked' }}">
+                    {{ achievement.tier_label }}
+                  </span>
+                </span>
                 <span class="achievement-description">{{ achievement.description }}</span>
                 <span class="achievement-progress">
                   {% if achievement.unlocked %}
                     Unlocked{% if achievement.unlocked_at %} {{ achievement.unlocked_at.strftime("%d %b %Y") }}{% endif %}
+                    {% if achievement.next_tier_target %}
+                      - Next {{ achievement.next_tier_label }} {{ achievement.tier_current }} / {{ achievement.next_tier_target }}
+                    {% else %}
+                      - GOLD COMPLETE {{ achievement.tier_current }} / {{ achievement.tier_target }}
+                    {% endif %}
                   {% else %}
-                    Progress {{ achievement.current }} / {{ achievement.target }}
+                    Progress {{ achievement.tier_current }} / {{ achievement.next_tier_target }} for {{ achievement.next_tier_label }}
                   {% endif %}
                 </span>
               </span>
