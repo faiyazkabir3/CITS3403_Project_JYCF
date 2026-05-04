@@ -1,6 +1,13 @@
 # CITS3403_Project_JYCF
 A collaborative full-stack web application built using Flask, SQLAlchemy, and Bootstrap. Developed using Agile methodologies to deliver a user-centric, data-persistent platform. Created by JYCF
 
+## Group Members
+
+| UWA ID   | Name          | GitHub username  |
+| 24773532 | Faiyaz Kabir  | faiyazkabir3     |
+| 24112617 | Looi Yong Lun | looiyonglun-cmyk |
+| 24220597 | Joshua Evans  | Joshua-Evans05 & 24220597   |
+
 ## Documentation
 
 - [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
@@ -289,6 +296,22 @@ Auto-fix lint issues where possible:
 
 ```powershell
 npm run lint:js:fix
+```
+
+## Python Unit And Selenium Tests
+
+The repo includes pytest unit tests and a Selenium browser suite for the rubric testing requirement.
+
+- `python -m pytest tests/unit`: run the Python unit tests
+- `python -m pytest tests/selenium`: run the Selenium browser tests with Chrome by default
+- `python -m pytest`: run all Python unit and Selenium tests
+- `python -m pytest --collect-only`: confirm pytest discovers at least 5 unit tests and 5 Selenium tests
+
+The Selenium suite starts a dedicated Flask test server on `http://127.0.0.1:5001` and uses an isolated temporary test database. Chrome is the default browser. To run the same Selenium tests in Edge instead:
+
+```powershell
+$env:SELENIUM_BROWSER = "edge"
+python -m pytest tests/selenium
 ```
 
 ## Playwright Smoke Tests

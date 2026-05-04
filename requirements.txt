@@ -15,6 +15,8 @@ MarkupSafe==3.0.3
 python-dotenv==1.2.2
 python-engineio==4.13.1
 python-socketio==5.16.1
+pytest==9.0.3
+selenium==4.43.0
 simple-websocket==1.1.0
 sqlcipher3==0.6.2
 SQLAlchemy==2.0.49
