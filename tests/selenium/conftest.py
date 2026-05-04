@@ -64,7 +64,7 @@ def selenium_server():
         process.kill()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def selenium_browser(selenium_server):
     browser_name = os.environ.get("SELENIUM_BROWSER", "chrome").strip().lower()
     profile_dir = Path(tempfile.mkdtemp(prefix=f"selenium-{browser_name}-profile-"))
@@ -77,14 +77,18 @@ def selenium_browser(selenium_server):
             options = ChromeOptions()
             browser_name = "chrome"
 
-        options.page_load_strategy = "eager"
+        options.page_load_strategy = "none"
         options.add_argument("--headless=new")
         options.add_argument("--window-size=1366,768")
         options.add_argument(f"--user-data-dir={profile_dir}")
         options.add_argument("--disable-background-networking")
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-component-update")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-gpu")
+        options.add_argument("--disable-renderer-backgrounding")
+        options.add_argument("--disable-sync")
         options.add_argument("--no-default-browser-check")
         options.add_argument("--no-first-run")
         options.add_argument("--no-sandbox")
@@ -107,9 +111,7 @@ def selenium_browser(selenium_server):
 
 @pytest.fixture
 def driver(selenium_browser):
-    selenium_browser.delete_all_cookies()
     yield selenium_browser
-    selenium_browser.delete_all_cookies()
 
 
 @pytest.fixture

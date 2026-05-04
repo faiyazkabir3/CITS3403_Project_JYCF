@@ -5,17 +5,22 @@ import pytest
 from app import (
     AchievementDefinition,
     achievement_is_unlocked,
+    build_chat_room_key,
     build_chat_key_id,
     choose_latest_save_payload,
     normalize_save_payload,
+    parse_friend_id,
+    parse_level_number,
     parse_save_payload_key_ring,
 )
 from routes import (
+    normalize_chat_message,
     normalize_auth_username,
     sanitize_save_request_payload,
     validate_auth_password,
     validate_auth_username,
     validate_chat_message,
+    validate_friend_username,
 )
 from app import validate_encrypted_chat_payload
 
@@ -38,6 +43,23 @@ def test_chat_message_validation_trims_and_limits_content():
     assert validate_chat_message("hello") is None
     assert validate_chat_message("") == "Message cannot be empty."
     assert validate_chat_message("x" * 1001) == "Message must be 1000 characters or fewer."
+
+
+def test_chat_message_normalization_strips_whitespace():
+    assert normalize_chat_message("  hello survivor  ") == "hello survivor"
+    assert normalize_chat_message("\nkeep moving\t") == "keep moving"
+    assert normalize_chat_message(None) == ""
+
+
+def test_friend_and_level_helpers_normalize_route_values():
+    assert validate_friend_username("valid_friend_1") is None
+    assert validate_friend_username("") == "Please enter a username."
+    assert validate_friend_username("bad-name") == "Username can only use lowercase letters, numbers, and underscores."
+    assert parse_friend_id("42") == 42
+    assert parse_friend_id("not-a-number") is None
+    assert build_chat_room_key(9, 3) == "chat:3:9"
+    assert parse_level_number("level-12") == 12
+    assert parse_level_number("safehouse") == 0
 
 
 def test_save_payload_sanitization_clamps_and_defaults_values():

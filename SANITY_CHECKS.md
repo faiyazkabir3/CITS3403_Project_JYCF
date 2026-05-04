@@ -92,6 +92,36 @@ brew install node
 
 ## Recommended Commands
 
+### One-Command Runner
+
+The easiest option is the Python runner:
+
+```bash
+python sanity_check.py
+```
+
+It runs the main sanity layers one after another:
+
+1. Python unit tests
+2. Selenium browser tests
+3. JavaScript sanity
+4. Playwright browser smoke tests
+
+It also sets the Playwright `PYTHON` environment value automatically, so Windows and macOS/Linux users do not need to remember that command manually.
+
+Useful options:
+
+```bash
+python sanity_check.py --quick
+python sanity_check.py --keep-going
+python sanity_check.py --list
+python sanity_check.py --skip-selenium
+```
+
+`--quick` runs only the faster checks: Python unit tests and JavaScript sanity.
+
+`--keep-going` continues to later checks even if an earlier check fails.
+
 ### Quick Check While Coding
 
 Use this when you want fast feedback:
