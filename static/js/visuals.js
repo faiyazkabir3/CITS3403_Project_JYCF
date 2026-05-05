@@ -5,16 +5,16 @@ export const PLAYER_VISUALS = {
     image: `${IMAGE_ROOT}/players/leon_idle.png`
   },
   quite: {
-    image: `${IMAGE_ROOT}/players/quite_idle.png`,
+    image: `${IMAGE_ROOT}/players/quite_right_idle.png`,
     actions: {
-      pistol: `${IMAGE_ROOT}/players/quite_gun.png`,
-      rifle: `${IMAGE_ROOT}/players/quite_gun.png`,
-      reloadPistol: `${IMAGE_ROOT}/players/quite_reload.png`,
-      reloadRifle: `${IMAGE_ROOT}/players/quite_reload.png`,
-      knife: `${IMAGE_ROOT}/players/quite_knife.png`,
-      grenade: `${IMAGE_ROOT}/players/quite_grenade.png`,
-      dodge: `${IMAGE_ROOT}/players/quite_dodge.png`,
-      heal: `${IMAGE_ROOT}/players/quite_heal.png`
+      pistol: `${IMAGE_ROOT}/players/quite_right_gun.png`,
+      rifle: `${IMAGE_ROOT}/players/quite_right_gun.png`,
+      reloadPistol: `${IMAGE_ROOT}/players/quite_right_reload.png`,
+      reloadRifle: `${IMAGE_ROOT}/players/quite_right_reload.png`,
+      knife: `${IMAGE_ROOT}/players/quite_right_knife.png`,
+      grenade: `${IMAGE_ROOT}/players/quite_right_grenade.png`,
+      dodge: `${IMAGE_ROOT}/players/quite_right_dodge.png`,
+      heal: `${IMAGE_ROOT}/players/quite_right_heal.png`
     }
   }
 };

@@ -132,6 +132,24 @@ async function expectTransparentImageCorners(page, selector) {
   expect(transparency.alphas).toEqual([0, 0, 0, 0, 0]);
 }
 
+async function expectBattleSides(page) {
+  const sides = await page.evaluate(() => {
+    const player = document.querySelector("#battle-player")?.getBoundingClientRect();
+    const enemy = document.querySelector("#battle-enemy")?.getBoundingClientRect();
+
+    return {
+      playerLeft: player?.left ?? 0,
+      playerRight: player?.right ?? 0,
+      enemyLeft: enemy?.left ?? 0,
+      enemyRight: enemy?.right ?? 0,
+    };
+  });
+
+  expect(sides.playerLeft).toBeGreaterThan(0);
+  expect(sides.enemyRight).toBeGreaterThan(0);
+  expect(sides.playerRight).toBeLessThanOrEqual(sides.enemyLeft);
+}
+
 async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
@@ -142,7 +160,9 @@ async function startNewGame(page, character = "leon") {
   await expectPanelCentered(page, "#character-screen");
   await expectCharacterPortraitSizing(page);
   await expect(page.locator('.character-card[data-character="leon"] img')).toHaveAttribute("src", /players\/leon_idle\.png/);
+  await expect(page.locator('.character-card[data-character="quite"] img')).toHaveAttribute("src", /players\/quite_right_idle\.png/);
   await expectTransparentImageCorners(page, '.character-card[data-character="leon"] img');
+  await expectTransparentImageCorners(page, '.character-card[data-character="quite"] img');
 
   await page.locator(`.character-card[data-character="${character}"]`).click();
   await expect(page.locator("#difficulty-screen")).toHaveClass(/active/);
@@ -176,6 +196,7 @@ async function expectPlayLayout(page) {
   await expect(page.locator("#battle-player-health-text")).toBeVisible();
   await expect(page.locator("#battle-player-shield-text")).toBeVisible();
   await expect(page.locator("#battle-player-loadout")).toBeVisible();
+  await expectBattleSides(page);
   await expect(page.locator('#battle-player-loadout [data-weapon="pistol"]')).toContainText("8/8");
   await expect(page.locator('#battle-player-loadout [data-weapon="coins"]')).toContainText("0");
   await expect(page.locator('#battle-player-loadout [data-weapon="medkit"]')).toContainText("2");
@@ -442,7 +463,8 @@ test("guest login can reach main menu, settings, and start a new game", async ({
   await expectActionSubmenus(page);
   await expect(page.locator("#battle-player-name")).toHaveText("QUITE");
   await expect(page.locator("#battle-tags")).toContainText("LEVEL 1");
-  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /quite_idle\.png/);
+  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /quite_right_idle\.png/);
+  await expectTransparentImageCorners(page, "#battle-player-image");
   await expect(page.locator("#battle-impact-fx-image")).toBeHidden();
 
   await page.locator("#attack-btn").click();
