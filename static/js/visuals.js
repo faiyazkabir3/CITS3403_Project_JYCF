@@ -2,7 +2,18 @@ const IMAGE_ROOT = "/static/images";
 
 export const PLAYER_VISUALS = {
   leon: {
-    image: `${IMAGE_ROOT}/players/leon_idle.png`
+    image: `${IMAGE_ROOT}/players/leon_right_idle.png`,
+    actions: {
+      pistol: `${IMAGE_ROOT}/players/leon_right_gun.png`,
+      rifle: `${IMAGE_ROOT}/players/leon_right_gun.png`,
+      reloadPistol: `${IMAGE_ROOT}/players/leon_right_reload.png`,
+      reloadRifle: `${IMAGE_ROOT}/players/leon_right_reload.png`,
+      knife: `${IMAGE_ROOT}/players/leon_right_axe.png`,
+      grenade: `${IMAGE_ROOT}/players/leon_right_grenade.png`,
+      dodge: `${IMAGE_ROOT}/players/leon_right_dodge.png`,
+      heal: `${IMAGE_ROOT}/players/leon_right_heal.png`,
+      toggleShield: `${IMAGE_ROOT}/players/leon_right_shield.png`
+    }
   },
   quite: {
     image: `${IMAGE_ROOT}/players/quite_right_idle.png`,

@@ -1150,6 +1150,7 @@ a.agent-photo-frame:focus-visible {
   object-fit: contain;
 }
 
+.play-page .character-card[data-character="leon"] img,
 .play-page .character-card[data-character="quite"] img {
   object-fit: cover;
   object-position: center;
