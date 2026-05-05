@@ -1365,6 +1365,7 @@ body::before {
 .play-page .battle-enemy {
   grid-area: enemy;
   justify-content: flex-end;
+  padding-right: clamp(24px, 4vw, 84px);
 }
 
 .play-page .battle-fx {
@@ -1385,7 +1386,7 @@ body::before {
 
 .play-page .battle-enemy .battle-actor-image {
   max-height: min(100%, clamp(215px, 31vh, 360px));
-  transform-origin: right bottom;
+  transform-origin: center bottom;
   animation: enemy-idle 3.8s ease-in-out infinite;
 }
 
@@ -2169,6 +2170,10 @@ body::before {
     min-height: 220px;
   }
 
+  .play-page .battle-enemy {
+    padding-right: clamp(10px, 2vw, 24px);
+  }
+
   .play-page .battle-player .battle-actor-image,
   .play-page .battle-enemy .battle-actor-image {
     max-height: 300px;
@@ -2242,6 +2247,10 @@ body::before {
 
   .play-page .battle-actor {
     min-height: 180px;
+  }
+
+  .play-page .battle-enemy {
+    padding-right: 8px;
   }
 
   .play-page .battle-actor-image {
