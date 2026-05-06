@@ -119,6 +119,18 @@ async function sendFriendRequest(page, friendUsername) {
   await expect(page).toHaveURL(/\/friends$/);
 }
 
+async function openWorldChat(page) {
+  await page.locator("[data-world-chat-toggle]").click();
+  await expect(page.locator("[data-world-chat-panel]")).toBeVisible();
+}
+
+async function sendWorldChatMessage(page, message) {
+  await openWorldChat(page);
+  await page.locator("[data-world-chat-input]").fill(message);
+  await page.locator("[data-world-chat-form]").getByRole("button", { name: "Send" }).click();
+  await expect(page.locator("[data-world-chat-messages]")).toContainText(message);
+}
+
 async function acceptFriendRequest(page, username) {
   await page.goto("/friends");
   const requestItem = page.locator("li", { hasText: username }).first();
@@ -364,6 +376,42 @@ test("profiles support reactions comments and custom backgrounds", async ({ brow
     await page.locator('textarea[name="comment"]').fill(profileComment);
     await page.getByRole("button", { name: "POST COMMENT" }).click();
     await expect(page.locator(".profile-comment")).toContainText(profileComment);
+  } finally {
+    await secondContext.close();
+  }
+});
+
+test("world chat usernames link to public profiles", async ({ browser, page }) => {
+  const secondContext = await browser.newContext();
+  const secondPage = await secondContext.newPage();
+  const firstUser = uniqueCredentials("worldprofileone");
+  const secondUser = uniqueCredentials("worldprofiletwo");
+  const worldChatMessage = `profile-link-${Date.now()}`;
+
+  try {
+    await registerAndLogin(page, firstUser);
+    await registerAndLogin(secondPage, secondUser);
+
+    const secondUserId = await secondPage.locator("body").getAttribute("data-user-id");
+
+    await sendWorldChatMessage(secondPage, worldChatMessage);
+    await expect(secondPage.locator(".world-chat-message.outgoing", { hasText: worldChatMessage })).toBeVisible();
+
+    await page.goto("/main_menu");
+    await openWorldChat(page);
+    await expect(page.locator("[data-world-chat-messages]")).toContainText(worldChatMessage);
+    await expect(page.locator(".world-chat-message.incoming", { hasText: worldChatMessage })).toBeVisible();
+
+    const profileLink = page
+      .locator("[data-world-chat-messages]")
+      .getByRole("link", { name: secondUser.username })
+      .first();
+
+    await expect(profileLink).toHaveAttribute("href", `/profile/${secondUserId}`);
+    await profileLink.click();
+
+    await expect(page).toHaveURL(new RegExp(`/profile/${secondUserId}$`));
+    await expect(page.locator(".public-profile-heading")).toContainText(secondUser.username);
   } finally {
     await secondContext.close();
   }
