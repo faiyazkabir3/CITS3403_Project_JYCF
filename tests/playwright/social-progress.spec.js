@@ -359,7 +359,7 @@ test("profiles support reactions comments and custom backgrounds", async ({ brow
     await expect(page.locator(".profile-badge-grid")).toContainText("Custom Signal");
 
     await page.getByRole("button", { name: "Heart" }).click();
-    await expect(page.locator(".profile-reaction-btn.is-selected", { hasText: "♥" })).toContainText("1");
+    await expect(page.locator(".profile-reaction-btn.is-selected", { hasText: "❤️" })).toContainText("1");
 
     await page.locator('textarea[name="comment"]').fill(profileComment);
     await page.getByRole("button", { name: "POST COMMENT" }).click();

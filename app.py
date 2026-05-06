@@ -95,10 +95,10 @@ PROFILE_BACKGROUND_LABELS = {
     for option in PROFILE_BACKGROUND_OPTIONS
 }
 PROFILE_REACTION_OPTIONS = [
-    {"label": "Heart", "value": "heart", "symbol": "♥"},
-    {"label": "Hype", "value": "hype", "symbol": "!"},
-    {"label": "Sad", "value": "sad", "symbol": ":("},
-    {"label": "Angry", "value": "angry", "symbol": ">:"},
+    {"label": "Heart", "value": "heart", "symbol": "❤️"},
+    {"label": "Hype", "value": "hype", "symbol": "🔥"},
+    {"label": "Sad", "value": "sad", "symbol": "😢"},
+    {"label": "Angry", "value": "angry", "symbol": "😡"},
 ]
 PROFILE_REACTION_VALUES = {
     option["value"]
