@@ -187,7 +187,7 @@ class AchievementDefinition:
 
 
 AGENT_LICENSE_NUMBER = "RZ-74291863"
-AGENT_BLOOD_GROUP = "O+"
+AGENT_BLOOD_GROUPS = ("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-")
 ACHIEVEMENT_TIER_ORDER = ("bronze", "silver", "gold")
 ACHIEVEMENT_TIER_LABELS = {
     "bronze": "BRONZE",
@@ -1089,13 +1089,41 @@ def format_agent_id(user):
     return f"#{coerce_int(user_id, 0):05d}"
 
 
+def get_agent_dossier_rng(user=None, field="profile"):
+    user_id = getattr(user, "id", None)
+    seed_source = f"agent-dossier:{field}:{user_id if user_id is not None else 'guest'}"
+    seed = int(hashlib.sha256(seed_source.encode("utf-8")).hexdigest(), 16)
+    return random.Random(seed)
+
+
+def get_agent_dossier_age(rng):
+    return str(rng.randint(21, 29))
+
+
+def format_agent_height(total_inches):
+    feet = total_inches // 12
+    inches = total_inches % 12
+    return f"{feet}'{inches}\""
+
+
+def get_agent_dossier_height(rng):
+    return format_agent_height(rng.randint(65, 75))
+
+
+def get_agent_dossier_blood_group(user=None):
+    rng = get_agent_dossier_rng(user, "blood-group")
+    return AGENT_BLOOD_GROUPS[rng.randrange(len(AGENT_BLOOD_GROUPS))]
+
+
 def get_agent_dossier(user=None):
+    vitals_rng = get_agent_dossier_rng(user, "vitals")
+
     return [
-        {"label": "AGE", "value": "26", "key": "age"},
-        {"label": "HEIGHT", "value": "5\"10", "key": "height"},
+        {"label": "AGE", "value": get_agent_dossier_age(vitals_rng), "key": "age"},
+        {"label": "HEIGHT", "value": get_agent_dossier_height(vitals_rng), "key": "height"},
         {"label": "AGENT ID", "value": format_agent_id(user), "key": "agent-id"},
         {"label": "LICENCE NO.", "value": AGENT_LICENSE_NUMBER, "key": "licence"},
-        {"label": "BLOOD GROUP", "value": AGENT_BLOOD_GROUP, "key": "blood-group"},
+        {"label": "BLOOD GROUP", "value": get_agent_dossier_blood_group(user), "key": "blood-group"},
     ]
 
 def unlock_achievements_for_user(user_id):

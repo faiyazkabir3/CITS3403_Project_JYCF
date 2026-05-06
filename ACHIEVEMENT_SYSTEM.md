@@ -14,9 +14,11 @@ The same achievement data feeds three surfaces:
 
 The agent clipboard also shows dossier-style profile fields:
 
+- `AGE`: a seeded display value from `21` to `29`
+- `HEIGHT`: a seeded display value from `5'5"` to `6'3"`
 - `AGENT ID`: the registered user's database ID formatted like `#00001`; guests show `GUEST`
 - `LICENCE NO.`: fixed display value `RZ-74291863`
-- `BLOOD GROUP`: fixed display value `O+`
+- `BLOOD GROUP`: a seeded display value from `A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, or `O-`
 
 These dossier values are display-only and do not add database columns.
 
