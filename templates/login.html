@@ -23,8 +23,8 @@
       >
       <span class="route-zero-wordmark">ROUTE ZERO</span>
     </div>
-    <h1>Welcome, Survivor</h1>
-    <p class="subtitle">Access the safe zone</p>
+    <h1 data-i18n="login.welcome">Welcome, Survivor</h1>
+    <p class="subtitle" data-i18n="login.subtitle">Access the safe zone</p>
 
     {% if error %}
       <p class="subtitle">{{ error }}</p>
@@ -33,7 +33,7 @@
     <form id="login-form" method="POST" action="/login">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-      <label for="username">Username</label>
+      <label for="username" data-i18n="login.username">Username</label>
       <input
         type="text"
         id="username"
@@ -44,7 +44,7 @@
         autocomplete="username"
       />
 
-      <label for="password">Password</label>
+      <label for="password" data-i18n="login.password">Password</label>
       <input
         type="password"
         id="password"
@@ -65,7 +65,7 @@
 
       <form method="POST" action="/guest-login" class="guest-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="guest-btn">Guest Login</button>
+        <button type="submit" class="guest-btn" data-i18n="login.guest">Guest Login</button>
       </form>
     </div>
   </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Main Menu</title>
+  <title data-i18n="menu.pageTitle">Main Menu</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +16,7 @@
   <aside class="agent-clipboard" aria-label="Agent information">
     <div class="agent-clip" aria-hidden="true"></div>
     <section class="agent-paper">
-      <h1>AGENT INFORMATION</h1>
+      <h1 data-i18n="menu.agentInformation">AGENT INFORMATION</h1>
 
       <div class="agent-profile-row">
         {% if is_guest %}
@@ -29,7 +29,7 @@
           </a>
         {% endif %}
         <div class="agent-identity">
-          <span class="agent-label">AGENT NAME</span>
+          <span class="agent-label" data-i18n="menu.agentName">AGENT NAME</span>
           <strong>{{ username }}</strong>
         </div>
         <img
@@ -51,11 +51,11 @@
       <div class="agent-divider" aria-hidden="true"></div>
 
       <div class="agent-date">
-        <span class="agent-label">DATE JOINED</span>
+        <span class="agent-label" data-i18n="menu.dateJoined">DATE JOINED</span>
         <strong>{{ agent_joined_date }}</strong>
       </div>
 
-      <a href="{{ url_for('show_achievements') }}" class="agent-achievements">
+      <a href="{{ url_for('show_achievements') }}" class="agent-achievements" data-i18n="menu.achievements">
         ACHIEVEMENTS
       </a>
 
@@ -73,7 +73,7 @@
         {% else %}
           {% for index in range(3) %}
             <div class="agent-showcase-badge agent-showcase-empty" aria-hidden="true">
-              <span>LOCKED</span>
+              <span data-i18n="menu.locked">LOCKED</span>
             </div>
           {% endfor %}
         {% endfor %}
@@ -96,7 +96,12 @@
       <div class="top-bar">
         <div class="friends-menu" data-friends-menu>
           {% if is_guest %}
-            <button type="button" class="friends-btn" disabled title="Friends are only available for registered players.">
+            <button 
+              type="button"
+              class="friends-btn"
+              disabled title="Friends are only available for registered players."
+              data-i18n="menu.friends"
+              data-i18n-title="menu.friendsUnavailable">
               FRIENDS
             </button>
           {% else %}
@@ -108,10 +113,10 @@
               aria-expanded="false"
               aria-controls="friends-dropdown"
             >
-              FRIENDS{% if unread_message_count %} ({{ unread_message_count }}){% endif %} &#9662;
+              <span data-i18n="menu.friends">FRIENDS</span>{% if unread_message_count %} ({{ unread_message_count }}){% endif %} &#9662;
             </button>
             <div id="friends-dropdown" class="friends-dropdown" data-friends-dropdown>
-              <a href="{{ url_for('show_friends') }}" class="friends-hub-link">Manage Friends</a>
+              <a href="{{ url_for('show_friends') }}" class="friends-hub-link" data-i18n="menu.manageFriends">Manage Friends</a>
               {% if friends %}
                 {% for friend in friends %}
                   {% set presence = get_friend_presence(friend) %}
@@ -122,7 +127,7 @@
                   </a>
                 {% endfor %}
               {% else %}
-                <span class="no-friends">No friends yet</span>
+                <span class="no-friends" data-i18n="menu.noFriends">No friends yet</span>
               {% endif %}
             </div>
           {% endif %}
@@ -133,7 +138,7 @@
 
       <div class="menu-content">
         <div class="leaderboard">
-          <h2>GLOBAL LEADERBOARD</h2>
+          <h2 data-i18n="menu.globalLeaderboard">GLOBAL LEADERBOARD</h2>
           <ul>
             {% if leaderboard %}
               {% for entry in leaderboard %}
@@ -153,18 +158,18 @@
                 </li>
               {% endfor %}
             {% else %}
-              <li>No scores yet</li>
+              <li data-i18n="menu.noScores">No scores yet</li>
             {% endif %}
           </ul>
         </div>
 
         <div class="menu-buttons">
-          <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button">PLAY GAME</button></a>
-          <button type="button" id="open-settings-btn">SETTINGS</button>
-          <a href="{{ url_for('show_achievements') }}"><button type="button">ACHIEVEMENTS</button></a>
+          <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button" data-i18n="menu.play">PLAY GAME</button></a>
+          <button type="button" id="open-settings-btn" data-i18n="menu.settings">SETTINGS</button>
+          <a href="{{ url_for('show_achievements') }}"><button type="button" data-i18n="menu.achievements">ACHIEVEMENTS</button></a>
           <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit">LOG OUT</button>
+            <button type="submit" data-i18n="menu.logout">LOG OUT</button>
           </form>
         </div>
       </div>
