@@ -3027,8 +3027,7 @@ a.agent-photo-frame:focus-visible {
     display: block;
 }
 
-.menu-page .top-bar .friends-btn,
-.menu-page .top-bar .world-chat-toggle {
+.menu-page .top-bar .friends-btn {
     width: auto;
     min-width: 0;
     border: 2px solid #00ffcc;
@@ -3037,8 +3036,7 @@ a.agent-photo-frame:focus-visible {
     box-shadow: none;
 }
 
-.menu-page .top-bar .friends-btn:hover,
-.menu-page .top-bar .world-chat-toggle:hover {
+.menu-page .top-bar .friends-btn:hover {
     background: #00ffcc;
     color: #000000;
 }
@@ -3055,7 +3053,17 @@ a.agent-photo-frame:focus-visible {
     min-width: 42px;
     height: 38px;
     padding: 0;
+    border: 2px solid transparent;
+    background: transparent;
+    color: #00ffcc;
+    box-shadow: none;
     z-index: 102;
+}
+
+.menu-page .top-bar .world-chat-toggle:hover {
+    background: transparent;
+    color: #00ffcc;
+    opacity: 0.8;
 }
 
 .menu-page .top-bar .world-chat-toggle span {
