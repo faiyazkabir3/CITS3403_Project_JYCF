@@ -1,5 +1,15 @@
 {
   "achievements.pageTitle": "Achievements",
+  "achievements.badges": "Badges",
+  "achievements.playerStats": "Player Stats",
+  "achievements.guestStats": "Guest Stats",
+  "achievements.createAccount": "Create an account to unlock persistent achievements.",
+  "achievements.unlocked": "Unlocked",
+  "achievements.next": "Next",
+  "achievements.goldComplete": "GOLD COMPLETE",
+  "achievements.progress": "Progress",
+  "achievements.for": "for",
+
   "achievements.totalKills": "Total Kills",
   "achievements.damageDealt": "Damage Dealt",
   "achievements.damageTaken": "Damage Taken",

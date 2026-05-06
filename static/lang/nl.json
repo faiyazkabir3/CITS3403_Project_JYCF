@@ -1,5 +1,15 @@
 {
   "achievements.pageTitle": "Prestaties",
+  "achievements.badges": "Badges",
+  "achievements.playerStats": "Spelerstatistieken",
+  "achievements.guestStats": "Gaststatistieken",
+  "achievements.createAccount": "Maak een account aan om blijvende prestaties te ontgrendelen.",
+  "achievements.unlocked": "Ontgrendeld",
+  "achievements.next": "Volgende",
+  "achievements.goldComplete": "GOUD VOLTOOID",
+  "achievements.progress": "Voortgang",
+  "achievements.for": "voor",
+
   "achievements.totalKills": "Totaal Aantal Kills",
   "achievements.damageDealt": "Aangerichte Schade",
   "achievements.damageTaken": "Ontvangen Schade",
