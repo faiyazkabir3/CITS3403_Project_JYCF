@@ -32,11 +32,11 @@
             <div class="friend-actions">
               <form method="POST" action="{{ url_for('accept_friend', request_id=req.id) }}" class="inline-action-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="primary-btn">Accept</button>
+                <button type="submit" class="primary-btn" data-i18n="friends.accept">Accept</button>
               </form>
               <form method="POST" action="{{ url_for('reject_friend', request_id=req.id) }}" class="inline-action-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="danger-btn">Reject</button>
+                <button type="submit" class="danger-btn" data-i18n="friends.reject">Reject</button>
               </form>
             </div>
           </li>

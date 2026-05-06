@@ -26,7 +26,7 @@ from flask_socketio import SocketIO, join_room, leave_room
 from flask_wtf.csrf import CSRFProtect
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from sqlalchemy import func, text
+from sqlalchemy import func, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename

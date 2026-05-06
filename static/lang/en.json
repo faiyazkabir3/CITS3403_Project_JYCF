@@ -9,7 +9,6 @@
   "achievements.goldComplete": "GOLD COMPLETE",
   "achievements.progress": "Progress",
   "achievements.for": "for",
-
   "achievements.totalKills": "Total Kills",
   "achievements.damageDealt": "Damage Dealt",
   "achievements.damageTaken": "Damage Taken",
@@ -36,9 +35,15 @@
   "friends.viewStats": "View Stats",
   "friends.noFriendsYet": "No friends yet",
   "friends.addFriend": "Add a Friend",
+  "friends.unfriend": "Unfriend",
   "friends.usernamePlaceholder": "Enter username",
   "friends.sendRequest": "Send Request",
   "friends.backToMenu": "← Back to Menu",
+  "friendStats.statsPrivate": "Stats Private",
+  "friendStats.statsHidden": "This friend has chosen to hide their stats.",
+  "friends.recentChats": "Recent Chats",
+  "friends.noConversationsYet": "No conversations yet",
+  "friends.inputTitle": "Use lowercase letters, numbers, and underscores only.",
 
   "login.pageTitle": "Login",
   "login.welcome": "Welcome, Survivor",

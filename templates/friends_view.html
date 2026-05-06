@@ -39,11 +39,11 @@
               <div class="friend-actions">
                 <form method="POST" action="{{ url_for('accept_friend', request_id=req.id) }}" class="inline-action-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="primary-btn">Accept</button>
+                  <button type="submit" class="primary-btn" data-i18n="friends.accept">Accept</button>
                 </form>
                 <form method="POST" action="{{ url_for('reject_friend', request_id=req.id) }}" class="inline-action-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="danger-btn">Reject</button>
+                  <button type="submit" class="danger-btn" data-i18n="friends.reject">Reject</button>
                 </form>
               </div>
             </li>
@@ -66,8 +66,8 @@
                 </a>
                 <span class="presence-label">{{ presence.label }}</span>
               </div>
-              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
-              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}" data-i18n="friends.chat">Chat</a>
+              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}" data-i18n="friends.viewStats">View Stats</a>
               <form
                 method="POST"
                 action="{{ url_for('unfriend', friend_id=f.id) }}"
@@ -75,7 +75,7 @@
                 onsubmit="return confirm('Remove {{ (f.display_name or f.username)|e }} from your friends?');"
               >
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="danger-btn">Unfriend</button>
+                <button type="submit" class="danger-btn" data-i18n="friends.unfriend">Unfriend</button>
               </form>
             </li>
           {% else %}
@@ -85,7 +85,7 @@
       </section>
 
       <section class="selected-character-box">
-        <h2>Recent Chats</h2>
+        <h2 data-i18n="friends.recentChats">Recent Chats</h2>
         <ul>
           {% for conversation in recent_conversations %}
             {% set presence = get_friend_presence(conversation.friend) %}
@@ -103,13 +103,13 @@
               </span>
             </li>
           {% else %}
-            <li>No conversations yet</li>
+            <li data-i18n="friends.noConversationsYet">No conversations yet</li>
           {% endfor %}
         </ul>
       </section>
 
       <section class="selected-character-box">
-        <h2>Add a Friend</h2>
+        <h2 data-i18n="friends.addFriend">Add a Friend</h2>
         <form method="POST" class="button-stack" data-friend-form>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input
@@ -126,7 +126,7 @@
             class="input-text"
             data-friend-username
             data-i18n-placeholder="friends.usernamePlaceholder"
-
+            data-i18n-title="friends.inputTitle"
           >
 
           <button type="submit" class="primary-btn" data-i18n="friends.sendRequest">Send Request</button>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Friend Stats</title>
+  <title data-i18n="friendStats.pageTitle">Friend Stats</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,8 +25,8 @@
     <div class="menu-content">
       {% if stats_private %}
         <div class="achievement-box">
-          <div class="achievement-title">Stats Private</div>
-          <div class="stat-value">This friend has chosen to hide their stats.</div>
+          <div class="achievement-title" data-i18n="friendStats.statsPrivate">Stats Private</div>
+          <div class="stat-value" data-i18n="friendStats.statsHidden">This friend has chosen to hide their stats.</div>
         </div>
       {% else %}
 

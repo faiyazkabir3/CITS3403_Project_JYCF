@@ -26,6 +26,7 @@ export async function loadLanguage(lang) {
 
 // applying translations to HTML
 export function applyTranslations() {
+  // Visible text
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const key = el.dataset.i18n;
 
@@ -42,6 +43,7 @@ export function applyTranslations() {
     }
   });
 
+  // Placeholder text
   document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
     const key = el.dataset.i18nPlaceholder;
 
@@ -52,6 +54,19 @@ export function applyTranslations() {
       key;
 
     el.placeholder = text;
+  });
+
+  // Title attribute text
+  document.querySelectorAll("[data-i18n-title]").forEach(el => {
+    const key = el.dataset.i18nTitle;
+
+    const text =
+      translations[key] ||
+      fallbackTranslations[key] ||
+      el.getAttribute("title") ||
+      key;
+
+    el.setAttribute("title", text);
   });
 }
 
