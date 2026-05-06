@@ -434,9 +434,25 @@ test("guest login can reach main menu, settings, and start a new game", async ({
 
   await expect(page).toHaveURL(/\/main[-_]menu$/);
   await expect(page.getByText("GUEST MODE")).toBeVisible();
+  const guestVitals = await page.evaluate(() => {
+    const age = Number(document.querySelector('[data-agent-field="age"] dd')?.textContent ?? "");
+    const heightText = document.querySelector('[data-agent-field="height"] dd')?.textContent ?? "";
+    const heightMatch = heightText.match(/^(\d)'(\d+)"$/);
+    const bloodGroup = document.querySelector('[data-agent-field="blood-group"] dd')?.textContent ?? "";
+
+    return {
+      age,
+      height: heightMatch ? Number(heightMatch[1]) * 12 + Number(heightMatch[2]) : 0,
+      bloodGroup,
+    };
+  });
+  expect(guestVitals.age).toBeGreaterThanOrEqual(21);
+  expect(guestVitals.age).toBeLessThanOrEqual(29);
+  expect(guestVitals.height).toBeGreaterThanOrEqual(65);
+  expect(guestVitals.height).toBeLessThanOrEqual(75);
+  expect(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).toContain(guestVitals.bloodGroup);
   await expect(page.locator('[data-agent-field="agent-id"]')).toContainText("GUEST");
   await expect(page.locator('[data-agent-field="licence"]')).toContainText("RZ-74291863");
-  await expect(page.locator('[data-agent-field="blood-group"]')).toContainText("O+");
   await expect(page.locator("#open-settings-btn")).toBeVisible();
 
   const menuMetrics = await page.evaluate(() => {
