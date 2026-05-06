@@ -213,5 +213,18 @@
   "profilePublic.actions": "Acties",
   "profilePublic.editProfile": "PROFIEL BEWERKEN",
   "profilePublic.viewStats": "STATISTIEKEN BEKIJKEN",
-  "profilePublic.unfriend": "VRIEND VERWIJDEREN"
+  "profilePublic.unfriend": "VRIEND VERWIJDEREN",
+
+  "register.pageTitle": "Registreren",
+  "register.heading": "Registreren",
+  "register.subtitle": "Maak hieronder je account aan.",
+  "register.username": "Gebruikersnaam",
+  "register.usernamePlaceholder": "Kies een gebruikersnaam",
+  "register.password": "Wachtwoord",
+  "register.passwordPlaceholder": "Maak een wachtwoord aan",
+  "register.confirmPassword": "Bevestig wachtwoord",
+  "register.confirmPasswordPlaceholder": "Bevestig je wachtwoord",
+  "register.submit": "Registreren",
+  "register.backToLogin": "Terug naar inloggen",
+  "register.guest": "Gastlogin"
 }

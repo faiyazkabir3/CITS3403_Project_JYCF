@@ -214,5 +214,18 @@
   "profilePublic.actions": "Actions",
   "profilePublic.editProfile": "EDIT PROFILE",
   "profilePublic.viewStats": "VIEW STATS",
-  "profilePublic.unfriend": "UNFRIEND"
+  "profilePublic.unfriend": "UNFRIEND",
+
+  "register.pageTitle": "Register",
+  "register.heading": "Register",
+  "register.subtitle": "Create your account below.",
+  "register.username": "Username",
+  "register.usernamePlaceholder": "Choose a username",
+  "register.password": "Password",
+  "register.passwordPlaceholder": "Create a password",
+  "register.confirmPassword": "Confirm Password",
+  "register.confirmPasswordPlaceholder": "Confirm your password",
+  "register.submit": "Register",
+  "register.backToLogin": "Back to Login",
+  "register.guest": "Guest Login"
 }
