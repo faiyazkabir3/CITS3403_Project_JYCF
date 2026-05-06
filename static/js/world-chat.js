@@ -9,6 +9,7 @@ const worldChatInput = document.querySelector("[data-world-chat-input]");
 const worldChatSubmit = document.querySelector("[data-world-chat-submit]");
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
 const canViewProfiles = Number(document.body?.dataset.userId || 0) > 0;
+const WORLD_CHAT_MAX_LINES = 1;
 
 let worldChatPollTimer = null;
 let worldChatIsOpen = false;
@@ -55,6 +56,22 @@ function buildWorldChatAuthorMarkup(message) {
   return `<strong>${safeName}</strong>`;
 }
 
+function countWorldChatLines(message) {
+  if (!message) {
+    return 0;
+  }
+
+  return String(message).split(/\r\n|\r|\n/).length;
+}
+
+function validateWorldChatDraft(message) {
+  if (countWorldChatLines(message) > WORLD_CHAT_MAX_LINES) {
+    return "World chat only supports one line at a time.";
+  }
+
+  return null;
+}
+
 function renderWorldChatMessages(messages) {
   if (!worldChatMessages) {
     return;
@@ -66,23 +83,43 @@ function renderWorldChatMessages(messages) {
   }
 
   worldChatMessages.innerHTML = messages.map((message) => {
-    const ownClass = message.is_current_user ? " is-own" : "";
+    const messageVariantClass = message.is_current_user ? "outgoing" : "incoming";
     const authorMarkup = buildWorldChatAuthorMarkup(message);
     const safeText = escapeHtml(message.message || "");
     const safeTime = escapeHtml(formatWorldChatTime(message.created_at));
+    const safeDateTime = escapeHtml(message.created_at || "");
 
     return `
-      <article class="world-chat-message${ownClass}">
+      <article class="world-chat-message ${messageVariantClass}">
         <div class="world-chat-message-meta">
           ${authorMarkup}
-          <span>${safeTime}</span>
         </div>
         <p>${safeText}</p>
+        <time datetime="${safeDateTime}">${safeTime}</time>
       </article>
     `;
   }).join("");
 
   worldChatMessages.scrollTop = worldChatMessages.scrollHeight;
+}
+
+async function parseWorldChatResponse(response, fallbackMessage) {
+  const responseText = await response.text();
+  let payload = null;
+
+  if (responseText) {
+    try {
+      payload = JSON.parse(responseText);
+    } catch (_error) {
+      payload = null;
+    }
+  }
+
+  if (!response.ok || !payload || !payload.ok) {
+    throw new Error(payload?.message || fallbackMessage);
+  }
+
+  return payload;
 }
 
 async function loadWorldChatMessages() {
@@ -101,11 +138,7 @@ async function loadWorldChatMessages() {
       credentials: "same-origin",
     });
 
-    const payload = await response.json();
-
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.message || "Unable to load world chat.");
-    }
+    const payload = await parseWorldChatResponse(response, "Unable to load world chat.");
 
     renderWorldChatMessages(payload.messages || []);
     setWorldChatStatus("World chat is live.", "online");
@@ -161,7 +194,16 @@ async function handleWorldChatSubmit(event) {
     return;
   }
 
-  const message = worldChatInput.value.trim();
+  const rawMessage = worldChatInput.value;
+  const draftError = validateWorldChatDraft(rawMessage);
+
+  if (draftError) {
+    setWorldChatStatus(draftError, "error");
+    worldChatInput.focus();
+    return;
+  }
+
+  const message = rawMessage.trim();
 
   if (!message) {
     setWorldChatStatus("Message cannot be empty.", "error");
@@ -184,11 +226,7 @@ async function handleWorldChatSubmit(event) {
       body: JSON.stringify({ message }),
     });
 
-    const payload = await response.json();
-
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.message || "Unable to send message.");
-    }
+    const payload = await parseWorldChatResponse(response, "Unable to send message.");
 
     worldChatInput.value = "";
     setWorldChatStatus("Message sent.", "online");
@@ -227,4 +265,15 @@ if (worldChatToggle && worldChatModal && worldChatPanel) {
   });
 
   worldChatForm?.addEventListener("submit", handleWorldChatSubmit);
+  worldChatInput?.addEventListener("paste", (event) => {
+    const pastedText = event.clipboardData?.getData("text") || "";
+    const draftError = validateWorldChatDraft(pastedText);
+
+    if (!draftError) {
+      return;
+    }
+
+    event.preventDefault();
+    setWorldChatStatus(draftError, "error");
+  });
 }

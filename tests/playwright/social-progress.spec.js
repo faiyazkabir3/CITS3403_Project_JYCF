@@ -380,6 +380,7 @@ test("profiles support reactions comments and custom backgrounds", async ({ brow
     await secondContext.close();
   }
 });
+
 test("world chat usernames link to public profiles", async ({ browser, page }) => {
   const secondContext = await browser.newContext();
   const secondPage = await secondContext.newPage();
@@ -394,10 +395,12 @@ test("world chat usernames link to public profiles", async ({ browser, page }) =
     const secondUserId = await secondPage.locator("body").getAttribute("data-user-id");
 
     await sendWorldChatMessage(secondPage, worldChatMessage);
+    await expect(secondPage.locator(".world-chat-message.outgoing", { hasText: worldChatMessage })).toBeVisible();
 
     await page.goto("/main_menu");
     await openWorldChat(page);
     await expect(page.locator("[data-world-chat-messages]")).toContainText(worldChatMessage);
+    await expect(page.locator(".world-chat-message.incoming", { hasText: worldChatMessage })).toBeVisible();
 
     const profileLink = page
       .locator("[data-world-chat-messages]")
@@ -413,4 +416,3 @@ test("world chat usernames link to public profiles", async ({ browser, page }) =
     await secondContext.close();
   }
 });
-
