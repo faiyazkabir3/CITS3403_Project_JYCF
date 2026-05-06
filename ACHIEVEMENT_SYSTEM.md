@@ -14,9 +14,9 @@ The same achievement data feeds three surfaces:
 
 The agent clipboard also shows dossier-style profile fields:
 
-- `AGENT ID`: the registered user's database ID formatted like `#00001`; guests show `GUEST`
+- `AGENT ID`: a seeded, random-looking five-digit ID formatted like `#12345`; guests show `GUEST`
 - `LICENCE NO.`: fixed display value `RZ-74291863`
-- `BLOOD GROUP`: fixed display value `O+`
+- `BLOOD GROUP`: a seeded display value from `A+`, `A-`, `B+`, `B-`, `AB+`, `AB-`, `O+`, or `O-`
 
 These dossier values are display-only and do not add database columns.
 
@@ -26,7 +26,7 @@ The achievement system uses existing tables:
 
 - `save_data`: source of gameplay counters such as kills, damage, medkits, pistol shots, and current level
 - `user_achievement`: stores the base achievement unlock record for a user
-- `user`: source of the public account ID used by the clipboard as `AGENT ID`
+- `user`: source of the stable seed used for account-specific dossier display values
 
 There is no separate tier table. A user's tier is recalculated from current progress each time achievements are loaded.
 
@@ -116,7 +116,7 @@ tests/playwright/smoke.spec.js
 
 The intended coverage checks:
 
-- registered users see the formatted agent ID, licence number, and blood group
+- registered users see stable seeded dossier values, including formatted agent ID, licence number, and blood group
 - guests show `AGENT ID: GUEST`
 - achievement badge images load
 - bronze/silver/gold tier labels render from saved progress

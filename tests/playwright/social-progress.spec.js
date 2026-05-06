@@ -87,6 +87,39 @@ async function expectImagesLoaded(page, selector) {
   }
 }
 
+function parseAgentHeight(heightText) {
+  const match = heightText.match(/^(\d)'(\d+)"$/);
+  expect(match).not.toBeNull();
+
+  return Number(match[1]) * 12 + Number(match[2]);
+}
+
+async function getAgentDossierValue(page, key) {
+  return page.locator(`[data-agent-field="${key}"] dd`).innerText();
+}
+
+async function expectDossierVitalsInRange(page) {
+  const age = Number(await getAgentDossierValue(page, "age"));
+  const height = parseAgentHeight(await getAgentDossierValue(page, "height"));
+
+  expect(age).toBeGreaterThanOrEqual(21);
+  expect(age).toBeLessThanOrEqual(29);
+  expect(height).toBeGreaterThanOrEqual(67);
+  expect(height).toBeLessThanOrEqual(75);
+
+  return { age, height };
+}
+
+async function expectDossierIdentityInRange(page) {
+  const agentId = await getAgentDossierValue(page, "agent-id");
+  const bloodGroup = await getAgentDossierValue(page, "blood-group");
+
+  expect(agentId).toMatch(/^#\d{5}$/);
+  expect(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]).toContain(bloodGroup);
+
+  return { agentId, bloodGroup };
+}
+
 async function sendFriendRequest(page, friendUsername) {
   await page.goto("/friends");
   await page.locator("[data-friend-username]").fill(friendUsername);
@@ -130,11 +163,17 @@ test("main menu dossier and top badge strip use earned tiers", async ({ page }) 
   const user = uniqueCredentials("dossier");
 
   await registerAndLogin(page, user);
-  const userId = await page.locator("body").getAttribute("data-user-id");
 
-  await expect(page.locator('[data-agent-field="agent-id"]')).toContainText(`#${String(userId).padStart(5, "0")}`);
+  const initialVitals = await expectDossierVitalsInRange(page);
+  const initialIdentity = await expectDossierIdentityInRange(page);
+  await page.reload();
+  await expect(page.locator('[data-agent-field="age"] dd')).toHaveText(String(initialVitals.age));
+  await expect(page.locator('[data-agent-field="height"] dd')).toHaveText(
+    `${Math.floor(initialVitals.height / 12)}'${initialVitals.height % 12}"`
+  );
+  await expect(page.locator('[data-agent-field="agent-id"] dd')).toHaveText(initialIdentity.agentId);
+  await expect(page.locator('[data-agent-field="blood-group"] dd')).toHaveText(initialIdentity.bloodGroup);
   await expect(page.locator('[data-agent-field="licence"]')).toContainText("RZ-74291863");
-  await expect(page.locator('[data-agent-field="blood-group"]')).toContainText("O+");
 
   await saveProgress(page, {
     kills: 30,
