@@ -42,52 +42,56 @@
       </section>
 
       <section class="profile-section">
-        <h2>Bio</h2>
-        <p class="public-profile-bio">{{ bio or "No bio yet" }}</p>
+        <h2 data-i18n="profilePublic.bio">Bio</h2>
+        {% if bio %}
+          <p class="public-profile-bio">{{ bio }}</p>
+        {% else %}
+          <p class="public-profile-bio" data-i18n="profilePublic.noBio">No bio yet</p>
+        {% endif %}
       </section>
 
       <section class="profile-section public-profile-stats">
-        <h2>Showcase</h2>
+        <h2 data-i18n="profilePublic.showcase">Showcase</h2>
 
         <div class="public-profile-stat-row">
-          <span>Favorite</span>
+          <span data-i18n="profilePublic.favorite">Favorite</span>
           <strong>{{ favorite_character }}</strong>
         </div>
 
         <div class="public-profile-stat-row">
-          <span>Achievements</span>
+          <span data-i18n="profilePublic.achievements">Achievements</span>
           <strong>{{ unlocked_achievement_count }} / {{ total_achievement_count }}</strong>
         </div>
 
         {% if leaderboard_entry %}
           <div class="public-profile-stat-row">
-            <span>Rank</span>
+            <span data-i18n="profilePublic.rank">Rank</span>
             <strong>#{{ leaderboard_entry.rank }}</strong>
           </div>
           <div class="public-profile-stat-row">
-            <span>Score</span>
+            <span data-i18n="profilePublic.score">Score</span>
             <strong>{{ leaderboard_entry.score }}</strong>
           </div>
         {% else %}
-          <p class="profile-meta">Unranked</p>
+          <p class="profile-meta" data-i18n="profilePublic.unranked">Unranked</p>
         {% endif %}
 
         {% if can_view_stats and latest_run %}
           <div class="public-profile-stat-row">
-            <span>Latest Run</span>
+            <span data-i18n="profilePublic.latestRun">Latest Run</span>
             <strong>{{ latest_run.character }} L{{ latest_run.current_level }}</strong>
           </div>
           <div class="public-profile-stat-row">
-            <span>Latest Kills</span>
+            <span data-i18n="profilePublic.latestKills">Latest Kills</span>
             <strong>{{ latest_run.kills }}</strong>
           </div>
         {% elif not can_view_stats %}
-          <p class="profile-meta">Stats are private.</p>
+          <p class="profile-meta" data-i18n="profilePublic.statsPrivate">Stats are private.</p>
         {% endif %}
       </section>
 
       <section class="profile-section">
-        <h2>Profile Badges</h2>
+        <h2 data-i18n="profilePublic.profileBadges">Profile Badges</h2>
         <div class="profile-badge-grid">
           {% for badge in profile_badges %}
             <div class="profile-badge profile-badge-{{ badge.kind }}">
@@ -106,13 +110,13 @@
               </div>
             </div>
           {% else %}
-            <p class="profile-meta">No profile badges unlocked yet.</p>
+            <p class="profile-meta" data-i18n="profilePublic.noBadges">No profile badges unlocked yet.</p>
           {% endfor %}
         </div>
       </section>
 
       <section class="profile-section">
-        <h2>Reactions</h2>
+        <h2 data-i18n="profilePublic.reactions">Reactions</h2>
         <div class="profile-reaction-row">
           {% for reaction in reaction_options %}
             <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}">
@@ -133,7 +137,7 @@
       </section>
 
       <section class="profile-section">
-        <h2>Comments</h2>
+        <h2 data-i18n="profilePublic.comments">Comments</h2>
         <form method="POST" action="{{ url_for('view_profile', user_id=profile_user.id) }}" class="profile-comment-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="action" value="profile_comment">
@@ -142,8 +146,9 @@
             maxlength="{{ profile_comment_max_length }}"
             rows="3"
             placeholder="Leave a short profile comment."
+            data-i18n-placeholder="profilePublic.commentPlaceholder"
           ></textarea>
-          <button type="submit" class="public-profile-action-btn">POST COMMENT</button>
+          <button type="submit" class="public-profile-action-btn" data-i18n="profilePublic.postComment">POST COMMENT</button>
         </form>
 
         <div class="profile-comment-list">
@@ -156,26 +161,26 @@
               <p>{{ comment.comment }}</p>
             </article>
           {% else %}
-            <p class="profile-meta">No comments yet.</p>
+            <p class="profile-meta" data-i18n="profilePublic.noComments">No comments yet.</p>
           {% endfor %}
         </div>
       </section>
 
       <section class="profile-section">
-        <h2>Actions</h2>
+        <h2 data-i18n="profilePublic.actions">Actions</h2>
 
         {% if is_self %}
-          <a href="{{ url_for('profile') }}" class="profile-cancel-btn public-profile-action-link">EDIT PROFILE</a>
+          <a href="{{ url_for('profile') }}" class="profile-cancel-btn public-profile-action-link" data-i18n="profilePublic.editProfile">EDIT PROFILE</a>
         {% elif friend_action.state == "friends" %}
           <div class="public-profile-action-grid">
-            <a href="{{ url_for('friend_stats', friend_id=profile_user.id) }}" class="profile-cancel-btn public-profile-action-link">VIEW STATS</a>
+            <a href="{{ url_for('friend_stats', friend_id=profile_user.id) }}" class="profile-cancel-btn public-profile-action-link" data-i18n="profilePublic.viewStats">VIEW STATS</a>
             <form
               method="POST"
               action="{{ url_for('unfriend', friend_id=profile_user.id) }}"
               onsubmit="return confirm('Remove {{ display_name|e }} from your friends?');"
             >
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="public-profile-action-btn danger-btn">UNFRIEND</button>
+              <button type="submit" class="public-profile-action-btn danger-btn" data-i18n="profilePublic.unfriend">UNFRIEND</button>
             </form>
           </div>
         {% elif friend_action.disabled %}
@@ -195,5 +200,6 @@
     </div>
   </div>
   <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>
 </html>
