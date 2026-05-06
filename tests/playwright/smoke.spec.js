@@ -75,7 +75,7 @@ async function expectCharacterPortraitSizing(page) {
   });
 
   expect(Math.abs(sizing.leonHeight - sizing.quiteHeight)).toBeLessThanOrEqual(2);
-  expect(sizing.leonObjectFit).toBe("contain");
+  expect(sizing.leonObjectFit).toBe("cover");
   expect(sizing.quiteObjectFit).toBe("cover");
 }
 
@@ -159,7 +159,7 @@ async function startNewGame(page, character = "leon") {
   await expect(page.locator("#character-screen")).toHaveClass(/active/);
   await expectPanelCentered(page, "#character-screen");
   await expectCharacterPortraitSizing(page);
-  await expect(page.locator('.character-card[data-character="leon"] img')).toHaveAttribute("src", /players\/leon_idle\.png/);
+  await expect(page.locator('.character-card[data-character="leon"] img')).toHaveAttribute("src", /players\/leon_right_idle\.png/);
   await expect(page.locator('.character-card[data-character="quite"] img')).toHaveAttribute("src", /players\/quite_right_idle\.png/);
   await expectTransparentImageCorners(page, '.character-card[data-character="leon"] img');
   await expectTransparentImageCorners(page, '.character-card[data-character="quite"] img');
@@ -509,7 +509,7 @@ test("registered user can view achievements, save, and load a run", async ({ pag
 
   await startNewGame(page, "leon");
   await expectPlayLayout(page);
-  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /players\/leon_idle\.png/);
+  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /players\/leon_right_idle\.png/);
   await expectTransparentImageCorners(page, "#battle-player-image");
 
   await page.locator("#save-btn").click();
