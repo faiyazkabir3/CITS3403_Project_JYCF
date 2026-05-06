@@ -30,7 +30,10 @@
         {% endif %}
         <div class="agent-identity">
           <span class="agent-label" data-i18n="menu.agentName">AGENT NAME</span>
-          <strong>{{ username }}</strong>
+          <strong class="operator-name">{{ username }}</strong>
+          {% if is_guest %}
+            <span class="mode-chip" data-i18n="menu.guestMode">GUEST MODE</span>
+          {% endif %}
         </div>
         <img
           src="{{ url_for('static', filename='images/fbi_seal.png') }}"

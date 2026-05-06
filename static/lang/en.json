@@ -69,6 +69,7 @@
   "menu.play": "PLAY GAME",
   "menu.settings": "SETTINGS",
   "menu.logout": "LOG OUT",
+  "menu.guestMode": "GUEST MODE",
 
   "settings.title": "SETTINGS",
   "settings.musicVolume": "MUSIC VOLUME",

@@ -17,7 +17,7 @@ export default defineConfig({
     timeout: 15_000,
   },
   use: {
-    baseURL: "http://127.0.0.1:5000",
+    baseURL: "http://127.0.0.1:5002",
     browserName: "chromium",
     channel: browserChannel,
     headless: true,
@@ -36,8 +36,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `${pythonCommand} -B scripts/run_playwright_server.py`,
-    url: "http://127.0.0.1:5000/login",
-    reuseExistingServer: true,
+    url: "http://127.0.0.1:5002/login",
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

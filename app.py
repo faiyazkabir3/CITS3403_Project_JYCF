@@ -182,8 +182,15 @@ class AchievementDefinition:
     target: int
     metric: str
     icon: str
-    tier_thresholds: tuple
-    badge_family: str
+    tier_thresholds: tuple = ()
+    badge_family: str = ""
+
+    def __post_init__(self):
+        if not self.tier_thresholds:
+            self.tier_thresholds = (self.target, self.target, self.target)
+
+        if not self.badge_family:
+            self.badge_family = self.id
 
 
 AGENT_LICENSE_NUMBER = "RZ-74291863"

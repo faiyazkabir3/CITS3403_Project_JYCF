@@ -11,10 +11,10 @@ sys.path.insert(0, str(ROOT))
 
 db_path = (INSTANCE_DIR / "playwright_smoke.db").resolve()
 
-os.environ.setdefault("SECRET_KEY", "playwright-smoke-secret-key-for-local-browser-tests")
-os.environ.setdefault("SQLCIPHER_DATABASE_KEY", "playwright-sqlcipher-key-for-local-browser-tests")
-os.environ.setdefault("SAVE_PAYLOAD_KEYS", "v1:cGxheXdyaWdodC1zYXZlLWtleS0zMi1ieXRlcyEhISE")
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{db_path.as_posix()}")
+os.environ["SECRET_KEY"] = "playwright-smoke-secret-key-for-local-browser-tests"
+os.environ["SQLCIPHER_DATABASE_KEY"] = "playwright-sqlcipher-key-for-local-browser-tests"
+os.environ["SAVE_PAYLOAD_KEYS"] = "v1:cGxheXdyaWdodC1zYXZlLWtleS0zMi1ieXRlcyEhISE"
+os.environ["DATABASE_URL"] = f"sqlite:///{db_path.as_posix()}"
 
 subprocess.run(
     [sys.executable, "-m", "flask", "--app", "app.py", "db", "upgrade"],
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     socketio.run(
         app,
         host="127.0.0.1",
-        port=5000,
+        port=5002,
         debug=False,
         use_reloader=False,
         allow_unsafe_werkzeug=True
