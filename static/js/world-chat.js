@@ -8,6 +8,7 @@ const worldChatForm = document.querySelector("[data-world-chat-form]");
 const worldChatInput = document.querySelector("[data-world-chat-input]");
 const worldChatSubmit = document.querySelector("[data-world-chat-submit]");
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+const canViewProfiles = Number(document.body?.dataset.userId || 0) > 0;
 
 let worldChatPollTimer = null;
 let worldChatIsOpen = false;
@@ -43,6 +44,17 @@ function formatWorldChatTime(timestamp) {
   });
 }
 
+function buildWorldChatAuthorMarkup(message) {
+  const safeName = escapeHtml(message.display_name || "Unknown Agent");
+  const authorUserId = Number(message.user_id);
+
+  if (canViewProfiles && Number.isInteger(authorUserId) && authorUserId > 0) {
+    return `<a class="world-chat-profile-link" href="/profile/${authorUserId}">${safeName}</a>`;
+  }
+
+  return `<strong>${safeName}</strong>`;
+}
+
 function renderWorldChatMessages(messages) {
   if (!worldChatMessages) {
     return;
@@ -55,14 +67,14 @@ function renderWorldChatMessages(messages) {
 
   worldChatMessages.innerHTML = messages.map((message) => {
     const ownClass = message.is_current_user ? " is-own" : "";
-    const safeName = escapeHtml(message.display_name || "Unknown Agent");
+    const authorMarkup = buildWorldChatAuthorMarkup(message);
     const safeText = escapeHtml(message.message || "");
     const safeTime = escapeHtml(formatWorldChatTime(message.created_at));
 
     return `
       <article class="world-chat-message${ownClass}">
         <div class="world-chat-message-meta">
-          <strong>${safeName}</strong>
+          ${authorMarkup}
           <span>${safeTime}</span>
         </div>
         <p>${safeText}</p>

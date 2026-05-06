@@ -3208,8 +3208,19 @@ a.agent-photo-frame:focus-visible {
     font-size: 0.62rem;
 }
 
-.menu-page .world-chat-message-meta strong {
+.menu-page .world-chat-message-meta strong,
+.menu-page .world-chat-profile-link {
     color: #00ffcc;
+}
+
+.menu-page .world-chat-profile-link {
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.menu-page .world-chat-profile-link:hover,
+.menu-page .world-chat-profile-link:focus-visible {
+    text-decoration: underline;
 }
 
 .menu-page .world-chat-message-meta span {
