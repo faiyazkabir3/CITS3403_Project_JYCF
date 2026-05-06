@@ -156,5 +156,8 @@
   "play.reloadRifle": "RELOAD RIFLE",
   "play.useMedkit": "USE MEDKIT",
   "play.toggleShield": "TOGGLE SHIELD",
-  "play.combatLog": "COMBAT LOG"
+  "play.combatLog": "COMBAT LOG",
+  "play.skipHold": "SKIP / HOLD 2X",
+  "play.skipMissionFeedLabel": "Skip mission feed text, or hold to play text at double speed",
+  "play.skipShopFeedLabel": "Skip shop mission feed text, or hold to play text at double speed"
 }

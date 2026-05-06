@@ -68,6 +68,19 @@ export function applyTranslations() {
 
     el.setAttribute("title", text);
   });
+
+  // Aria labels text
+  document.querySelectorAll("[data-i18n-aria-label]").forEach(el => {
+    const key = el.dataset.i18nAriaLabel;
+
+    const text =
+      translations[key] ||
+      fallbackTranslations[key] ||
+      el.getAttribute("aria-label") ||
+      key;
+
+    el.setAttribute("aria-label", text);
+  });
 }
 
 // translation function for game engine

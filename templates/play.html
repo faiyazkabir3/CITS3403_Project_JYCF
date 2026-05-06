@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Play Game</title>
+  <title data-i18n="play.pageTitle">Play Game</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -229,16 +229,18 @@
 
                 <div class="battle-caption">
                   <div class="mission-feed-heading">
-                    <span class="battle-caption-label">MISSION FEED</span>
+                    <span class="battle-caption-label" data-i18n="play.missionFeed">MISSION FEED</span>
                     <button
                       type="button"
                       id="story-skip-btn"
                       class="mission-skip-btn"
                       aria-label="Skip mission feed text, or hold to play text at double speed"
                       disabled
+                      data-i18n="play.skipHold"
+                      data-i18n-aria-label="play.skipMissionFeedLabel"
                     >SKIP / HOLD 2X</button>
                   </div>
-                  <div id="story-text" class="story-text">Mission starting...</div>
+                  <div id="story-text" class="story-text" data-i18n="play.missionStarting">Mission starting...</div>
                 </div>
               </div>
             </div>
@@ -272,20 +274,22 @@
           </div>
           <div class="shop-dialogue">
             <div class="mission-feed-heading">
-              <span class="battle-caption-label">MISSION FEED</span>
+              <span class="battle-caption-label" data-i18n="play.missionFeed">MISSION FEED</span>
               <button
                 type="button"
                 id="shop-story-skip-btn"
                 class="mission-skip-btn"
                 aria-label="Skip shop mission feed text, or hold to play text at double speed"
                 disabled
+                data-i18n="play.skipHold"
+                data-i18n-aria-label="play.skipShopFeedLabel"
               >SKIP / HOLD 2X</button>
             </div>
-            <div id="shop-story-text" class="story-text">Mission starting...</div>
+            <div id="shop-story-text" class="story-text" data-i18n="play.missionStarting">Mission starting...</div>
           </div>
           <div class="shop-grid">
             <div>
-              <h3>BUY</h3>
+              <h3 data-i18n="play.buy">BUY</h3>
               <div id="shop-inventory-summary" class="shop-inventory-summary"></div>
               <div id="shop-buy-buttons" class="choice-buttons"></div>
             </div>

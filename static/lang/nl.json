@@ -156,5 +156,8 @@
   "play.reloadRifle": "GEWEER HERLADEN",
   "play.useMedkit": "MEDKIT GEBRUIKEN",
   "play.toggleShield": "SCHILD TOGGLE",
-  "play.combatLog": "GEVECHTSLOG"
+  "play.combatLog": "GEVECHTSLOG",
+  "play.skipHold": "OVERSLAAN / HOUD 2X",
+  "play.skipMissionFeedLabel": "Sla missietekst over, of houd ingedrukt om tekst op dubbele snelheid af te spelen",
+  "play.skipShopFeedLabel": "Sla winkelmissietekst over, of houd ingedrukt om tekst op dubbele snelheid af te spelen"
 }
