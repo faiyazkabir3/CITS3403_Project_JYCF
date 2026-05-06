@@ -15,6 +15,7 @@ const WARNING_BEEP_SOUND = "/static/audio/sfx/system/warning_beep.mp3";
 const SUCCESS_SOUND = "/static/audio/sfx/system/success.mp3";
 const FAIL_SOUND = "/static/audio/sfx/system/fail.mp3";
 const BUTTON_CLICK_SOUND = "/static/audio/sfx/ui/button_click.mp3";
+const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
 const PISTOL_SHOT_SOUND = "/static/audio/sfx/combat/pistol_shot.mp3";
 const RIFLE_SHOT_SOUND = "/static/audio/sfx/combat/rifle_shot.mp3";
 const RELOAD_SOUND = "/static/audio/sfx/combat/reload.mp3";
@@ -245,20 +246,95 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function typeWriter(target, text, speed = 24, isStale = () => false) {
+function getTextElements(target) {
+  return (Array.isArray(target) ? target : [target]).filter(Boolean);
+}
+
+function setTextContent(elements, text) {
+  elements.forEach((element) => {
+    element.textContent = text;
+  });
+}
+
+function createTextPlaybackController() {
+  return {
+    active: false,
+    fastForwarding: false,
+    skipRequested: false,
+
+    start() {
+      this.active = true;
+      this.skipRequested = false;
+      this.fastForwarding = false;
+    },
+
+    stop() {
+      this.active = false;
+      this.skipRequested = false;
+      this.fastForwarding = false;
+    },
+
+    setFastForwarding(isFastForwarding) {
+      if (!this.active) {
+        this.fastForwarding = false;
+        return;
+      }
+
+      this.fastForwarding = isFastForwarding;
+    },
+
+    requestSkip() {
+      if (this.active) {
+        this.skipRequested = true;
+      }
+    },
+
+    getDelay(baseDelay) {
+      return this.fastForwarding ? Math.max(1, baseDelay / 2) : baseDelay;
+    }
+  };
+}
+
+async function sleepWithPlayback(baseDelay, playbackController, isStale = () => false) {
+  let remaining = baseDelay;
+
+  while (remaining > 0) {
+    if (isStale()) return "stale";
+    if (playbackController?.skipRequested) return "skip";
+
+    const delay = Math.min(playbackController?.getDelay(remaining) ?? remaining, 40);
+    await sleep(delay);
+    remaining -= playbackController?.fastForwarding ? delay * 2 : delay;
+  }
+
+  return "done";
+}
+
+async function typeWriter(target, text, speed = 24, isStale = () => false, playbackController = null) {
   const elements = (Array.isArray(target) ? target : [target]).filter(Boolean);
   if (elements.length === 0) return;
 
-  elements.forEach((element) => {
-    element.textContent = "";
-  });
+  setTextContent(elements, "");
+
   for (let i = 0; i < text.length; i += 1) {
-    if (isStale()) return;
-    elements.forEach((element) => {
-      element.textContent += text[i];
-    });
-    await sleep(speed);
+    if (isStale()) return "stale";
+    if (playbackController?.skipRequested) {
+      setTextContent(elements, text);
+      return "skip";
+    }
+
+    setTextContent(elements, `${elements[0].textContent}${text[i]}`);
+
+    const sleepResult = await sleepWithPlayback(speed, playbackController, isStale);
+    if (sleepResult !== "done") {
+      if (sleepResult === "skip") {
+        setTextContent(elements, text);
+      }
+      return sleepResult;
+    }
   }
+
+  return "done";
 }
 
 function appendCombatLog(text) {
@@ -275,15 +351,53 @@ function appendCombatLog(text) {
   }
 }
 
-async function playEventSequence(element, events, speed = 24, pause = 460, isStale = () => false) {
+async function playEventSequence(
+  element,
+  events,
+  speed = 24,
+  pause = 460,
+  isStale = () => false,
+  playbackController = null
+) {
   if (!events || events.length === 0) return;
 
-  for (const eventText of events) {
+  const elements = getTextElements(element);
+
+  for (let index = 0; index < events.length; index += 1) {
     if (isStale()) return;
-    await typeWriter(element, eventText, speed, isStale);
+    const eventText = events[index];
+    const typeResult = await typeWriter(elements, eventText, speed, isStale, playbackController);
     if (isStale()) return;
     appendCombatLog(eventText);
-    await sleep(pause);
+
+    if (typeResult === "skip" || playbackController?.skipRequested) {
+      for (let remainingIndex = index + 1; remainingIndex < events.length; remainingIndex += 1) {
+        const remainingText = events[remainingIndex];
+        setTextContent(elements, remainingText);
+        appendCombatLog(remainingText);
+      }
+
+      if (playbackController) {
+        playbackController.skipRequested = false;
+      }
+
+      return;
+    }
+
+    const pauseResult = await sleepWithPlayback(pause, playbackController, isStale);
+    if (pauseResult === "skip") {
+      for (let remainingIndex = index + 1; remainingIndex < events.length; remainingIndex += 1) {
+        const remainingText = events[remainingIndex];
+        setTextContent(elements, remainingText);
+        appendCombatLog(remainingText);
+      }
+
+      if (playbackController) {
+        playbackController.skipRequested = false;
+      }
+
+      return;
+    }
   }
 }
 
@@ -544,6 +658,16 @@ function ensureBattleAssetBinding(imageEl, fallbackEl) {
   });
 
   imageEl.addEventListener("error", () => {
+    const requestedSrc = imageEl.dataset.requestedSrc || "";
+
+    if (requestedSrc && imageEl.dataset.retrySrc !== requestedSrc) {
+      imageEl.dataset.retrySrc = requestedSrc;
+      const separator = requestedSrc.includes("?") ? "&" : "?";
+      imageEl.src = `${requestedSrc}${separator}retry=${Date.now()}`;
+      return;
+    }
+
+    delete imageEl.dataset.currentSrc;
     imageEl.hidden = true;
     if (fallbackEl) {
       fallbackEl.hidden = false;
@@ -560,13 +684,18 @@ function setBattleAsset(imageEl, fallbackEl, src, alt, fallbackText) {
 
   if (!src) {
     imageEl.removeAttribute("src");
+    delete imageEl.dataset.requestedSrc;
+    delete imageEl.dataset.currentSrc;
+    delete imageEl.dataset.retrySrc;
     imageEl.hidden = true;
     fallbackEl.hidden = false;
     return;
   }
 
-  if (imageEl.dataset.currentSrc !== src) {
+  if (imageEl.dataset.requestedSrc !== src) {
+    imageEl.dataset.requestedSrc = src;
     imageEl.dataset.currentSrc = src;
+    delete imageEl.dataset.retrySrc;
     imageEl.hidden = true;
     fallbackEl.hidden = false;
     imageEl.src = src;
@@ -987,6 +1116,7 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
   const shopBox = $("#shop-box");
   const buyButtons = $("#shop-buy-buttons");
   const sellButtons = $("#shop-sell-buttons");
+  const inventorySummary = $("#shop-inventory-summary");
   const continueBtn = $("#shop-continue-btn");
   if (!shopBox || !buyButtons || !sellButtons || !continueBtn) return;
 
@@ -997,14 +1127,29 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
     shopBox.style.display = "none";
     buyButtons.innerHTML = "";
     sellButtons.innerHTML = "";
+    if (inventorySummary) {
+      inventorySummary.innerHTML = "";
+    }
     return;
   }
 
   const coins = engine.state.inventory.coins;
+  const { inventory, pistol, rifle } = engine.state;
+  const pistolTotalAmmo = pistol.ammoInGun + pistol.ammoInBag;
+  const rifleTotalAmmo = rifle.ammoInGun + rifle.ammoInBag;
   gameMain?.classList.add("shop-open");
   shopBox.style.display = "flex";
   buyButtons.innerHTML = "";
   sellButtons.innerHTML = "";
+
+  if (inventorySummary) {
+    inventorySummary.innerHTML = `
+      <span>Total pistol ammo with you: ${pistolTotalAmmo}</span>
+      <span>Total rifle ammo with you: ${rifle.owned ? rifleTotalAmmo : "no rifle"}</span>
+      <span>Grenades with you: ${inventory.grenades}</span>
+      <span>Medkits with you: ${inventory.medKits}</span>
+    `;
+  }
 
   engine.getShopInventory().forEach((item) => {
     const button = document.createElement("button");
@@ -1014,6 +1159,7 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
     button.innerHTML = `
       <span class="choice-title">${item.label} - ${item.cost}C</span>
       <span class="choice-desc">${item.description}</span>
+      ${item.resourceLine ? `<span class="choice-desc shop-resource-line">${item.resourceLine}</span>` : ""}
     `;
     button.addEventListener("click", () => onBuy(item.id));
     buyButtons.appendChild(button);
@@ -1102,12 +1248,18 @@ function buildSavePayload(engine) {
   };
 }
 
+function getCsrfToken() {
+  return csrfTokenMeta?.content || "";
+}
+
 async function saveGameToBackend(engine) {
   const payload = buildSavePayload(engine);
+  const csrfToken = getCsrfToken();
   const response = await fetch("/save-game", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {})
     },
     body: JSON.stringify(payload)
   });
@@ -1141,6 +1293,8 @@ export function bootGameUI({
 
   const storyText = $("#story-text");
   const shopStoryText = $("#shop-story-text");
+  const storySkipBtn = $("#story-skip-btn");
+  const shopStorySkipBtn = $("#shop-story-skip-btn");
   const emergencyBox = $("#emergency-box");
   const emergencyTitle = $("#emergency-title");
   const emergencyPrompt = $("#emergency-prompt");
@@ -1153,6 +1307,7 @@ export function bootGameUI({
   let locked = false;
   let isAnimatingEvents = false;
   let storyRenderId = 0;
+  const textPlaybackController = createTextPlaybackController();
   const battleSceneState = {
     lastActionKey: "idle",
     activeWeaponKey: "pistol",
@@ -1261,6 +1416,15 @@ export function bootGameUI({
     if (shopStoryText) {
       shopStoryText.textContent = text;
     }
+  }
+
+  function updateMissionSkipControls() {
+    [storySkipBtn, shopStorySkipBtn].forEach((button) => {
+      if (!button) return;
+
+      button.disabled = !isAnimatingEvents;
+      button.classList.toggle("is-fast-forwarding", textPlaybackController.fastForwarding);
+    });
   }
 
   function areMainActionsLocked() {
@@ -1402,6 +1566,13 @@ export function bootGameUI({
 
   function renderAll() {
     const interactionLocked = isInteractionLocked();
+    const bothShopAndChoicesOpen = engine.isShopOpen() && engine.hasChoices();
+    const gameMain = document.querySelector(".game-main");
+
+    if (gameMain) {
+      gameMain.classList.toggle("shop-choice-scroll", bothShopAndChoicesOpen);
+    }
+
     renderStats(engine);
     renderBattleScene(engine, battleSceneState);
     renderWeaponVisibility(engine);
@@ -1410,19 +1581,29 @@ export function bootGameUI({
     renderContinueBox(engine, interactionLocked, handleContinueLevel);
     renderEmergencyBox();
     updateActionAvailability();
+    updateMissionSkipControls();
   }
 
   async function runAndRender(events) {
     const renderId = ++storyRenderId;
     isAnimatingEvents = true;
+    textPlaybackController.start();
     renderAll();
-    await playEventSequence([storyText, shopStoryText], events, 24, 460, () => renderId !== storyRenderId);
+    await playEventSequence(
+      [storyText, shopStoryText],
+      events,
+      24,
+      460,
+      () => renderId !== storyRenderId,
+      textPlaybackController
+    );
 
     if (renderId !== storyRenderId) {
       return;
     }
 
     isAnimatingEvents = false;
+    textPlaybackController.stop();
     renderAll();
   }
 
@@ -1549,6 +1730,96 @@ export function bootGameUI({
     registerEmergencyPress();
   }
 
+  function bindMissionSkipButton(button) {
+    if (!button) return;
+
+    let pointerStartedAt = 0;
+    let pointerActive = false;
+    let suppressNextClick = false;
+
+    const stopFastForwarding = () => {
+      if (!pointerActive) return;
+
+      pointerActive = false;
+      if (performance.now() - pointerStartedAt > 180) {
+        suppressNextClick = true;
+      }
+
+      textPlaybackController.setFastForwarding(false);
+      updateMissionSkipControls();
+    };
+
+    button.addEventListener("pointerdown", (event) => {
+      if (button.disabled) return;
+
+      pointerStartedAt = performance.now();
+      pointerActive = true;
+      textPlaybackController.setFastForwarding(true);
+      updateMissionSkipControls();
+
+      try {
+        button.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture is best-effort; the button still works without it.
+      }
+    });
+
+    button.addEventListener("pointerup", stopFastForwarding);
+    button.addEventListener("pointercancel", stopFastForwarding);
+    button.addEventListener("pointerleave", stopFastForwarding);
+
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+
+      if (suppressNextClick) {
+        suppressNextClick = false;
+        return;
+      }
+
+      textPlaybackController.requestSkip();
+      updateMissionSkipControls();
+    });
+  }
+
+  function isEditableTarget(target) {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target?.isContentEditable
+    );
+  }
+
+  const shiftSkipState = {
+    active: false,
+    startedAt: 0
+  };
+
+  function handleMissionSkipKeydown(event) {
+    if (event.code !== "ShiftLeft") return;
+    if (event.repeat || isEditableTarget(event.target) || !textPlaybackController.active) return;
+
+    event.preventDefault();
+    shiftSkipState.active = true;
+    shiftSkipState.startedAt = performance.now();
+    textPlaybackController.setFastForwarding(true);
+    updateMissionSkipControls();
+  }
+
+  function handleMissionSkipKeyup(event) {
+    if (event.code !== "ShiftLeft" || !shiftSkipState.active) return;
+
+    event.preventDefault();
+    shiftSkipState.active = false;
+    textPlaybackController.setFastForwarding(false);
+
+    if (textPlaybackController.active && performance.now() - shiftSkipState.startedAt <= 180) {
+      textPlaybackController.requestSkip();
+    }
+
+    updateMissionSkipControls();
+  }
+
   const attackBtn = $("#attack-btn");
   const defendBtn = $("#defend-btn");
   const inventoryBtn = $("#inventory-btn");
@@ -1565,6 +1836,9 @@ export function bootGameUI({
   const shieldBtn = $("#shield-btn");
   const inventoryBackBtn = $("#inventory-back-btn");
   const statsBackBtn = $("#stats-back-btn");
+
+  bindMissionSkipButton(storySkipBtn);
+  bindMissionSkipButton(shopStorySkipBtn);
 
   if (attackBtn) {
     attackBtn.addEventListener("click", () => {
@@ -1668,6 +1942,8 @@ export function bootGameUI({
   }
 
   window.addEventListener("keydown", handleEmergencyKeydown);
+  window.addEventListener("keydown", handleMissionSkipKeydown);
+  window.addEventListener("keyup", handleMissionSkipKeyup);
 
   async function startGame() {
     showMainActions();

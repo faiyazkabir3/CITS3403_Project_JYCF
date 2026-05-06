@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chat with {{ friend.display_name or friend.username }}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <!-- Google font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,24 +27,23 @@
 
         <div class="chat-heading">
           <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
-          <p class="chat-status" data-chat-status data-i18n="chat.status.connecting">Connecting live chat...</p>
-          <p class="flash-message chat-alert" data-chat-alert hidden></p>
+          <p class="chat-status" data-chat-status>Connecting live chat...</p>
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <p class="flash-message chat-alert" data-chat-alert>{{ messages[-1] }}</p>
+            {% else %}
+              <p class="flash-message chat-alert" data-chat-alert hidden></p>
+            {% endif %}
+          {% endwith %}
         </div>
       </div>
 
       <div class="chat-container">
-        <div class="chat-messages" data-chat-messages>
-          {% for msg in messages %}
-            {% if msg.sender_id == current_user %}
-              <div class="chat-message outgoing" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
-            {% else %}
-              <div class="chat-message incoming" data-message-id="{{ msg.id }}">{{ msg.message }}</div>
-            {% endif %}
-          {% endfor %}
-        </div>
+        <div class="chat-messages" data-chat-messages></div>
 
         <!-- Chat Input -->
         <form method="POST" class="chat-form" data-chat-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input
             type="text"
             name="message"
@@ -51,12 +51,20 @@
             required
             class="input-text"
             data-chat-input
-            data-i18n-placeholder="chat.input.placeholder">
-          <button type="submit" class="primary-btn" data-chat-submit data-i18n="chat.send">Send</button>
+          >
+          <input type="hidden" name="ciphertext" data-chat-ciphertext>
+          <input type="hidden" name="nonce" data-chat-nonce>
+          <input type="hidden" name="sender_public_key" data-chat-sender-public-key>
+          <input type="hidden" name="sender_key_id" data-chat-sender-key-id>
+          <input type="hidden" name="recipient_public_key" data-chat-recipient-public-key>
+          <input type="hidden" name="recipient_key_id" data-chat-recipient-key-id>
+          <input type="hidden" name="encryption_version" value="1">
+          <button type="submit" class="primary-btn" data-chat-submit>Send</button>
         </form>
       </div>
     </section>
   </div>
+  <script type="application/json" data-chat-history>{{ chat_messages | tojson }}</script>
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
     integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="

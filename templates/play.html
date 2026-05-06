@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-i18n="play.pageTitle">Play Game</title>
+  <title>Play Game</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,7 +48,7 @@
         </button>
 
         <button type="button" class="character-card" data-character="quite">
-          <img src="{{ url_for('static', filename='images/players/quite_idle.png') }}" alt="Quite character">
+          <img src="{{ url_for('static', filename='images/players/quite_right_idle.png') }}" alt="Quite character">
           <span class="character-name">QUITE</span>
           <div class="character-desc">
             <strong data-i18n="play.quiteRole">AGILE SURVIVOR</strong>
@@ -227,8 +228,17 @@
                 <div id="battle-tags" class="battle-tags"></div>
 
                 <div class="battle-caption">
-                  <span class="battle-caption-label" data-i18n="play.missionFeed">MISSION FEED</span>
-                  <div id="story-text" class="story-text" data-i18n="play.missionStarting">Mission starting...</div>
+                  <div class="mission-feed-heading">
+                    <span class="battle-caption-label">MISSION FEED</span>
+                    <button
+                      type="button"
+                      id="story-skip-btn"
+                      class="mission-skip-btn"
+                      aria-label="Skip mission feed text, or hold to play text at double speed"
+                      disabled
+                    >SKIP / HOLD 2X</button>
+                  </div>
+                  <div id="story-text" class="story-text">Mission starting...</div>
                 </div>
               </div>
             </div>
@@ -261,12 +271,22 @@
             <button type="button" id="shop-continue-btn" class="secondary-btn" data-i18n="play.continue">CONTINUE</button>
           </div>
           <div class="shop-dialogue">
-            <span class="battle-caption-label" data-i18n="play.missionFeed">MISSION FEED</span>
-            <div id="shop-story-text" class="story-text" data-i18n="play.missionStarting">Mission starting...</div>
+            <div class="mission-feed-heading">
+              <span class="battle-caption-label">MISSION FEED</span>
+              <button
+                type="button"
+                id="shop-story-skip-btn"
+                class="mission-skip-btn"
+                aria-label="Skip shop mission feed text, or hold to play text at double speed"
+                disabled
+              >SKIP / HOLD 2X</button>
+            </div>
+            <div id="shop-story-text" class="story-text">Mission starting...</div>
           </div>
           <div class="shop-grid">
             <div>
-              <h3 data-i18n="play.buy">BUY</h3>
+              <h3>BUY</h3>
+              <div id="shop-inventory-summary" class="shop-inventory-summary"></div>
               <div id="shop-buy-buttons" class="choice-buttons"></div>
             </div>
             <div>

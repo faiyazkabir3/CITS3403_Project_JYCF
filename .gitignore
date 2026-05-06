@@ -4,6 +4,10 @@
 __pycache__/
 *.pyc
 instance/
+project.db
+*.db
+*.sqlite
+*.sqlite3
 venv/
 .env
 node_modules/
@@ -12,6 +16,5 @@ test-results/
 .vscode/settings.json
 .vscode/*.code-workspace
 .vscode
-
 static/uploads/profile_pics/*
 !static/uploads/profile_pics/.gitkeep

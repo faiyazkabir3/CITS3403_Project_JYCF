@@ -4,13 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ username }}'s Friends</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body class="play-page friends-page">
+<body class="play-page friends-page" data-user-id="{{ current_user.id }}">
   <div class="screen-wrap">
     <section class="panel active">
       <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
@@ -35,8 +36,16 @@
               <a class="friend-name-link" href="{{ url_for('view_profile', user_id=req.from_user.id) }}">
                 {{ req.from_user.display_name or req.from_user.username }}
               </a>
-              <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}" data-i18n="friends.accept">Accept</a>
-              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}" data-i18n="friends.reject">Reject</a>
+              <div class="friend-actions">
+                <form method="POST" action="{{ url_for('accept_friend', request_id=req.id) }}" class="inline-action-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="primary-btn">Accept</button>
+                </form>
+                <form method="POST" action="{{ url_for('reject_friend', request_id=req.id) }}" class="inline-action-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="danger-btn">Reject</button>
+                </form>
+              </div>
             </li>
           {% else %}
             <li data-i18n="friends.noPendingRequests">No pending requests</li>
@@ -48,12 +57,26 @@
         <h2 data-i18n="friends.yourFriends">Your Friends</h2>
         <ul>
           {% for f in friends %}
+            {% set presence = get_friend_presence(f) %}
             <li>
-              <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
-                {{ f.display_name or f.username }}
-              </a>
-              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}" data-i18n="friends.chat">Chat</a>
-              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}" data-i18n="friends.viewStats">View Stats</a>
+              <div class="friend-identity">
+                <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
+                <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
+                  {{ f.display_name or f.username }}
+                </a>
+                <span class="presence-label">{{ presence.label }}</span>
+              </div>
+              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
+              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+              <form
+                method="POST"
+                action="{{ url_for('unfriend', friend_id=f.id) }}"
+                class="inline-action-form"
+                onsubmit="return confirm('Remove {{ (f.display_name or f.username)|e }} from your friends?');"
+              >
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="danger-btn">Unfriend</button>
+              </form>
             </li>
           {% else %}
             <li data-i18n="friends.noFriendsYet">No friends yet</li>
@@ -62,13 +85,44 @@
       </section>
 
       <section class="selected-character-box">
-        <h2 data-i18n="friends.addFriend">Add a Friend</h2>
+        <h2>Recent Chats</h2>
+        <ul>
+          {% for conversation in recent_conversations %}
+            {% set presence = get_friend_presence(conversation.friend) %}
+            <li>
+              <div class="friend-identity">
+                <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
+                <a class="friend-name-link" href="{{ url_for('chat', friend_id=conversation.friend.id) }}">
+                  {{ conversation.display_name }}
+                </a>
+                <span class="presence-label">{{ presence.label }}</span>
+              </div>
+              <span class="conversation-preview">
+                {{ conversation.latest_message[:34] }}{% if conversation.latest_message|length > 34 %}...{% endif %}
+                {% if conversation.unread_count %} ({{ conversation.unread_count }} unread){% endif %}
+              </span>
+            </li>
+          {% else %}
+            <li>No conversations yet</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="selected-character-box">
+        <h2>Add a Friend</h2>
         <form method="POST" class="button-stack" data-friend-form>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input
             type="text"
             name="friend_username"
             placeholder="Enter username"
             required
+            minlength="3"
+            maxlength="80"
+            pattern="[a-z0-9_]+"
+            title="Use lowercase letters, numbers, and underscores only."
+            autocomplete="off"
+            spellcheck="false"
             class="input-text"
             data-friend-username
             data-i18n-placeholder="friends.usernamePlaceholder"
@@ -81,6 +135,7 @@
     </section>
   </div>
 
+  <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/friends-page.js') }}" defer></script>
   <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>

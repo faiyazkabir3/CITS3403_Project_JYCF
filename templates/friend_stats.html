@@ -23,6 +23,12 @@
     </div>
 
     <div class="menu-content">
+      {% if stats_private %}
+        <div class="achievement-box">
+          <div class="achievement-title">Stats Private</div>
+          <div class="stat-value">This friend has chosen to hide their stats.</div>
+        </div>
+      {% else %}
 
       <div class="achievement-box">
         <div class="achievement-title" data-i18n="achievements.totalKills">Total Kills</div>
@@ -63,6 +69,7 @@
         <div class="achievement-title" data-i18n="achievements.reloadCount">Reload Count</div>
         <div class="stat-value">{{ stats.reloads }}</div>
       </div>
+      {% endif %}
 
     </div>
 

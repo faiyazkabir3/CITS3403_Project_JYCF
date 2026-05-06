@@ -19,66 +19,117 @@
     <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
     <div class="top-bar">
-      <h1>{{ username }}'s Stats</h1>
+      <h1>{{ username }}'s Achievements</h1>
     </div>
 
-    <div class="menu-content">
-
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.totalKills">Total Kills</div>
-        <div id="kills" class="stat-value">
-          {{ stats.kills }}
+    <div class="menu-content achievement-dashboard">
+      <aside class="achievement-sidebar" aria-label="Achievement badges">
+        <div class="achievement-panel-heading">
+          <h2>Badges</h2>
+          <span>{{ achievements|selectattr("unlocked")|list|length }} / {{ achievements|length }}</span>
         </div>
-      </div>
+        {% if achievements %}
+          {% for achievement in achievements %}
+            <button type="button" class="achievement-box achievement-badge{% if achievement.unlocked %} achievement-unlocked{% else %} achievement-locked{% endif %}">
+              <span class="achievement-icon achievement-icon-{{ achievement.tier_name or 'locked' }}">
+                <img
+                  src="{{ url_for('static', filename=achievement.badge_image) }}"
+                  alt=""
+                  data-achievement-badge-image
+                >
+              </span>
+              <span class="achievement-copy">
+                <span class="achievement-title-row">
+                  <span class="achievement-title">{{ achievement.name }}</span>
+                  <span class="achievement-tier achievement-tier-{{ achievement.tier_name or 'locked' }}">
+                    {{ achievement.tier_label }}
+                  </span>
+                </span>
+                <span class="achievement-description">{{ achievement.description }}</span>
+                <span class="achievement-progress">
+                  {% if achievement.unlocked %}
+                    Unlocked{% if achievement.unlocked_at %} {{ achievement.unlocked_at.strftime("%d %b %Y") }}{% endif %}
+                    {% if achievement.next_tier_target %}
+                      - Next {{ achievement.next_tier_label }} {{ achievement.tier_current }} / {{ achievement.next_tier_target }}
+                    {% else %}
+                      - GOLD COMPLETE {{ achievement.tier_current }} / {{ achievement.tier_target }}
+                    {% endif %}
+                  {% else %}
+                    Progress {{ achievement.tier_current }} / {{ achievement.next_tier_target }} for {{ achievement.next_tier_label }}
+                  {% endif %}
+                </span>
+              </span>
+            </button>
+          {% endfor %}
+        {% else %}
+          <div class="achievement-box">
+            <div class="achievement-title">Guest Stats</div>
+            <p class="achievement-description">Create an account to unlock persistent achievements.</p>
+          </div>
+        {% endif %}
+      </aside>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.damageDealt">Damage Dealt</div>
-        <div id="damageDealt" class="stat-value">
-          {{ stats.damage_dealt }}
+      <section class="stats-panel" aria-label="Player stats">
+        <div class="stats-panel-heading">
+          <h2>Player Stats</h2>
         </div>
-      </div>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.damageTaken">Damage Taken</div>
-        <div id="damageTaken" class="stat-value">
-          {{ stats.damage_taken }}
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Total Kills</div>
+          <div id="kills" class="stat-value">
+            {{ stats.kills }}
+          </div>
         </div>
-      </div>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.pistolShots">Pistol Shots</div>
-        <div id="pistol" class="stat-value">
-          {{ stats.pistol_shots }}
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Damage Dealt</div>
+          <div id="damageDealt" class="stat-value">
+            {{ stats.damage_dealt }}
+          </div>
         </div>
-      </div>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.grenadesUsed">Grenades Used</div>
-        <div id="grenades" class="stat-value">
-          {{ stats.grenades }}
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Damage Taken</div>
+          <div id="damageTaken" class="stat-value">
+            {{ stats.damage_taken }}
+          </div>
         </div>
-      </div>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.knifeUses">Knife Uses</div>
-        <div id="knifeUses" class="stat-value">
-          {{ stats.knife_uses }}
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Pistol Shots</div>
+          <div id="pistol" class="stat-value">
+            {{ stats.pistol_shots }}
+          </div>
         </div>
-      </div>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.medkitsUsed">Medkits Used</div>
-        <div id="medkits" class="stat-value">
-          {{ stats.medkits }}
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Grenades Used</div>
+          <div id="grenades" class="stat-value">
+            {{ stats.grenades }}
+          </div>
         </div>
-      </div>
 
-      <div class="achievement-box">
-        <div class="achievement-title" data-i18n="achievements.reloadCount">Reload Count</div>
-        <div id="reloads" class="stat-value">
-          {{ stats.reloads }}
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Knife Uses</div>
+          <div id="knifeUses" class="stat-value">
+            {{ stats.knife_uses }}
+          </div>
         </div>
-      </div>
+
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Medkits Used</div>
+          <div id="medkits" class="stat-value">
+            {{ stats.medkits }}
+          </div>
+        </div>
+
+        <div class="achievement-box stat-card">
+          <div class="achievement-title">Reload Count</div>
+          <div id="reloads" class="stat-value">
+            {{ stats.reloads }}
+          </div>
+        </div>
+      </section>
 
     </div>
 

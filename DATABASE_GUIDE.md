@@ -1,18 +1,214 @@
 # Database Guide
 
+## Database files are local only
+
+The database file is now ignored by Git. Developers should **not commit `project.db`**, even though the current database is encrypted with SQLCipher.
+
+The ignored database paths/patterns are:
+
+```text
+instance/
+project.db
+*.db
+*.sqlite
+*.sqlite3
+```
+
+This means each developer creates their own local encrypted database after pulling the project. The repo should contain the application code, models, documentation, and migrations, not a live database file.
+
+Why we do not commit the DB:
+
+- an encrypted DB is useless to teammates without the matching `SQLCIPHER_DATABASE_KEY`
+- sharing the key would defeat the point of encryption
+- DB files may contain users, password hashes, saves, friend data, and encrypted chat rows
+- binary database files change often and create noisy Git conflicts
+- course/security best practice is to commit schema and setup steps, not live data
+
+If `project.db` was already tracked by Git before it was added to `.gitignore`, `.gitignore` alone is not enough. Untrack it while keeping your local copy:
+
+```bash
+git rm --cached project.db
+```
+
+Do not run `rm project.db` unless you intentionally want to delete your own local database.
+
+---
+
+## Fresh pull setup
+
+Use this flow after cloning or pulling the project on a new machine.
+
+1. Pull the latest code:
+
+```bash
+git pull
+```
+
+2. Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+On Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Generate local secret values:
+
+```bash
+python -c "import base64, secrets; print('SECRET_KEY=' + secrets.token_urlsafe(32)); print('SQLCIPHER_DATABASE_KEY=' + secrets.token_urlsafe(32)); print('SAVE_PAYLOAD_KEYS=v1:' + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+5. Create a `.env` file in the project root:
+
+```text
+SECRET_KEY=generated_flask_session_key
+SQLCIPHER_DATABASE_KEY=generated_sqlcipher_database_key
+SAVE_PAYLOAD_KEYS=v1:generated_save_payload_key
+DATABASE_URL=sqlite:///project.db
+```
+
+Use the values generated in step 4. Do not commit `.env`.
+
+`SECRET_KEY` signs Flask sessions and CSRF tokens. `SQLCIPHER_DATABASE_KEY` opens your local encrypted database. `SAVE_PAYLOAD_KEYS` encrypts fallback save files. These should be separate values.
+
+---
+
+## Create the DB and run the app
+
+After `.env` is ready, apply the committed migrations:
+
+```bash
+export FLASK_APP=app.py
+flask db upgrade
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:FLASK_APP = "app.py"
+flask db upgrade
+```
+
+Optional: create shared demo users and sample save rows:
+
+```bash
+flask seed-demo
+```
+
+The demo accounts are:
+
+```text
+leon_demo / RouteZero123!
+quite_demo / RouteZero123!
+```
+
+Then start the app:
+
+```bash
+python app.py
+```
+
+Then open:
+
+```text
+http://127.0.0.1:5000
+```
+
+For local development, `flask db upgrade` creates or updates the encrypted database. The default DB path is:
+
+```text
+project.db
+```
+
+That file is local to your machine and ignored by Git.
+
+If you already have an old plaintext `project.db`, SQLCipher may fail to open it. Rename the old file and let migrations create a fresh encrypted one:
+
+```bash
+mv project.db project.plaintext.backup.db
+flask db upgrade
+```
+
+If your DB is inside `instance/`, use that path instead.
+
+Important: if you lose or change `SQLCIPHER_DATABASE_KEY`, your old encrypted local DB cannot be opened. Use a new DB or restore the original key.
+
+---
+
+## Migration setup
+
+This project uses Flask-Migrate/Alembic for schema migrations.
+
+Set the Flask app target first:
+
+```bash
+export FLASK_APP=app.py
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:FLASK_APP = "app.py"
+```
+
+This repo already has a committed `migrations/` folder. Do not run `flask db init` again during normal setup.
+
+Apply existing migrations to your local encrypted DB:
+
+```bash
+flask db upgrade
+```
+
+After changing `models.py`, generate a new migration:
+
+```bash
+flask db migrate -m "describe schema change"
+```
+
+Rules for migrations:
+
+- run commands from the project root
+- make sure `.env` exists before running `flask db ...`
+- review generated migration files before committing
+- commit migration files, not live database files
+- run `flask db upgrade` before starting the app
+
+For an intentional fresh local wipe, delete only ignored DB/save state:
+
+```bash
+rm -f project.db instance/*.db instance/save_fallbacks/*.json
+flask db upgrade
+flask seed-demo
+```
+
+---
+
 ## What this database is for
 
-Our database supports the backend side of the zombie game.
+Our database supports the backend side of the zombie game web app.
 
-It mainly does three jobs:
+At the moment, it mainly supports these areas:
 
-1. stores registered users
-2. stores each user's current saved game
-3. stores simple social features between users, like friends, friend requests, and messages
+1. registered user accounts
+2. saved game progress
+3. profile information
+4. social features such as friends and friend requests
+5. direct messages between users
+6. achievements, profile reactions, and profile comments
 
-So if someone asks, “what is the database doing in this project?”, the short answer is:
-
-**it remembers who the users are, what progress they have made, and how they interact with each other.**
+So in simple terms, the database remembers who the users are, what profile they use, what game progress they have made, and how they interact with other users.
 
 ---
 
@@ -21,157 +217,196 @@ So if someone asks, “what is the database doing in this project?”, the short
 The database side of the project uses:
 
 - **SQLite** as the actual database
+- **SQLCipher** to encrypt the SQLite database file at rest
 - **Flask-SQLAlchemy** to define and access the tables
+- **Flask-Migrate/Alembic** to manage schema migrations
 - **Flask** as the backend web framework
 
-For local development, the app uses a SQLite database file.
+This still matches the stack taught in the unit: Flask for the server logic, SQLite-style storage, and SQLAlchemy to map Python objects to database tables. The project adds SQLCipher so the SQLite database file is encrypted at rest.
 
-By default, the app points to:
+For local development, the app uses an encrypted SQLite database file.
 
-`sqlite:///project.db`
+By default, `.env` points the app to:
 
-In practice, the project also has an `instance/project.db` file during development.
+```text
+DATABASE_URL=sqlite:///project.db
+```
+
+At startup, `app.py` converts that SQLite URL into a SQLCipher-backed SQLAlchemy URL using `SQLCIPHER_DATABASE_KEY` from `.env`.
+
+This keeps the app code using SQLAlchemy normally while the database file is encrypted at rest. Do not open, migrate, or copy the database without understanding that it depends on the local SQLCipher key.
+
+Some development setups may use `instance/project.db`, but this project currently documents `DATABASE_URL=sqlite:///project.db` as the simple local default.
+
+If `SQLCIPHER_DATABASE_KEY` is lost or changed, the old encrypted database cannot be opened.
 
 ---
 
-## Big picture structure
+## MVC view of this project
 
-The current database has **5 main tables**:
+Based on the course structure, the database belongs to the **model** side of the app.
+
+In this project:
+
+- **model** = the SQLAlchemy models in `models.py`
+- **view** = the HTML pages built from Jinja templates
+- **controller** = the Flask request handlers in `routes.py` that read and update the models
+
+This separation is useful because it keeps storage, page rendering, and request handling as different concerns.
+
+---
+
+## Current database tables
+
+The current database has 8 app tables, plus Alembic's migration-version table:
 
 1. `user`
 2. `save_data`
 3. `friend`
 4. `friend_request`
 5. `message`
+6. `user_achievement`
+7. `profile_reaction`
+8. `profile_comment`
 
-A simple way to understand the structure is:
-
-```text
-User
- ├── has one SaveData
- ├── can send many FriendRequests
- ├── can receive many FriendRequests
- ├── can have many Friends
- ├── can send many Messages
- └── can receive many Messages
-```
-
-So the **user** table is the centre of the whole database.
+The `user` table is the central table because the other app tables all connect back to users in some way.
 
 ---
 
 ## Table 1: `user`
 
-### What it does
+### What it stores
 
-This table stores the registered accounts for the website.
+This table stores registered user accounts and their profile details.
 
-Every real player who signs up gets one row in this table.
-
-### Main columns
+### Columns
 
 - `id` — primary key
 - `username` — the login name, must be unique
+- `display_name` — optional public-facing display name
+- `profile_image` — selected or uploaded profile image path
+- `bio` — optional profile biography
 - `password_hash` — the hashed password
+- `chat_public_key` — public browser key for encrypted direct chat
+- `chat_key_id` — short ID derived from the public chat key
+- `chat_key_created_at` — when the public chat key was stored
 
 ### Key points
 
 - `id` is the **primary key (PK)**, which means it uniquely identifies each user
 - `username` is also unique, so two users cannot register the same username
 - passwords are **not** stored as plain text
+- `password_hash` stores the hashing method, random salt, and derived password hash together
+- Werkzeug creates the salt automatically, so there is no separate `salt` column
+- profile-related information is stored directly on the user row
+- direct-chat private keys are **not** stored in the database; only public chat keys are stored
 
 ### Example
 
-| id | username | password_hash |
-|---|---|---|
-| 1 | leonplayer | scrypt:32768:8:1$... |
+| id | username | display_name | password_hash | chat_key_id |
+|---|---|---|---|---|
+| 1 | leonplayer | Leon | pbkdf2:sha256:...$random_salt$... | 8f3a... |
 
 ### What this table is used for
 
 - registration
 - login
-- session-based identity
-- linking a user to saves and social features
+- session identity
+- profile page data
+- public profile display
+- linking users to saves, friends, and messages
 
 ---
 
 ## Table 2: `save_data`
 
-### What it does
+### What it stores
 
-This table stores one user's current game progress.
+This table stores saved gameplay state.
 
-This is the table that makes the game persistent between sessions.
+It includes both basic progression values and combat/stat tracking values.
 
-### Main columns
+### Columns
 
+#### Identity and setup
 - `id` — primary key
 - `user_id` — foreign key to `user.id`
 - `difficulty`
 - `character_id`
+
+#### Inventory and resources
 - `health`
 - `medkits`
 - `grenades`
 - `ammo_in_gun`
 - `ammo_in_bag`
 - `mag_capacity`
+
+#### Combat/stat tracking
+- `kills`
+- `damage_dealt`
+- `damage_taken`
+- `pistol_shots`
+- `grenades_used`
+- `medkits_used`
+- `reloads`
+- `knife_uses`
+
+#### Upgrades / equipment state
 - `laser_upgrade`
 - `shield_owned`
 - `shield_on`
+
+#### Progression state
 - `current_level_id`
 - `enemies_remaining`
 - `level_complete`
 - `awaiting_choice`
 - `game_won`
 - `has_started_game`
+
+#### Flexible stored state
 - `run_state_json`
 - `updated_at`
 
 ### Key points
 
-- `id` is the **primary key**
-- `user_id` is a **foreign key (FK)** pointing to `user.id`
-- `user_id` is also **unique**, which means one user can only have **one save row**
+- `id` is the primary key
+- `user_id` is a foreign key to `user.id`
+- `user_id` is **not marked unique** in the current model
+- this means the current schema allows more than one save row per user
+- the save system also uses `character_id` and `updated_at` when selecting the most relevant save
 
-So this is a:
+So the current schema should **not** be described as a strict “one user -> one save row” design.
 
-**one user -> one save data row**
+### What it is used for
 
-design.
+- loading saved progress
+- storing player state between sessions
+- tracking player stats for achievements/leaderboards/stats pages
+- storing extra run data in JSON form when needed
 
-That is an intentional MVP choice. It keeps the save system simple.
+### Note on achievement tiers
 
-### Example
+The bronze/silver/gold achievement tiers are not stored as separate database rows.
 
-| id | user_id | difficulty | health | current_level_id | has_started_game |
-|---|---|---|---|---|---|
-| 1 | 1 | HARD | 72 | 2A | True |
+The app derives tier progress from `save_data` counters and stores only the base unlock in `user_achievement`. For example, kill totals from `save_data.kills` can unlock and tier the First Blood and No Mercy badge families, while `save_data.medkits_used` drives the Medic badge family.
 
-### What this table is used for
+### Note on `run_state_json`
 
-- saving the player’s latest state
-- loading the player’s latest state
-- making sure progress is remembered after logout or closing the game
+Most core values are stored in normal columns.
 
-### Special note: `run_state_json`
-
-Most save values are stored in normal columns.
-
-But `run_state_json` stores more detailed game state as JSON text.
-
-That gives the project a bit more flexibility without creating too many extra columns.
+`run_state_json` is used for extra structured game state that does not fit neatly into a small fixed set of columns.
 
 ---
 
 ## Table 3: `friend`
 
-### What it does
+### What it stores
 
-This table stores friendship links between users.
+This table stores user-to-user friendship links.
 
-If two users are friends, that relationship is represented here.
-
-### Main columns
+### Columns
 
 - `id` — primary key
 - `user_id` — foreign key to `user.id`
@@ -180,42 +415,25 @@ If two users are friends, that relationship is represented here.
 
 ### Key points
 
-- `id` is the **primary key**
-- `user_id` and `friend_id` are both **foreign keys**
-- both point back to the `user` table
+- both `user_id` and `friend_id` point back to the `user` table
+- this table represents direct user-to-user relationships
+- accepted friendships are stored here
 
-This means the table is saying:
+### What it is used for
 
-- “this user is connected to that user”
-
-### Example
-
-| id | user_id | friend_id | status |
-|---|---|---|---|
-| 1 | 1 | 2 | accepted |
-| 2 | 2 | 1 | accepted |
-
-This example means:
-- user 1 is friends with user 2
-- user 2 is friends with user 1
-
-### What this table is used for
-
-- listing friends
-- checking who is connected to whom
-- supporting social navigation and chat
+- listing a user’s friends
+- checking whether two users are connected
+- controlling access to friend-based pages and chat
 
 ---
 
 ## Table 4: `friend_request`
 
-### What it does
+### What it stores
 
-This table stores pending friend requests before they become full friendships.
+This table stores friend requests before they become accepted friendships.
 
-A request is not the same thing as a confirmed friendship, so it is kept in its own table.
-
-### Main columns
+### Columns
 
 - `id` — primary key
 - `from_user_id` — foreign key to `user.id`
@@ -224,41 +442,40 @@ A request is not the same thing as a confirmed friendship, so it is kept in its 
 
 ### Key points
 
-- `id` is the **primary key**
 - `from_user_id` is the sender
 - `to_user_id` is the receiver
-- both are **foreign keys** to `user.id`
+- both columns link back to the `user` table
+- this separates pending requests from accepted friendships
 
-### Example
+### What it is used for
 
-| id | from_user_id | to_user_id | status |
-|---|---|---|---|
-| 1 | 1 | 3 | pending |
-
-This means:
-- user 1 sent a request to user 3
-- user 3 has not accepted or rejected it yet
-
-### What this table is used for
-
-- sending requests
-- accepting requests
-- rejecting requests
+- sending friend requests
+- receiving friend requests
+- accepting or rejecting friend requests
 
 ---
 
 ## Table 5: `message`
 
-### What it does
+### What it stores
 
-This table stores direct messages between users.
+This table stores direct chat messages between users.
+
+Direct chat is now designed for end-to-end encrypted payloads. Flask stores and forwards encrypted message data, but the browser performs encryption and decryption.
 
 ### Main columns
 
 - `id` — primary key
 - `sender_id` — foreign key to `user.id`
 - `receiver_id` — foreign key to `user.id`
-- `message`
+- `message` — old/plaintext compatibility column, now nullable
+- `ciphertext` — encrypted message body
+- `nonce` — AES-GCM nonce used by the browser
+- `sender_key_id` — sender public key ID
+- `sender_public_key` — sender public key used for this message
+- `recipient_key_id` — recipient public key ID
+- `recipient_public_key` — recipient public key used for this message
+- `encryption_version` — encrypted message format version
 - `timestamp`
 
 ### Key points
@@ -266,72 +483,164 @@ This table stores direct messages between users.
 - `id` is the **primary key**
 - `sender_id` and `receiver_id` are **foreign keys**
 - both point back to the `user` table
+- each row is one message envelope
+- timestamps allow message history to be shown in order
+- new direct messages should store ciphertext and key metadata, not plaintext chat text
+- if a browser does not have the matching private key, old encrypted messages may show as locked
 
 ### Example
 
-| id | sender_id | receiver_id | message | timestamp |
-|---|---|---|---|---|
-| 1 | 2 | 1 | Ready for level 3? | 2026-04-17 13:20:45 |
+| id | sender_id | receiver_id | ciphertext | nonce | encryption_version |
+|---|---|---|---|---|---|
+| 1 | 2 | 1 | encrypted_base64url_payload | random_nonce | 1 |
 
 ### What this table is used for
 
-- simple chat between users
-- showing message history
+- storing encrypted direct-chat payloads
+- loading encrypted message history for browser-side decryption
+- socket/chat page persistence
 
 ---
 
-## How the tables connect together
+## Table 6: `user_achievement`
 
-Here is the most important part to understand.
+### What it stores
 
-### `user` and `save_data`
-A user has one save row.
+This table stores which base achievements a registered user has unlocked.
 
-This is enforced by:
-- `save_data.user_id` pointing to `user.id`
-- `save_data.user_id` being unique
+### Columns
 
-So one account has one current saved game.
+- `id` - primary key
+- `user_id` - foreign key to `user.id`
+- `achievement_id` - stable achievement identifier such as `first_blood` or `medic`
+- `unlocked_at` - when the achievement was first unlocked
 
-### `user` and `friend_request`
+### Key points
+
+- the unique constraint on `user_id` and `achievement_id` prevents duplicate unlock rows
+- tier names are not stored here
+- bronze/silver/gold tiers are recalculated from gameplay stats when achievements are displayed
+
+### What it is used for
+
+- showing persistent achievement unlock state
+- recording unlock dates
+- feeding achievement badges on the achievements page, public profile, and main-menu clipboard
+
+---
+
+## Table 7: `profile_reaction`
+
+### What it stores
+
+This table stores one reaction from one user to another user's public profile.
+
+### Columns
+
+- `id` - primary key
+- `profile_user_id` - profile receiving the reaction
+- `reactor_user_id` - user who reacted
+- `reaction_type`
+- `created_at`
+- `updated_at`
+
+### Key points
+
+- one user can have only one active reaction per target profile
+- changing the reaction updates the existing row instead of creating duplicates
+
+---
+
+## Table 8: `profile_comment`
+
+### What it stores
+
+This table stores public comments left on user profiles.
+
+### Columns
+
+- `id` - primary key
+- `profile_user_id` - profile receiving the comment
+- `author_user_id` - user who wrote the comment
+- `comment`
+- `created_at`
+
+### What it is used for
+
+- rendering the public profile comment list
+- linking each comment back to the author account
+
+---
+
+## How the tables connect
+
+### `user` -> `save_data`
+A user can have one or more save rows in the current schema.
+
+This is because:
+- `save_data.user_id` is a foreign key to `user.id`
+- but it is not unique in the model
+
+### `user` -> `friend_request`
 A user can send many friend requests and receive many friend requests.
 
-That is why the table has:
-- `from_user_id`
-- `to_user_id`
+### `user` -> `friend`
+A user can be connected to many other users through friendship rows.
 
-### `user` and `friend`
-A user can have many friends.
+### `user` -> `message`
+A user can send many messages and receive many messages.
 
-The friend table links one user to another user.
+### `user` -> `user_achievement`
+A user can unlock many base achievements. Each base achievement can appear once per user.
 
-### `user` and `message`
-A user can send and receive many messages.
-
-So overall, the `user` table is the central table that everything else connects back to.
+So overall, `user` is the central table and the other tables describe progress and interaction around that user.
 
 ---
 
-## Example flow through the database
+## Persistence outside the database
+
+The project also has a fallback save mechanism outside the SQLite tables.
+
+If database save/load fails, the app can also use JSON fallback save files.
+
+This is part of the project’s persistence design, but it is **not** a database table and therefore sits outside the relational schema described above.
+
+---
+
+## Example flow through the data layer
 
 ### 1. A player registers
 A row is created in `user`.
 
-### 2. The player starts a game
-A row is created in `save_data` for that user.
+### 2. The player updates their profile
+Their `display_name`, `bio`, or `profile_image` fields in `user` are updated.
 
-### 3. The player saves progress
-The same `save_data` row is updated with new values like health, ammo, and current level.
+### 3. The player starts and saves a run
+A row is created or updated in `save_data`.
 
-### 4. The player adds a friend
-A row is first created in `friend_request`.
+### 4. The player sends a friend request
+A row is created in `friend_request`.
 
-### 5. The other player accepts
-Rows are created in `friend`.
+### 5. The request is accepted
+Friendship rows are created in `friend`.
 
 ### 6. They chat
-Rows are created in `message`.
+Rows are created in `message`. New chat rows store encrypted payload fields instead of plaintext message text.
 
-This is basically the life cycle of the current database.
+This shows how the current schema supports both the game side and the social side of the web app.
 
 ---
+
+## Summary
+
+The current database is a small relational schema built around the `user` table.
+
+Its job is to support:
+
+- account identity
+- profile information
+- saved progress
+- friend relationships
+- direct messages
+
+The design follows the course stack of Flask + SQLite + SQLAlchemy, with the models acting as the database-backed model layer of the application.

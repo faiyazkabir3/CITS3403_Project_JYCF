@@ -29,9 +29,15 @@
             <a class="friend-name-link" href="{{ url_for('view_profile', user_id=req.from_user.id) }}">
               {{ req.from_user.display_name or req.from_user.username }}
             </a>
-            <div>
-              <a class="primary-btn" href="{{ url_for('accept_friend', request_id=req.id) }}" data-i18n="friends.accept">Accept</a>
-              <a class="danger-btn" href="{{ url_for('reject_friend', request_id=req.id) }}" data-i18n="friends.reject">Reject</a>
+            <div class="friend-actions">
+              <form method="POST" action="{{ url_for('accept_friend', request_id=req.id) }}" class="inline-action-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="primary-btn">Accept</button>
+              </form>
+              <form method="POST" action="{{ url_for('reject_friend', request_id=req.id) }}" class="inline-action-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="danger-btn">Reject</button>
+              </form>
             </div>
           </li>
         {% else %}
@@ -62,6 +68,7 @@
     <section class="selected-character-box">
       <h2 data-i18n="friends.addFriend">Add a Friend</h2>
       <form method="POST" class="button-stack">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="from_user_id" value="{{ current_user.id }}">
 
         <input type="text"

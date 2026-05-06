@@ -4,22 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Customize Profile</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
 </head>
-<body class="achievements-page profile-page">
+<body class="achievements-page profile-page" data-user-id="{{ current_user.id }}">
   <div class="menu-container">
     <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
     <div class="top-bar">
-      <h1>Customize Profile</h1>
+      <h1>Profile Customisation</h1>
     </div>
 
     <div class="menu-content">
       <form method="POST" action="{{ url_for('profile') }}" class="profile-form" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         {% if error %}
           <p class="profile-message profile-error">{{ error }}</p>
         {% endif %}
@@ -28,37 +31,77 @@
           <p class="profile-message profile-success">{{ success }}</p>
         {% endif %}
 
-        <section class="profile-section">
-          <h2>Operator</h2>
+        <div class="profile-editor-layout">
+          <aside class="profile-preview-card">
+            <span class="profile-preview-label">Current Profile</span>
+            <div class="profile-preview-avatar">
+              <img src="{{ url_for('static', filename=profile_image) }}" alt="{{ display_name or login_username }}">
+            </div>
+            <h2>{{ display_name or login_username }}</h2>
+            <p>@{{ login_username }}</p>
+            <span class="profile-preview-chip">
+              {% for option in favorite_characters %}
+                {% if option.value == favorite_character %}{{ option.label }}{% endif %}
+              {% endfor %}
+            </span>
+          </aside>
 
-          <label for="display-name">Display Name</label>
-          <input
-            type="text"
-            id="display-name"
-            name="display_name"
-            maxlength="80"
-            value="{{ display_name }}"
-            placeholder="{{ login_username }}"
-            autocomplete="nickname"
-          >
+          <div class="profile-editor-fields">
+            <section class="profile-section">
+              <h2>Identity</h2>
 
-          <p class="profile-meta">Login username: {{ login_username }}</p>
-        </section>
+              <label for="display-name">Display Name</label>
+              <input
+                type="text"
+                id="display-name"
+                name="display_name"
+                maxlength="80"
+                value="{{ display_name }}"
+                placeholder="{{ login_username }}"
+                autocomplete="nickname"
+              >
 
-        <section class="profile-section">
-          <h2>Bio</h2>
+              <p class="profile-meta">Login username: {{ login_username }}</p>
+            </section>
 
-          <label for="bio">About You</label>
-          <textarea
-            id="bio"
-            name="bio"
-            maxlength="{{ bio_max_length }}"
-            rows="5"
-            placeholder="Write a short profile bio."
-          >{{ bio }}</textarea>
+            <section class="profile-section">
+              <h2>Showcase</h2>
 
-          <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
-        </section>
+              <label for="favorite-character">Favorite Character</label>
+              <select id="favorite-character" name="favorite_character">
+                {% for option in favorite_characters %}
+                  <option value="{{ option.value }}" {% if option.value == favorite_character %}selected{% endif %}>
+                    {{ option.label }}
+                  </option>
+                {% endfor %}
+              </select>
+
+              <label for="profile-background">Profile Background</label>
+              <select id="profile-background" name="profile_background">
+                {% for option in profile_backgrounds %}
+                  <option value="{{ option.value }}" {% if option.value == profile_background %}selected{% endif %}>
+                    {{ option.label }}
+                  </option>
+                {% endfor %}
+              </select>
+            </section>
+
+            <section class="profile-section">
+              <h2>Bio</h2>
+
+              <label for="bio">About You</label>
+              <textarea
+                id="bio"
+                name="bio"
+                maxlength="{{ bio_max_length }}"
+                rows="5"
+                placeholder="Write a short profile bio."
+              >{{ bio }}</textarea>
+
+              <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
+            </section>
+          </div>
+        </div>
 
         <section class="profile-section">
           <h2>Profile Picture</h2>
@@ -111,6 +154,25 @@
         </section>
 
         <section class="profile-section">
+          <h2>Privacy</h2>
+
+          <label class="profile-checkbox">
+            <input type="checkbox" name="show_stats_to_friends" {% if show_stats_to_friends %}checked{% endif %}>
+            <span>Allow friends to view my stats</span>
+          </label>
+
+          <label class="profile-checkbox">
+            <input type="checkbox" name="allow_friend_messages" {% if allow_friend_messages %}checked{% endif %}>
+            <span>Allow friends to message me</span>
+          </label>
+
+          <label class="profile-checkbox">
+            <input type="checkbox" name="hide_from_leaderboard" {% if hide_from_leaderboard %}checked{% endif %}>
+            <span>Hide me from leaderboards</span>
+          </label>
+        </section>
+
+        <section class="profile-section">
           <h2>Password</h2>
 
           <label for="current-password">Current Password</label>
@@ -145,5 +207,6 @@
       </form>
     </div>
   </div>
+  <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
 </body>
 </html>

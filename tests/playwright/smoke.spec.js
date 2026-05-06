@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 test.use({ viewport: { width: 1366, height: 768 } });
+
+const INSTANCE_DIR = path.join(process.cwd(), "instance");
+const PLAYWRIGHT_DB_PATH = path.join(INSTANCE_DIR, "playwright_smoke.db");
+const FALLBACK_SAVE_DIR = path.join(INSTANCE_DIR, "save_fallbacks");
 
 function uniqueCredentials() {
   const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -126,6 +132,24 @@ async function expectTransparentImageCorners(page, selector) {
   expect(transparency.alphas).toEqual([0, 0, 0, 0, 0]);
 }
 
+async function expectBattleSides(page) {
+  const sides = await page.evaluate(() => {
+    const player = document.querySelector("#battle-player")?.getBoundingClientRect();
+    const enemy = document.querySelector("#battle-enemy")?.getBoundingClientRect();
+
+    return {
+      playerLeft: player?.left ?? 0,
+      playerRight: player?.right ?? 0,
+      enemyLeft: enemy?.left ?? 0,
+      enemyRight: enemy?.right ?? 0,
+    };
+  });
+
+  expect(sides.playerLeft).toBeGreaterThan(0);
+  expect(sides.enemyRight).toBeGreaterThan(0);
+  expect(sides.playerRight).toBeLessThanOrEqual(sides.enemyLeft);
+}
+
 async function startNewGame(page, character = "leon") {
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
@@ -136,7 +160,9 @@ async function startNewGame(page, character = "leon") {
   await expectPanelCentered(page, "#character-screen");
   await expectCharacterPortraitSizing(page);
   await expect(page.locator('.character-card[data-character="leon"] img')).toHaveAttribute("src", /players\/leon_idle\.png/);
+  await expect(page.locator('.character-card[data-character="quite"] img')).toHaveAttribute("src", /players\/quite_right_idle\.png/);
   await expectTransparentImageCorners(page, '.character-card[data-character="leon"] img');
+  await expectTransparentImageCorners(page, '.character-card[data-character="quite"] img');
 
   await page.locator(`.character-card[data-character="${character}"]`).click();
   await expect(page.locator("#difficulty-screen")).toHaveClass(/active/);
@@ -170,6 +196,7 @@ async function expectPlayLayout(page) {
   await expect(page.locator("#battle-player-health-text")).toBeVisible();
   await expect(page.locator("#battle-player-shield-text")).toBeVisible();
   await expect(page.locator("#battle-player-loadout")).toBeVisible();
+  await expectBattleSides(page);
   await expect(page.locator('#battle-player-loadout [data-weapon="pistol"]')).toContainText("8/8");
   await expect(page.locator('#battle-player-loadout [data-weapon="coins"]')).toContainText("0");
   await expect(page.locator('#battle-player-loadout [data-weapon="medkit"]')).toContainText("2");
@@ -313,10 +340,12 @@ async function saveShopState(page) {
       run_state: state,
     };
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
     const response = await fetch("/save-game", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
       },
       body: JSON.stringify(payload),
     });
@@ -405,6 +434,9 @@ test("guest login can reach main menu, settings, and start a new game", async ({
 
   await expect(page).toHaveURL(/\/main[-_]menu$/);
   await expect(page.getByText("GUEST MODE")).toBeVisible();
+  await expect(page.locator('[data-agent-field="agent-id"]')).toContainText("GUEST");
+  await expect(page.locator('[data-agent-field="licence"]')).toContainText("RZ-74291863");
+  await expect(page.locator('[data-agent-field="blood-group"]')).toContainText("O+");
   await expect(page.locator("#open-settings-btn")).toBeVisible();
 
   const menuMetrics = await page.evaluate(() => {
@@ -434,7 +466,8 @@ test("guest login can reach main menu, settings, and start a new game", async ({
   await expectActionSubmenus(page);
   await expect(page.locator("#battle-player-name")).toHaveText("QUITE");
   await expect(page.locator("#battle-tags")).toContainText("LEVEL 1");
-  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /quite_idle\.png/);
+  await expect(page.locator("#battle-player-image")).toHaveAttribute("src", /quite_right_idle\.png/);
+  await expectTransparentImageCorners(page, "#battle-player-image");
   await expect(page.locator("#battle-impact-fx-image")).toBeHidden();
 
   await page.locator("#attack-btn").click();
@@ -465,6 +498,24 @@ test("registered user can view achievements, save, and load a run", async ({ pag
 
   await page.locator("#save-btn").click();
   await expect(page.locator("#story-text")).toContainText("Game saved successfully.", { timeout: 15_000 });
+
+  const rawDb = readFileSync(PLAYWRIGHT_DB_PATH);
+  expect(rawDb.includes(Buffer.from(credentials.username))).toBe(false);
+  expect(rawDb.includes(Buffer.from("save_data"))).toBe(false);
+
+  const fallbackFile = readdirSync(FALLBACK_SAVE_DIR)
+    .filter((fileName) => fileName.endsWith("_leon.json"))
+    .sort((first, second) => (
+      statSync(path.join(FALLBACK_SAVE_DIR, second)).mtimeMs -
+      statSync(path.join(FALLBACK_SAVE_DIR, first)).mtimeMs
+    ))
+    .at(0);
+  expect(fallbackFile).toBeTruthy();
+  const fallbackSave = readFileSync(path.join(FALLBACK_SAVE_DIR, fallbackFile), "utf8");
+  expect(fallbackSave).toContain('"encrypted":true');
+  expect(fallbackSave).not.toContain("run_state");
+  expect(fallbackSave).not.toContain("difficulty");
+  expect(fallbackSave).not.toContain("LEON");
 
   await page.locator("#game-back-btn").click();
   await expect(page).toHaveURL(/\/main[-_]menu$/, { timeout: 10_000 });

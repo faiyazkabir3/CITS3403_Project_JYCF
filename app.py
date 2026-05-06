@@ -1,8 +1,16 @@
 import os
 import random
 import json
-from datetime import datetime
+import re
+import base64
+import hashlib
+import sys
+import click
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Optional
+from urllib.parse import quote
 from uuid import uuid4
 
 try:
@@ -12,13 +20,30 @@ except ModuleNotFoundError:
         return False
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
+from flask_login import LoginManager, current_user, login_required, login_user, logout_user
+from flask_migrate import Migrate
 from flask_socketio import SocketIO, join_room, leave_room
-from sqlalchemy import func, inspect, text
+from flask_wtf.csrf import CSRFProtect
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from sqlalchemy import func, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from models import db, User, SaveData, Friend, Message, FriendRequest
+from models import (
+    db, User, SaveData, Friend, Message, FriendRequest, UserAchievement,
+    ProfileReaction, ProfileComment
+)
+
+try:
+    import sqlcipher3
+    import sqlcipher3.dbapi2 as sqlcipher_dbapi
+except ModuleNotFoundError:
+    sqlcipher3 = None
+else:
+    sys.modules.setdefault("pysqlcipher3", sqlcipher3)
+    sys.modules.setdefault("pysqlcipher3.dbapi2", sqlcipher_dbapi)
 
 load_dotenv()
 
@@ -31,10 +56,13 @@ PROFILE_IMAGE_UPLOAD_DIR = Path(app.static_folder) / "uploads" / "profile_pics"
 PROFILE_IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 BIO_MAX_LENGTH = 500
+PROFILE_COMMENT_MAX_LENGTH = 240
 PROFILE_IMAGE_DEFAULT = "images/Shadows.gif"
 PROFILE_IMAGE_UPLOAD_PREFIX = "uploads/profile_pics/"
 PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
 PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
+ONLINE_WINDOW = timedelta(minutes=2)
+PRESENCE_REFRESH_INTERVAL = timedelta(seconds=30)
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
     {"label": "Leon", "filename": "images/players/leon_idle.png"},
@@ -47,6 +75,35 @@ PROFILE_IMAGE_OPTIONS = [
     {"label": "Quite Tactical", "filename": "images/profile_presets/quite_pfp_2.jpg"},
     {"label": "Quite Chibi", "filename": "images/profile_presets/quite_pfp_3.jpg"},
 ]
+FAVORITE_CHARACTER_OPTIONS = [
+    {"label": "No Favorite", "value": ""},
+    {"label": "Leon", "value": "leon"},
+    {"label": "Quite", "value": "quite"},
+]
+FAVORITE_CHARACTER_LABELS = {
+    option["value"]: option["label"]
+    for option in FAVORITE_CHARACTER_OPTIONS
+}
+PROFILE_BACKGROUND_OPTIONS = [
+    {"label": "Default", "value": "default"},
+    {"label": "Neon Grid", "value": "neon"},
+    {"label": "Gold Signal", "value": "gold"},
+    {"label": "Red Alert", "value": "red"},
+]
+PROFILE_BACKGROUND_LABELS = {
+    option["value"]: option["label"]
+    for option in PROFILE_BACKGROUND_OPTIONS
+}
+PROFILE_REACTION_OPTIONS = [
+    {"label": "Heart", "value": "heart", "symbol": "♥"},
+    {"label": "Hype", "value": "hype", "symbol": "!"},
+    {"label": "Sad", "value": "sad", "symbol": ":("},
+    {"label": "Angry", "value": "angry", "symbol": ">:"},
+]
+PROFILE_REACTION_VALUES = {
+    option["value"]
+    for option in PROFILE_REACTION_OPTIONS
+}
 PROFILE_IMAGE_FILENAMES = {
     option["filename"]
     for option in PROFILE_IMAGE_OPTIONS
@@ -64,6 +121,91 @@ SECRET_KEY_PLACEHOLDERS = {
     "super-secret-key",
     "your-secret-key",
 }
+
+
+@dataclass
+class ChatMessagePayload:
+    id: int
+    sender_id: int
+    receiver_id: int
+    message: str
+    timestamp: Optional[str]
+
+
+@dataclass
+class PlayerStats:
+    kills: int = 0
+    damage_dealt: int = 0
+    damage_taken: int = 0
+    pistol_shots: int = 0
+    grenades: int = 0
+    medkits: int = 0
+    reloads: int = 0
+    knife_uses: int = 0
+
+
+@dataclass
+class LeaderboardStats:
+    kills: int = 0
+    damage_dealt: int = 0
+    damage_taken: int = 0
+    pistol_shots: int = 0
+    grenades_used: int = 0
+    medkits_used: int = 0
+    reloads: int = 0
+    knife_uses: int = 0
+
+
+@dataclass
+class LeaderboardEntry:
+    user_id: int
+    display_name: str
+    login_username: str
+    score: int
+    rank: int = 0
+    is_current_user: bool = False
+
+
+@dataclass
+class FriendAction:
+    state: str
+    label: str
+    disabled: bool
+    action: Optional[str] = None
+
+
+@dataclass
+class AchievementDefinition:
+    id: str
+    name: str
+    description: str
+    target: int
+    metric: str
+    icon: str
+    tier_thresholds: tuple
+    badge_family: str
+
+
+AGENT_LICENSE_NUMBER = "RZ-74291863"
+AGENT_BLOOD_GROUP = "O+"
+ACHIEVEMENT_TIER_ORDER = ("bronze", "silver", "gold")
+ACHIEVEMENT_TIER_LABELS = {
+    "bronze": "BRONZE",
+    "silver": "SILVER",
+    "gold": "GOLD",
+}
+ACHIEVEMENT_TIER_RANKS = {
+    tier_name: index + 1
+    for index, tier_name in enumerate(ACHIEVEMENT_TIER_ORDER)
+}
+
+
+def friend_action_to_dict(friend_action):
+    return {
+        key: value
+        for key, value in asdict(friend_action).items()
+        if value is not None
+    }
 
 
 def load_required_secret_key():
@@ -84,14 +226,177 @@ def load_required_secret_key():
     return secret_key
 
 
+def load_required_env_secret(name, minimum_length=32):
+    value = os.environ.get(name, "").strip()
+
+    if not value:
+        raise RuntimeError(f"{name} is missing. Add it to your .env file.")
+
+    if len(value) < minimum_length:
+        raise RuntimeError(f"{name} is too short. Use at least {minimum_length} random characters.")
+
+    return value
+
+
+def allow_plaintext_test_database(database_url):
+    if os.environ.get("ALLOW_PLAINTEXT_TEST_DATABASES", "").lower() not in {"1", "true", "yes"}:
+        return False
+
+    normalized_url = str(database_url or "").replace("\\", "/")
+    database_name = normalized_url.rsplit("/", 1)[-1]
+    return database_name.startswith(("pytest_", "selenium_"))
+
+
+def configure_sqlcipher_database_uri(database_url, sqlcipher_key):
+    if allow_plaintext_test_database(database_url):
+        return database_url
+
+    if sqlcipher3 is None:
+        raise RuntimeError("sqlcipher3 is required for encrypted SQLite databases.")
+
+    if database_url.startswith("sqlite+pysqlcipher://"):
+        return database_url
+
+    if not database_url.startswith("sqlite:///"):
+        raise RuntimeError("Only SQLite database URLs are supported for SQLCipher encryption.")
+
+    database_path = database_url.removeprefix("sqlite:///")
+    quoted_key = quote(sqlcipher_key, safe="")
+    return f"sqlite+pysqlcipher://:{quoted_key}@/{database_path}"
+
+
+def parse_save_payload_key_ring(raw_key_ring):
+    if not raw_key_ring.strip():
+        raise RuntimeError("SAVE_PAYLOAD_KEYS is missing. Add at least one key like v1:<base64-32-byte-key>.")
+
+    key_ring = {}
+    active_key_id = None
+
+    for entry in raw_key_ring.split(","):
+        key_id, separator, encoded_key = entry.strip().partition(":")
+        if not separator or not key_id or not encoded_key:
+            raise RuntimeError("SAVE_PAYLOAD_KEYS entries must use key_id:base64_key format.")
+
+        try:
+            key = base64.urlsafe_b64decode(encoded_key + "=" * (-len(encoded_key) % 4))
+        except ValueError as error:
+            raise RuntimeError(f"SAVE_PAYLOAD_KEYS entry {key_id} is not valid base64.") from error
+
+        if len(key) != 32:
+            raise RuntimeError(f"SAVE_PAYLOAD_KEYS entry {key_id} must decode to 32 bytes.")
+
+        key_ring[key_id] = key
+        active_key_id = active_key_id or key_id
+
+    return active_key_id, key_ring
+
+
 secret_key = load_required_secret_key()
+sqlcipher_database_key = load_required_env_secret("SQLCIPHER_DATABASE_KEY")
+SAVE_PAYLOAD_ACTIVE_KEY_ID, SAVE_PAYLOAD_KEY_RING = parse_save_payload_key_ring(
+    os.environ.get("SAVE_PAYLOAD_KEYS", "")
+)
+ALLOW_PLAINTEXT_SAVE_FALLBACKS = os.environ.get("ALLOW_PLAINTEXT_SAVE_FALLBACKS", "").lower() in {"1", "true", "yes"}
 
 app.config["SECRET_KEY"] = secret_key
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///project.db")
+app.config["SQLALCHEMY_DATABASE_URI"] = configure_sqlcipher_database_uri(
+    os.environ.get("DATABASE_URL", "sqlite:///project.db"),
+    sqlcipher_database_key
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+    "connect_args": {
+        "timeout": 30,
+    },
+}
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("SESSION_COOKIE_SECURE", "").lower() in {"1", "true", "yes"}
+)
+app.config["WTF_CSRF_CHECK_DEFAULT"] = False
 
 db.init_app(app)
+migrate = Migrate(app, db)
+csrf = CSRFProtect(app)
+login_manager = LoginManager(app)
+login_manager.login_view = "show_login"
 socketio = SocketIO(app, async_mode="threading")
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    try:
+        return db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
+
+
+@login_manager.unauthorized_handler
+def handle_unauthorized_user():
+    if request.path.startswith(("/save-game", "/load-game", "/chat/keys")):
+        return jsonify({"ok": False, "message": "Please log in."}), 401
+
+    if session.get("is_guest"):
+        return redirect(url_for("main_menu"))
+
+    return redirect(url_for("show_login"))
+
+
+@app.before_request
+def protect_csrf_requests():
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+
+    if request.path.startswith("/socket.io"):
+        return None
+
+    csrf.protect()
+    return None
+
+
+def verify_sqlcipher_database():
+    if allow_plaintext_test_database(app.config.get("SQLALCHEMY_DATABASE_URI")):
+        return
+
+    cipher_version = db.session.execute(text("PRAGMA cipher_version")).scalar()
+    if not cipher_version:
+        raise RuntimeError("SQLCipher is not active for the configured SQLite database.")
+
+    db.session.execute(text("SELECT count(*) FROM sqlite_master")).scalar()
+
+
+def rollback_database_session(context):
+    try:
+        db.session.rollback()
+        return True
+    except SQLAlchemyError as rollback_error:
+        app.logger.warning(
+            "%s rollback failed. %s",
+            context,
+            getattr(rollback_error, "orig", rollback_error)
+        )
+    except Exception as rollback_error:
+        app.logger.warning("%s rollback failed. %s", context, rollback_error)
+
+    try:
+        db.session.remove()
+    except Exception as remove_error:
+        app.logger.warning("%s session reset failed. %s", context, remove_error)
+
+    return False
+
+
+def parse_iso_datetime(value):
+    if not value:
+        return None
+
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
 
 def ensure_user_schema():
     inspector = inspect(db.engine)
@@ -107,14 +412,28 @@ def ensure_user_schema():
             'ALTER TABLE "user" ADD COLUMN profile_image VARCHAR(255) '
             f"NOT NULL DEFAULT '{PROFILE_IMAGE_DEFAULT}'"
         ),
+        "profile_background": 'ALTER TABLE "user" ADD COLUMN profile_background VARCHAR(20) NOT NULL DEFAULT "default"',
         "bio": 'ALTER TABLE "user" ADD COLUMN bio TEXT',
+        "favorite_character": 'ALTER TABLE "user" ADD COLUMN favorite_character VARCHAR(20) NOT NULL DEFAULT ""',
+        "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
+        "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
+        "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+        "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
+        "created_at": 'ALTER TABLE "user" ADD COLUMN created_at DATETIME',
+        "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
+        "chat_key_id": 'ALTER TABLE "user" ADD COLUMN chat_key_id VARCHAR(64)',
+        "chat_key_created_at": 'ALTER TABLE "user" ADD COLUMN chat_key_created_at DATETIME',
     }
 
     for column_name, statement in required_columns.items():
         if column_name not in existing_columns:
             db.session.execute(text(statement))
 
+    db.session.execute(
+        text('UPDATE "user" SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL')
+    )
     db.session.commit()
+
 
 def ensure_save_data_schema():
     inspector = inspect(db.engine)
@@ -143,15 +462,235 @@ def ensure_save_data_schema():
     db.session.commit()
 
 
-with app.app_context():
+def ensure_message_schema():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    if "message" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("message")}
+    required_columns = {
+        "read_at": "ALTER TABLE message ADD COLUMN read_at DATETIME",
+        "ciphertext": "ALTER TABLE message ADD COLUMN ciphertext TEXT",
+        "nonce": "ALTER TABLE message ADD COLUMN nonce VARCHAR(64)",
+        "sender_key_id": "ALTER TABLE message ADD COLUMN sender_key_id VARCHAR(64)",
+        "sender_public_key": "ALTER TABLE message ADD COLUMN sender_public_key TEXT",
+        "recipient_key_id": "ALTER TABLE message ADD COLUMN recipient_key_id VARCHAR(64)",
+        "recipient_public_key": "ALTER TABLE message ADD COLUMN recipient_public_key TEXT",
+        "encryption_version": "ALTER TABLE message ADD COLUMN encryption_version INTEGER NOT NULL DEFAULT 1",
+    }
+
+    for column_name, statement in required_columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(statement))
+
+    db.session.commit()
+
+
+def is_flask_db_command():
+    # Alembic imports the app before applying or comparing migrations, so
+    # strict startup checks must not run during Flask-Migrate commands.
+    return "db" in sys.argv[1:]
+
+
+MIGRATION_REQUIRED_TABLES = {
+    "alembic_version",
+    "user",
+    "save_data",
+    "friend",
+    "friend_request",
+    "message",
+    "user_achievement",
+    "profile_reaction",
+    "profile_comment",
+}
+
+
+def get_database_table_names():
+    rows = db.session.execute(
+        text("SELECT name FROM sqlite_master WHERE type = 'table'")
+    ).all()
+    return {row[0] for row in rows}
+
+
+def require_migrated_database():
+    with app.app_context():
+        try:
+            verify_sqlcipher_database()
+            table_names = get_database_table_names()
+        except SQLAlchemyError as error:
+            rollback_database_session("Database initialization")
+            raise RuntimeError(
+                "Database check failed. Confirm the encrypted SQLite database is "
+                "available, then run `flask db upgrade` from the project root."
+            ) from error
+
+        missing_tables = sorted(MIGRATION_REQUIRED_TABLES - table_names)
+        if missing_tables:
+            raise RuntimeError(
+                "Database is not migrated. Run `flask db upgrade` from the "
+                "project root before starting the app. Missing tables: "
+                + ", ".join(missing_tables)
+            )
+
+
+@app.cli.command("seed-demo")
+def seed_demo_command():
+    """Create deterministic demo users and saves for local development."""
+    demo_password = "RouteZero123!"
+    now = datetime.utcnow()
+    demo_specs = [
+        {
+            "username": "leon_demo",
+            "display_name": "Leon Demo",
+            "favorite_character": "leon",
+            "profile_image": "images/players/leon_idle.png",
+            "save": {
+                "difficulty": "HARD",
+                "character_id": "leon",
+                "health": 82,
+                "medkits": 1,
+                "grenades": 1,
+                "kills": 8,
+                "damage_dealt": 760,
+                "damage_taken": 46,
+                "pistol_shots": 22,
+                "grenades_used": 2,
+                "medkits_used": 1,
+                "reloads": 3,
+                "knife_uses": 4,
+                "ammo_in_gun": 5,
+                "ammo_in_bag": 12,
+                "mag_capacity": 8,
+                "laser_upgrade": True,
+                "shield_owned": True,
+                "shield_on": True,
+                "current_level_id": "5D",
+                "enemies_remaining": 2,
+            },
+        },
+        {
+            "username": "quite_demo",
+            "display_name": "Quite Demo",
+            "favorite_character": "quite",
+            "profile_image": "images/players/quite_idle.png",
+            "save": {
+                "difficulty": "EASY",
+                "character_id": "quite",
+                "health": 91,
+                "medkits": 2,
+                "grenades": 0,
+                "kills": 11,
+                "damage_dealt": 940,
+                "damage_taken": 28,
+                "pistol_shots": 27,
+                "grenades_used": 1,
+                "medkits_used": 1,
+                "reloads": 4,
+                "knife_uses": 7,
+                "ammo_in_gun": 6,
+                "ammo_in_bag": 10,
+                "mag_capacity": 8,
+                "laser_upgrade": True,
+                "shield_owned": False,
+                "shield_on": False,
+                "current_level_id": "5A",
+                "enemies_remaining": 1,
+            },
+        },
+    ]
+
+    created_users = 0
+    created_saves = 0
+
+    for spec in demo_specs:
+        user = User.query.filter_by(username=spec["username"]).first()
+        if user is None:
+            user = User(
+                username=spec["username"],
+                display_name=spec["display_name"],
+                password_hash=generate_password_hash(
+                    demo_password,
+                    method="pbkdf2:sha256"
+                ),
+            )
+            db.session.add(user)
+            db.session.flush()
+            created_users += 1
+
+        user.display_name = spec["display_name"]
+        user.profile_image = spec["profile_image"]
+        user.favorite_character = spec["favorite_character"]
+        user.hide_from_leaderboard = False
+        user.show_stats_to_friends = True
+        user.allow_friend_messages = True
+
+        save_values = spec["save"]
+        save_data = SaveData.query.filter_by(
+            user_id=user.id,
+            character_id=save_values["character_id"],
+        ).first()
+        if save_data is None:
+            save_data = SaveData(
+                user_id=user.id,
+                character_id=save_values["character_id"],
+            )
+            db.session.add(save_data)
+            created_saves += 1
+
+        for field, value in save_values.items():
+            setattr(save_data, field, value)
+
+        save_data.level_complete = False
+        save_data.awaiting_choice = False
+        save_data.game_won = False
+        save_data.has_started_game = True
+        save_data.run_state_json = None
+        save_data.updated_at = now
+
+    db.session.commit()
+    click.echo(
+        "Demo seed complete. "
+        f"Users created: {created_users}. Saves created: {created_saves}. "
+        f"Demo password: {demo_password}"
+    )
+
+
+if not is_flask_db_command():
+    require_migrated_database()
+
+@app.before_request
+def refresh_current_user_presence():
+    if request.endpoint == "static" or request.path.startswith("/socket.io"):
+        return
+
+    user_id = session.get("user_id")
+
+    if user_id is None or session.get("is_guest"):
+        return
+
+    now = datetime.utcnow()
+    last_presence_refresh = parse_iso_datetime(session.get("last_presence_refresh_at"))
+
+    if (
+        last_presence_refresh is not None
+        and now - last_presence_refresh < PRESENCE_REFRESH_INTERVAL
+    ):
+        return
+
     try:
-        db.create_all()
-        ensure_user_schema()
-        ensure_save_data_schema()
+        User.query.filter_by(id=user_id).update(
+            {"last_seen": now},
+            synchronize_session=False
+        )
+        db.session.commit()
+        session["last_presence_refresh_at"] = now.isoformat()
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Presence update")
         app.logger.warning(
-            "Database initialization skipped because SQLite is unavailable. %s",
+            "Presence update failed for user %s. %s",
+            user_id,
             getattr(error, "orig", error)
         )
 
@@ -160,6 +699,29 @@ def get_friends(user_id):
     friend_ids = [f.friend_id for f in friendships]
     friends = User.query.filter(User.id.in_(friend_ids)).all()
     return sorted(friends, key=lambda user: get_display_name(user).lower())
+
+
+def is_user_online(user):
+    if user is None or user.last_seen is None:
+        return False
+
+    return datetime.utcnow() - user.last_seen <= ONLINE_WINDOW
+
+
+def get_friend_presence(user):
+    online = is_user_online(user)
+    return {
+        "is_online": online,
+        "label": "Online" if online else "Offline",
+        "class_name": "online" if online else "offline",
+    }
+
+
+@app.context_processor
+def inject_presence_helpers():
+    return {
+        "get_friend_presence": get_friend_presence,
+    }
 
 
 def get_accepted_friend(current_user_id, friend_id):
@@ -192,9 +754,63 @@ def serialize_chat_message(message):
         "id": message.id,
         "sender_id": message.sender_id,
         "receiver_id": message.receiver_id,
-        "message": message.message,
+        "ciphertext": message.ciphertext,
+        "nonce": message.nonce,
+        "sender_key_id": message.sender_key_id,
+        "sender_public_key": message.sender_public_key,
+        "recipient_key_id": message.recipient_key_id,
+        "recipient_public_key": message.recipient_public_key,
+        "encryption_version": message.encryption_version,
         "timestamp": message.timestamp.isoformat() if message.timestamp else None,
     }
+
+
+def build_chat_key_id(public_key):
+    return hashlib.sha256(public_key.encode("utf-8")).hexdigest()[:32]
+
+
+def serialize_chat_public_key(user):
+    if user is None or not user.chat_public_key or not user.chat_key_id:
+        return None
+
+    return {
+        "user_id": user.id,
+        "public_key": user.chat_public_key,
+        "key_id": user.chat_key_id,
+        "created_at": user.chat_key_created_at.isoformat() if user.chat_key_created_at else None,
+    }
+
+
+def validate_encrypted_chat_payload(payload):
+    if not isinstance(payload, dict):
+        return None
+
+    ciphertext = str(payload.get("ciphertext", "")).strip()
+    nonce = str(payload.get("nonce", "")).strip()
+    sender_public_key = str(payload.get("sender_public_key", "")).strip()
+    sender_key_id = str(payload.get("sender_key_id", "")).strip()
+    recipient_public_key = str(payload.get("recipient_public_key", "")).strip()
+    recipient_key_id = str(payload.get("recipient_key_id", "")).strip()
+
+    if not ciphertext or not nonce or not sender_public_key or not sender_key_id:
+        return None
+
+    if sender_key_id != build_chat_key_id(sender_public_key):
+        return None
+
+    if recipient_public_key and recipient_key_id != build_chat_key_id(recipient_public_key):
+        return None
+
+    return {
+        "ciphertext": ciphertext,
+        "nonce": nonce,
+        "sender_public_key": sender_public_key,
+        "sender_key_id": sender_key_id,
+        "recipient_public_key": recipient_public_key or None,
+        "recipient_key_id": recipient_key_id or None,
+        "encryption_version": coerce_int(payload.get("encryption_version"), 1),
+    }
+
 
 def get_user_stats(user_id):
     all_saves = SaveData.query.filter_by(user_id=user_id).all()
@@ -206,28 +822,358 @@ def get_user_stats(user_id):
     def total(field):
         return sum((payload.get(field) or 0) for payload in payloads if payload)
 
-    return {
-        "kills": total("kills"),
-        "damage_dealt": total("damage_dealt"),
-        "damage_taken": total("damage_taken"),
-        "pistol_shots": total("pistol_shots"),
-        "grenades": total("grenades_used"),
-        "medkits": total("medkits_used"),
-        "reloads": total("reloads"),
-        "knife_uses": total("knife_uses"),
-    }
+    return asdict(PlayerStats(
+        kills=total("kills"),
+        damage_dealt=total("damage_dealt"),
+        damage_taken=total("damage_taken"),
+        pistol_shots=total("pistol_shots"),
+        grenades=total("grenades_used"),
+        medkits=total("medkits_used"),
+        reloads=total("reloads"),
+        knife_uses=total("knife_uses"),
+    ))
 
 def get_empty_stats():
+    return asdict(PlayerStats())
+
+def parse_level_number(value):
+    match = re.search(r"\d+", str(value or ""))
+    if match is None:
+        return 0
+
+    return coerce_int(match.group(0), 0)
+
+def get_latest_save_payload(user_id):
+    try:
+        payloads = list_db_save_payloads(user_id)
+    except SQLAlchemyError:
+        rollback_database_session("Latest save query")
+        payloads = []
+
+    payloads.extend(list_fallback_save_payloads(user_id))
+    return choose_latest_save_payload(*payloads)
+
+def get_latest_run_summary(user_id):
+    payload = get_latest_save_payload(user_id)
+
+    if payload is None:
+        return None
+
     return {
-        "kills": 0,
-        "damage_dealt": 0,
-        "damage_taken": 0,
-        "pistol_shots": 0,
-        "grenades": 0,
-        "medkits": 0,
-        "reloads": 0,
-        "knife_uses": 0,
+        "difficulty": payload.get("difficulty", "EASY"),
+        "character": FAVORITE_CHARACTER_LABELS.get(
+            str(payload.get("character_id", "")).lower(),
+            str(payload.get("character_id", "Unknown")).title()
+        ),
+        "current_level": payload.get("current_level_id", "1"),
+        "kills": coerce_int(payload.get("kills"), 0),
+        "game_won": coerce_bool(payload.get("game_won"), False),
+        "updated_at": payload.get("updated_at"),
     }
+
+def get_achievement_definitions():
+    return [
+        AchievementDefinition(
+            id="first_blood",
+            name="First Blood",
+            description="Defeat your first infected.",
+            target=1,
+            metric="kills",
+            icon="I",
+            tier_thresholds=(1, 10, 20),
+            badge_family="first_blood",
+        ),
+        AchievementDefinition(
+            id="survivor",
+            name="Survivor",
+            description="Reach level 3 or beyond.",
+            target=3,
+            metric="levels",
+            icon="III",
+            tier_thresholds=(3, 5, 7),
+            badge_family="survivor",
+        ),
+        AchievementDefinition(
+            id="sharpshooter",
+            name="Sharpshooter",
+            description="Deal 500 damage with 10 or fewer pistol shots.",
+            target=500,
+            metric="damage_dealt",
+            icon="S",
+            tier_thresholds=(500, 1000, 1500),
+            badge_family="sharpshooter",
+        ),
+        AchievementDefinition(
+            id="medic",
+            name="Medic",
+            description="Use 5 medkits.",
+            target=5,
+            metric="medkits",
+            icon="+",
+            tier_thresholds=(5, 10, 15),
+            badge_family="medic",
+        ),
+        AchievementDefinition(
+            id="no_mercy",
+            name="No Mercy",
+            description="Defeat 10 infected.",
+            target=10,
+            metric="kills",
+            icon="10",
+            tier_thresholds=(10, 20, 30),
+            badge_family="no_mercy",
+        ),
+        AchievementDefinition(
+            id="untouchable",
+            name="Untouchable",
+            description="Save a run after taking no damage.",
+            target=1,
+            metric="untouchable_runs",
+            icon="0",
+            tier_thresholds=(1, 2, 3),
+            badge_family="untouchable",
+        ),
+    ]
+
+def get_achievement_progress(user_id, stats=None):
+    stats = stats or get_user_stats(user_id)
+    latest_payload = get_latest_save_payload(user_id)
+    latest_level = parse_level_number((latest_payload or {}).get("current_level_id"))
+
+    return {
+        "kills": coerce_int(stats.get("kills"), 0),
+        "levels": latest_level,
+        "damage_dealt": coerce_int(stats.get("damage_dealt"), 0),
+        "medkits": coerce_int(stats.get("medkits"), 0),
+        "untouchable_runs": count_untouchable_runs(user_id),
+        "pistol_shots": coerce_int(stats.get("pistol_shots"), 0),
+    }
+
+
+def count_untouchable_runs(user_id):
+    try:
+        payloads = list_db_save_payloads(user_id)
+    except SQLAlchemyError:
+        rollback_database_session("Untouchable run query")
+        payloads = []
+
+    payloads.extend(list_fallback_save_payloads(user_id))
+
+    seen_runs = set()
+    untouchable_count = 0
+    for payload in payloads:
+        run_key = (
+            str(payload.get("character_id", "")),
+            str(payload.get("updated_at", "")),
+        )
+        if run_key in seen_runs:
+            continue
+
+        seen_runs.add(run_key)
+        if (
+            coerce_bool(payload.get("has_started_game"), False)
+            and coerce_int(payload.get("damage_taken"), 0) == 0
+        ):
+            untouchable_count += 1
+
+    return untouchable_count
+
+def achievement_is_unlocked(definition, progress):
+    if definition.id == "sharpshooter":
+        return (
+            coerce_int(progress.get("damage_dealt"), 0) >= definition.target
+            and coerce_int(progress.get("pistol_shots"), 0) <= 10
+        )
+
+    return coerce_int(progress.get(definition.metric), 0) >= definition.target
+
+
+def get_achievement_current_value(definition, progress):
+    if definition.id == "sharpshooter":
+        return coerce_int(progress.get("damage_dealt"), 0)
+
+    return coerce_int(progress.get(definition.metric), 0)
+
+
+def get_achievement_tier(definition, current, unlocked):
+    if not unlocked:
+        return None
+
+    earned_tier = None
+    for tier_name, threshold in zip(ACHIEVEMENT_TIER_ORDER, definition.tier_thresholds):
+        if current >= threshold:
+            earned_tier = tier_name
+
+    return earned_tier
+
+
+def get_next_achievement_tier(definition, current):
+    for tier_name, threshold in zip(ACHIEVEMENT_TIER_ORDER, definition.tier_thresholds):
+        if current < threshold:
+            return tier_name, threshold
+
+    return None, None
+
+
+def get_achievement_badge_image(definition, tier_name=None):
+    badge_tier = tier_name or ACHIEVEMENT_TIER_ORDER[0]
+    return f"images/badges/{definition.badge_family}_{badge_tier}.png"
+
+
+def get_user_achievements(user_id):
+    unlocked_rows = UserAchievement.query.filter_by(user_id=user_id).all()
+    unlocked_by_id = {
+        row.achievement_id: row
+        for row in unlocked_rows
+    }
+    stats = get_user_stats(user_id)
+    progress = get_achievement_progress(user_id, stats=stats)
+    achievements = []
+
+    for definition in get_achievement_definitions():
+        row = unlocked_by_id.get(definition.id)
+        current = get_achievement_current_value(definition, progress)
+        unlocked = row is not None
+        tier_name = get_achievement_tier(definition, current, unlocked)
+        next_tier_name, next_tier_target = get_next_achievement_tier(definition, current)
+        display_tier_name = tier_name or next_tier_name or ACHIEVEMENT_TIER_ORDER[-1]
+
+        achievements.append({
+            **asdict(definition),
+            "current": min(current, definition.target),
+            "tier_current": min(current, definition.tier_thresholds[-1]),
+            "tier_target": definition.tier_thresholds[-1],
+            "tier_name": tier_name,
+            "tier_label": ACHIEVEMENT_TIER_LABELS.get(tier_name, "LOCKED"),
+            "tier_rank": ACHIEVEMENT_TIER_RANKS.get(tier_name, 0),
+            "next_tier_name": next_tier_name,
+            "next_tier_label": ACHIEVEMENT_TIER_LABELS.get(next_tier_name),
+            "next_tier_target": next_tier_target,
+            "badge_image": get_achievement_badge_image(definition, display_tier_name),
+            "unlocked": unlocked,
+            "unlocked_at": row.unlocked_at if row is not None else None,
+        })
+
+    return achievements
+
+
+def get_agent_showcase_badges(achievements=None):
+    earned_badges = []
+
+    for achievement in achievements or []:
+        if not achievement.get("tier_name"):
+            continue
+
+        earned_badges.append({
+            "label": achievement["name"],
+            "description": achievement["description"],
+            "tier_name": achievement["tier_name"],
+            "tier_label": achievement["tier_label"],
+            "tier_rank": achievement["tier_rank"],
+            "image": achievement["badge_image"],
+            "current": achievement["tier_current"],
+        })
+
+    return sorted(
+        earned_badges,
+        key=lambda badge: (badge["tier_rank"], badge["current"], badge["label"]),
+        reverse=True
+    )[:3]
+
+
+def format_agent_id(user):
+    user_id = getattr(user, "id", None)
+    if user_id is None:
+        return "GUEST"
+
+    return f"#{coerce_int(user_id, 0):05d}"
+
+
+def get_agent_dossier(user=None):
+    return [
+        {"label": "AGE", "value": "26", "key": "age"},
+        {"label": "HEIGHT", "value": "5\"10", "key": "height"},
+        {"label": "AGENT ID", "value": format_agent_id(user), "key": "agent-id"},
+        {"label": "LICENCE NO.", "value": AGENT_LICENSE_NUMBER, "key": "licence"},
+        {"label": "BLOOD GROUP", "value": AGENT_BLOOD_GROUP, "key": "blood-group"},
+    ]
+
+def unlock_achievements_for_user(user_id):
+    existing_ids = {
+        row.achievement_id
+        for row in UserAchievement.query.filter_by(user_id=user_id).all()
+    }
+    stats = get_user_stats(user_id)
+    progress = get_achievement_progress(user_id, stats=stats)
+    unlocked = []
+
+    for definition in get_achievement_definitions():
+        if definition.id in existing_ids:
+            continue
+
+        if achievement_is_unlocked(definition, progress):
+            row = UserAchievement(
+                user_id=user_id,
+                achievement_id=definition.id,
+                unlocked_at=datetime.utcnow()
+            )
+            db.session.add(row)
+            unlocked.append(definition.name)
+
+    return unlocked
+
+def get_profile_badges(user, achievements=None, leaderboard_entry=None):
+    if user is None:
+        return []
+
+    badges = []
+    achievements = achievements or get_user_achievements(user.id)
+
+    for achievement in achievements:
+        if achievement.get("unlocked"):
+            badges.append({
+                "label": achievement["name"],
+                "symbol": achievement["icon"],
+                "description": achievement["description"],
+                "kind": "achievement",
+                "image": achievement.get("badge_image"),
+                "tier_label": achievement.get("tier_label"),
+            })
+
+    if leaderboard_entry is not None:
+        badges.append({
+            "label": "Ranked",
+            "symbol": f"#{leaderboard_entry['rank']}",
+            "description": "Appears on the global leaderboard.",
+            "kind": "exclusive",
+        })
+
+    friend_count = Friend.query.filter_by(user_id=user.id, status="accepted").count()
+    if friend_count > 0:
+        badges.append({
+            "label": "Social Link",
+            "symbol": "SL",
+            "description": "Has connected with other players.",
+            "kind": "exclusive",
+        })
+
+    if get_profile_background(user) != "default" or get_custom_profile_image(user) is not None:
+        badges.append({
+            "label": "Custom Signal",
+            "symbol": "CS",
+            "description": "Uses profile customisation.",
+            "kind": "exclusive",
+        })
+
+    if user.hide_from_leaderboard:
+        badges.append({
+            "label": "Ghost Mode",
+            "symbol": "GM",
+            "description": "Keeps their leaderboard position private.",
+            "kind": "exclusive",
+        })
+
+    return badges[:8]
 
 def get_display_name(user):
     if user is None:
@@ -353,7 +1299,74 @@ def get_profile_bio(user):
 
     return (user.bio or "").strip()
 
+def get_profile_background(user):
+    background = str(getattr(user, "profile_background", "default") or "default").strip().lower()
+
+    if background in PROFILE_BACKGROUND_LABELS:
+        return background
+
+    return "default"
+
+def normalize_profile_comment(comment):
+    return str(comment or "").strip()
+
+def validate_profile_comment(comment):
+    if comment == "":
+        return "Comment cannot be empty."
+
+    if len(comment) > PROFILE_COMMENT_MAX_LENGTH:
+        return f"Comment must be {PROFILE_COMMENT_MAX_LENGTH} characters or fewer."
+
+    return None
+
+def get_profile_reaction_counts(profile_user_id, current_user_id=None):
+    counts = {
+        option["value"]: {
+            **option,
+            "count": 0,
+            "is_current_user": False,
+        }
+        for option in PROFILE_REACTION_OPTIONS
+    }
+
+    rows = (
+        db.session.query(
+            ProfileReaction.reaction_type,
+            func.count(ProfileReaction.id)
+        )
+        .filter(ProfileReaction.profile_user_id == profile_user_id)
+        .group_by(ProfileReaction.reaction_type)
+        .all()
+    )
+
+    for reaction_type, count in rows:
+        if reaction_type in counts:
+            counts[reaction_type]["count"] = count
+
+    if current_user_id is not None:
+        current_reaction = ProfileReaction.query.filter_by(
+            profile_user_id=profile_user_id,
+            reactor_user_id=current_user_id
+        ).first()
+
+        if current_reaction is not None and current_reaction.reaction_type in counts:
+            counts[current_reaction.reaction_type]["is_current_user"] = True
+
+    return list(counts.values())
+
+def get_profile_comments(profile_user_id, limit=10):
+    return (
+        ProfileComment.query
+        .filter_by(profile_user_id=profile_user_id)
+        .order_by(ProfileComment.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
 def calculate_leaderboard_score(stats):
+    if isinstance(stats, LeaderboardStats):
+        stats = asdict(stats)
+
     return (
         coerce_int(stats.get("kills"), 0)
         + coerce_int(stats.get("pistol_shots"), 0)
@@ -365,9 +1378,9 @@ def calculate_leaderboard_score(stats):
         + (coerce_int(stats.get("damage_taken"), 0) // 2)
     )
 
-def get_leaderboard_entries(current_user_id=None, limit=None):
+def get_leaderboard_entries(current_user_id=None, limit=None, user_ids=None):
     try:
-        rows = (
+        query = (
             db.session.query(
                 User.id.label("user_id"),
                 User.username.label("username"),
@@ -383,11 +1396,19 @@ def get_leaderboard_entries(current_user_id=None, limit=None):
             )
             .join(SaveData, SaveData.user_id == User.id)
             .filter(SaveData.has_started_game.is_(True))
+            .filter(User.hide_from_leaderboard.is_(False))
+        )
+
+        if user_ids is not None:
+            query = query.filter(User.id.in_(user_ids))
+
+        rows = (
+            query
             .group_by(User.id, User.username, User.display_name)
             .all()
         )
     except SQLAlchemyError as error:
-        db.session.rollback()
+        rollback_database_session("Leaderboard query")
         app.logger.warning(
             "Leaderboard query failed. %s",
             getattr(error, "orig", error)
@@ -398,36 +1419,36 @@ def get_leaderboard_entries(current_user_id=None, limit=None):
 
     for row in rows:
         display_name = (row.display_name or "").strip() or row.username
-        stats = {
-            "kills": row.kills,
-            "damage_dealt": row.damage_dealt,
-            "damage_taken": row.damage_taken,
-            "pistol_shots": row.pistol_shots,
-            "grenades_used": row.grenades_used,
-            "medkits_used": row.medkits_used,
-            "reloads": row.reloads,
-            "knife_uses": row.knife_uses,
-        }
-        entries.append({
-            "user_id": row.user_id,
-            "display_name": display_name,
-            "login_username": row.username,
-            "score": calculate_leaderboard_score(stats),
-        })
+        stats = LeaderboardStats(
+            kills=row.kills,
+            damage_dealt=row.damage_dealt,
+            damage_taken=row.damage_taken,
+            pistol_shots=row.pistol_shots,
+            grenades_used=row.grenades_used,
+            medkits_used=row.medkits_used,
+            reloads=row.reloads,
+            knife_uses=row.knife_uses,
+        )
+        entries.append(LeaderboardEntry(
+            user_id=row.user_id,
+            display_name=display_name,
+            login_username=row.username,
+            score=calculate_leaderboard_score(stats),
+        ))
 
     ranked_entries = sorted(
         entries,
-        key=lambda entry: (-entry["score"], entry["display_name"].lower(), entry["login_username"])
+        key=lambda entry: (-entry.score, entry.display_name.lower(), entry.login_username)
     )
 
     for index, entry in enumerate(ranked_entries, start=1):
-        entry["rank"] = index
-        entry["is_current_user"] = entry["user_id"] == current_user_id
+        entry.rank = index
+        entry.is_current_user = entry.user_id == current_user_id
 
     if limit is not None:
         ranked_entries = ranked_entries[:limit]
 
-    return ranked_entries
+    return [asdict(entry) for entry in ranked_entries]
 
 def get_leaderboard(limit=5, current_user_id=None):
     return get_leaderboard_entries(
@@ -441,6 +1462,92 @@ def get_leaderboard_entry_for_user(user_id, current_user_id=None):
             return entry
 
     return None
+
+def get_friends_leaderboard(current_user_id):
+    friend_ids = [
+        friendship.friend_id
+        for friendship in Friend.query.filter_by(
+            user_id=current_user_id,
+            status="accepted"
+        ).all()
+    ]
+    visible_user_ids = [current_user_id, *friend_ids]
+    return get_leaderboard_entries(
+        current_user_id=current_user_id,
+        user_ids=visible_user_ids
+    )
+
+def get_friend_rank(current_user_id):
+    for entry in get_friends_leaderboard(current_user_id):
+        if entry["user_id"] == current_user_id:
+            return entry
+
+    return None
+
+def can_view_friend_stats(viewer_id, profile_user):
+    if profile_user is None:
+        return False
+
+    if viewer_id == profile_user.id:
+        return True
+
+    if not profile_user.show_stats_to_friends:
+        return False
+
+    return get_accepted_friendship(viewer_id, profile_user.id) is not None
+
+def can_message_friend(sender_id, receiver_user):
+    if receiver_user is None:
+        return False
+
+    if not receiver_user.allow_friend_messages:
+        return False
+
+    return get_accepted_friendship(sender_id, receiver_user.id) is not None
+
+def format_message_timestamp(timestamp):
+    if timestamp is None:
+        return ""
+
+    return timestamp.strftime("%d %b %H:%M")
+
+def get_unread_message_count(user_id, friend_id=None):
+    query = Message.query.filter(
+        Message.receiver_id == user_id,
+        Message.read_at.is_(None)
+    )
+
+    if friend_id is not None:
+        query = query.filter(Message.sender_id == friend_id)
+
+    return query.count()
+
+def get_recent_conversations(user_id):
+    conversations = []
+
+    for friend in get_friends(user_id):
+        latest_message = Message.query.filter(
+            ((Message.sender_id == user_id) & (Message.receiver_id == friend.id)) |
+            ((Message.sender_id == friend.id) & (Message.receiver_id == user_id))
+        ).order_by(Message.timestamp.desc()).first()
+        latest_preview = "No messages yet"
+
+        if latest_message is not None:
+            latest_preview = latest_message.message or "Encrypted message"
+
+        conversations.append({
+            "friend": friend,
+            "display_name": get_display_name(friend),
+            "latest_message": latest_preview,
+            "timestamp": format_message_timestamp(latest_message.timestamp) if latest_message else "",
+            "unread_count": get_unread_message_count(user_id, friend.id),
+        })
+
+    return sorted(
+        conversations,
+        key=lambda item: item["timestamp"] or "",
+        reverse=True
+    )
 
 def get_accepted_friendship(user_id, friend_id):
     return Friend.query.filter_by(
@@ -491,41 +1598,41 @@ def create_friend_request(from_user_id, to_user_id):
 
 def get_friend_action(current_user_id, profile_user_id):
     if current_user_id == profile_user_id:
-        return {
-            "state": "self",
-            "label": "YOUR PROFILE",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="self",
+            label="YOUR PROFILE",
+            disabled=True,
+        ))
 
     if get_accepted_friendship(current_user_id, profile_user_id) is not None:
-        return {
-            "state": "friends",
-            "label": "FRIENDS",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="friends",
+            label="FRIENDS",
+            disabled=True,
+        ))
 
     if get_pending_friend_request(current_user_id, profile_user_id) is not None:
-        return {
-            "state": "outgoing_pending",
-            "label": "REQUEST SENT",
-            "disabled": True,
-        }
+        return friend_action_to_dict(FriendAction(
+            state="outgoing_pending",
+            label="REQUEST SENT",
+            disabled=True,
+        ))
 
     incoming_request = get_pending_friend_request(profile_user_id, current_user_id)
     if incoming_request is not None:
-        return {
-            "state": "incoming_pending",
-            "label": "ACCEPT REQUEST",
-            "disabled": False,
-            "action": "accept_friend_request",
-        }
+        return friend_action_to_dict(FriendAction(
+            state="incoming_pending",
+            label="ACCEPT REQUEST",
+            disabled=False,
+            action="accept_friend_request",
+        ))
 
-    return {
-        "state": "add",
-        "label": "ADD FRIEND",
-        "disabled": False,
-        "action": "send_friend_request",
-    }
+    return friend_action_to_dict(FriendAction(
+        state="add",
+        label="ADD FRIEND",
+        disabled=False,
+        action="send_friend_request",
+    ))
 
 def make_guest_name():
     num = random.randint(10000, 99999)
@@ -635,9 +1742,48 @@ def get_fallback_save_path(user_id, character_id):
     return SAVE_FALLBACK_DIR / f"user_{user_id}_{safe_character}.json"
 
 
+def encrypt_save_payload(payload):
+    nonce = os.urandom(12)
+    key = SAVE_PAYLOAD_KEY_RING[SAVE_PAYLOAD_ACTIVE_KEY_ID]
+    plaintext = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
+
+    return {
+        "encrypted": True,
+        "version": 1,
+        "key_id": SAVE_PAYLOAD_ACTIVE_KEY_ID,
+        "nonce": base64.urlsafe_b64encode(nonce).decode("ascii").rstrip("="),
+        "ciphertext": base64.urlsafe_b64encode(ciphertext).decode("ascii").rstrip("="),
+    }
+
+
+def decode_envelope_value(value):
+    return base64.urlsafe_b64decode(str(value) + "=" * (-len(str(value)) % 4))
+
+
+def decrypt_save_payload(envelope):
+    if not isinstance(envelope, dict) or not envelope.get("encrypted"):
+        if ALLOW_PLAINTEXT_SAVE_FALLBACKS:
+            return envelope
+        return None
+
+    key_id = envelope.get("key_id")
+    key = SAVE_PAYLOAD_KEY_RING.get(key_id)
+    if key is None:
+        return None
+
+    try:
+        nonce = decode_envelope_value(envelope.get("nonce", ""))
+        ciphertext = decode_envelope_value(envelope.get("ciphertext", ""))
+        plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
+        return json.loads(plaintext.decode("utf-8"))
+    except (InvalidTag, OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def write_fallback_save(user_id, character_id, payload):
     path = get_fallback_save_path(user_id, character_id)
-    path.write_text(json.dumps(payload), encoding="utf-8")
+    path.write_text(json.dumps(encrypt_save_payload(payload), separators=(",", ":")), encoding="utf-8")
 
 
 def read_fallback_save(user_id, character_id):
@@ -647,7 +1793,8 @@ def read_fallback_save(user_id, character_id):
         return None
 
     try:
-        return normalize_save_payload(json.loads(path.read_text(encoding="utf-8")))
+        envelope = json.loads(path.read_text(encoding="utf-8"))
+        return normalize_save_payload(decrypt_save_payload(envelope))
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -658,7 +1805,8 @@ def list_fallback_save_payloads(user_id):
 
     for path in SAVE_FALLBACK_DIR.glob(pattern):
         try:
-            payload = normalize_save_payload(json.loads(path.read_text(encoding="utf-8")))
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+            payload = normalize_save_payload(decrypt_save_payload(envelope))
         except (OSError, json.JSONDecodeError):
             continue
 
@@ -843,730 +1991,9 @@ def build_save_payload(save_data):
     }
 
 
-@app.route("/")
-@app.route("/login", methods=["GET", "POST"])
-def show_login():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
+sys.modules.setdefault("app", sys.modules[__name__])
 
-        if username == "":
-            return render_template("login.html", error="Please enter your username.")
-
-        if password == "":
-            return render_template("login.html", error="Please enter your password.")
-
-        user = User.query.filter_by(username=username).first()
-
-        if user is None:
-            return render_template("login.html", error="Invalid username or password.")
-
-        if not check_password_hash(user.password_hash, password):
-            return render_template("login.html", error="Invalid username or password.")
-
-        session.clear()
-        session["user_id"] = user.id
-        session["username"] = user.username
-        session["display_name"] = get_display_name(user)
-        session["is_guest"] = False
-
-        return redirect(url_for("main_menu"))
-
-    return render_template("login.html", error=None)
-
-
-@app.route("/register", methods=["GET", "POST"])
-def show_register():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm-password", "")
-
-        if username == "":
-            return render_template("register.html", error="Please enter a username.")
-
-        if password == "":
-            return render_template("register.html", error="Please enter a password.")
-
-        if password != confirm:
-            return render_template("register.html", error="Passwords do not match.")
-
-        user = User.query.filter_by(username=username).first()
-        if user is not None:
-            return render_template("register.html", error="Username already exists.")
-
-        new_user = User(
-            username=username,
-            password_hash=generate_password_hash(password, method='pbkdf2:sha256')
-        )
-
-        db.session.add(new_user)
-        db.session.commit()
-
-        return redirect(url_for("show_login"))
-
-    return render_template("register.html", error=None)
-
-
-@app.route("/guest-login", methods=["POST"])
-def guest_login():
-    name = make_guest_name()
-
-    session.clear()
-    session["username"] = name
-    session["is_guest"] = True
-
-    return redirect(url_for("main_menu"))
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("show_login"))
-
-
-@app.route("/main-menu")
-@app.route("/main_menu")
-def main_menu():
-    username = session.get("username")
-    is_guest = bool(session.get("is_guest"))
-    user_id = session.get("user_id")
-    profile_image = PROFILE_IMAGE_DEFAULT
-
-    if not username:
-        return redirect(url_for("show_login"))
-
-    friends = []
-
-    if not is_guest:
-        if user_id is None:
-            session.clear()
-            return redirect(url_for("show_login"))
-
-        user = User.query.get(user_id)
-
-        if user is None:
-            session.clear()
-            return redirect(url_for("show_login"))
-
-        username = get_display_name(user)
-        profile_image = get_profile_image(user)
-        session["display_name"] = username
-        friends = get_friends(user_id)
-
-    return render_template(
-        "main_menu_view.html",
-        username=username,
-        friends=friends,
-        is_guest=is_guest,
-        user_id=user_id,
-        profile_image=profile_image,
-        leaderboard=get_leaderboard(current_user_id=user_id),
-        can_view_profiles=not is_guest
-    )
-
-
-@app.route("/profile", methods=["GET", "POST"])
-def profile():
-    user_id = session.get("user_id")
-
-    if user_id is None or session.get("is_guest"):
-        if session.get("username"):
-            return redirect(url_for("main_menu"))
-
-        return redirect(url_for("show_login"))
-
-    user = User.query.get(user_id)
-
-    if user is None:
-        session.clear()
-        return redirect(url_for("show_login"))
-
-    error = None
-    success = None
-    display_name_value = user.display_name or ""
-    bio_value = get_profile_bio(user)
-    selected_profile_image = get_profile_image(user)
-    custom_profile_image = get_custom_profile_image(user)
-
-    if request.method == "POST":
-        display_name = request.form.get("display_name", "").strip()
-        bio = request.form.get("bio", "").strip()
-        profile_image = normalize_profile_image_path(
-            request.form.get("profile_image", selected_profile_image)
-        )
-        uploaded_profile_image = request.files.get("custom_profile_image")
-        has_uploaded_profile_image = bool(
-            uploaded_profile_image
-            and (uploaded_profile_image.filename or "").strip()
-        )
-        current_password = request.form.get("current_password", "")
-        new_password = request.form.get("new_password", "")
-        confirm_password = request.form.get("confirm_password", "")
-        wants_password_change = any([
-            current_password,
-            new_password,
-            confirm_password,
-        ])
-        new_uploaded_profile_image = None
-
-        display_name_value = display_name
-        bio_value = bio
-        selected_profile_image = profile_image
-
-        if (request.content_length or 0) > PROFILE_IMAGE_UPLOAD_MAX_BYTES:
-            error = "Profile image uploads must be 5MB or smaller."
-        elif len(display_name) > 80:
-            error = "Display name must be 80 characters or fewer."
-        elif len(bio) > BIO_MAX_LENGTH:
-            error = f"Bio must be {BIO_MAX_LENGTH} characters or fewer."
-        elif has_uploaded_profile_image:
-            error = validate_uploaded_profile_image(uploaded_profile_image)
-        elif not is_selectable_profile_image_for_user(profile_image, user_id):
-            error = "Choose one of the available profile pictures or upload your own JPEG."
-        elif wants_password_change:
-            if not current_password or not new_password or not confirm_password:
-                error = "Fill in all password fields to change your password."
-            elif not check_password_hash(user.password_hash, current_password):
-                error = "Current password is incorrect."
-            elif new_password != confirm_password:
-                error = "New passwords do not match."
-
-        if error is None:
-            if has_uploaded_profile_image:
-                profile_image, upload_error = save_uploaded_profile_image(
-                    uploaded_profile_image,
-                    user_id
-                )
-
-                if upload_error is not None:
-                    error = upload_error
-                else:
-                    new_uploaded_profile_image = profile_image
-                    selected_profile_image = profile_image
-                    custom_profile_image = profile_image
-
-        if error is None:
-            previous_profile_image = normalize_profile_image_path(user.profile_image)
-            user.display_name = display_name or None
-            user.bio = bio or None
-            user.profile_image = profile_image
-
-            if wants_password_change:
-                user.password_hash = generate_password_hash(
-                    new_password,
-                    method="pbkdf2:sha256"
-                )
-
-            try:
-                db.session.commit()
-                session["display_name"] = get_display_name(user)
-                success = "Profile updated."
-                if previous_profile_image != user.profile_image:
-                    delete_uploaded_profile_image(previous_profile_image)
-                display_name_value = user.display_name or ""
-                bio_value = get_profile_bio(user)
-                selected_profile_image = get_profile_image(user)
-                custom_profile_image = get_custom_profile_image(user)
-            except SQLAlchemyError as update_error:
-                db.session.rollback()
-                if new_uploaded_profile_image is not None:
-                    delete_uploaded_profile_image(new_uploaded_profile_image)
-                app.logger.warning(
-                    "Profile update failed for user %s. %s",
-                    user_id,
-                    getattr(update_error, "orig", update_error)
-                )
-                error = "Profile update failed."
-
-    return render_template(
-        "profile.html",
-        username=get_display_name(user),
-        login_username=user.username,
-        display_name=display_name_value,
-        bio=bio_value,
-        bio_max_length=BIO_MAX_LENGTH,
-        profile_image=selected_profile_image,
-        custom_profile_image=custom_profile_image,
-        profile_images=PROFILE_IMAGE_OPTIONS,
-        error=error,
-        success=success
-    )
-
-
-@app.route("/profile/<int:user_id>", methods=["GET", "POST"])
-def view_profile(user_id):
-    current_user_id = session.get("user_id")
-
-    if current_user_id is None or session.get("is_guest"):
-        if session.get("username"):
-            return redirect(url_for("main_menu"))
-
-        return redirect(url_for("show_login"))
-
-    profile_user = User.query.get(user_id)
-    if profile_user is None:
-        flash("Profile not found.")
-        return redirect(url_for("main_menu"))
-
-    if request.method == "POST":
-        action = request.form.get("action")
-
-        try:
-            if action == "send_friend_request":
-                _, message = create_friend_request(current_user_id, user_id)
-                flash(message)
-            elif action == "accept_friend_request":
-                incoming_request = get_pending_friend_request(user_id, current_user_id)
-
-                if incoming_request is None:
-                    flash("Friend request not found.")
-                else:
-                    accept_pending_friend_request(incoming_request)
-                    flash("Friend request accepted.")
-            else:
-                flash("Profile action not recognised.")
-
-            db.session.commit()
-        except SQLAlchemyError as error:
-            db.session.rollback()
-            app.logger.warning(
-                "Profile friend action failed for user %s and profile %s. %s",
-                current_user_id,
-                user_id,
-                getattr(error, "orig", error)
-            )
-            flash("Profile action failed.")
-
-        return redirect(url_for("view_profile", user_id=user_id))
-
-    leaderboard_entry = get_leaderboard_entry_for_user(
-        user_id,
-        current_user_id=current_user_id
-    )
-
-    return render_template(
-        "public_profile.html",
-        profile_user=profile_user,
-        display_name=get_display_name(profile_user),
-        profile_image=get_profile_image(profile_user),
-        bio=get_profile_bio(profile_user),
-        leaderboard_entry=leaderboard_entry,
-        friend_action=get_friend_action(current_user_id, user_id),
-        is_self=current_user_id == user_id
-    )
-
-
-@app.route("/favicon.ico")
-def favicon():
-    return app.send_static_file("images/icons/settings.svg")
-
-
-@app.route("/play")
-def show_play():
-    if "username" not in session:
-        return redirect(url_for("show_login"))
-
-    return render_template("play.html")
-
-
-@app.route("/achievements")
-def show_achievements():
-    if "username" not in session:
-        return redirect(url_for("show_login"))
-
-    user_id = session.get("user_id")
-    username = session.get("username", "Player")
-
-    if user_id is None or session.get("is_guest"):
-        stats = get_empty_stats()
-    else:
-        user = User.query.get(user_id)
-        if user is not None:
-            username = get_display_name(user)
-        stats = get_user_stats(user_id)
-
-    return render_template(
-        "achievements.html",
-        username=username,
-        achievements=[],
-        stats=stats
-    )
-
-
-@app.route("/save-game", methods=["POST"])
-def save_game():
-    if session.get("user_id") is None or session.get("is_guest"):
-        return jsonify({
-            "ok": False,
-            "message": "Please log in to save your game."
-        }), 401
-
-    data = request.get_json(silent=True)
-
-    if not data:
-        return jsonify({
-            "ok": False,
-            "message": "No save data received."
-        }), 400
-
-    character_id = str(data.get("character_id", "leon")).lower()
-    session["selected_character"] = character_id
-
-    fallback_payload = build_save_payload_from_request(data)
-
-    try:
-        save_data = get_user_save(character_id=character_id, create=True)
-        update_save_data(save_data, data)
-        db.session.commit()
-    except SQLAlchemyError as error:
-        db.session.rollback()
-
-        try:
-            write_fallback_save(session["user_id"], character_id, fallback_payload)
-        except OSError:
-            app.logger.exception("Save failed for user %s.", session.get("user_id"))
-            return jsonify({
-                "ok": False,
-                "message": "Save failed."
-            }), 500
-
-        app.logger.warning(
-            "SQLite save failed for user %s; wrote fallback save instead. %s",
-            session.get("user_id"),
-            getattr(error, "orig", error)
-        )
-        return jsonify({
-            "ok": True,
-            "message": "Game saved locally."
-        })
-
-    try:
-        write_fallback_save(session["user_id"], character_id, build_save_payload(save_data))
-    except OSError as error:
-        app.logger.warning(
-            "Backup save write failed for user %s after database save succeeded. %s",
-            session.get("user_id"),
-            error
-        )
-
-    return jsonify({
-        "ok": True,
-        "message": "Game saved."
-    })
-
-
-@app.route("/load-game")
-def load_game():
-    if session.get("user_id") is None or session.get("is_guest"):
-        return jsonify({
-            "ok": False,
-            "message": "Please log in to load your game."
-        }), 401
-
-    requested_character_id = request.args.get("character_id")
-    character_id = str(requested_character_id).lower() if requested_character_id else None
-
-    db_payloads = []
-    fallback_payloads = []
-
-    try:
-        db_payloads = list_db_save_payloads(session["user_id"], character_id=character_id)
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        app.logger.warning(
-            "Database load failed for user %s; falling back to JSON save. %s",
-            session.get("user_id"),
-            getattr(error, "orig", error)
-        )
-
-    if character_id is not None:
-        fallback_payload = read_fallback_save(session["user_id"], character_id)
-        if fallback_payload is not None:
-            fallback_payloads.append(fallback_payload)
-    else:
-        fallback_payloads = list_fallback_save_payloads(session["user_id"])
-
-    save_payload = choose_latest_save_payload(*db_payloads, *fallback_payloads)
-
-    if save_payload is None:
-        return jsonify({
-            "ok": False,
-            "message": "Start a new game first."
-        })
-
-    session["selected_character"] = str(save_payload.get("character_id", "leon")).lower()
-
-    return jsonify({
-        "ok": True,
-        "message": "Save loaded.",
-        "save_data": save_payload
-    })
-
-@app.route("/add_friend/<int:user_id>")
-def add_friend(user_id):
-    current_user = session.get("user_id")
-
-    if not current_user or current_user == user_id:
-        return redirect(url_for("main_menu"))
-
-    target_user = User.query.get(user_id)
-    if target_user is None:
-        flash("User not found.")
-        return redirect(url_for("main_menu"))
-
-    try:
-        _, message = create_friend_request(current_user, user_id)
-        db.session.commit()
-        flash(message)
-    except SQLAlchemyError as error:
-        db.session.rollback()
-        app.logger.warning(
-            "Friend request failed for user %s and target %s. %s",
-            current_user,
-            user_id,
-            getattr(error, "orig", error)
-        )
-        flash("Friend request failed.")
-
-    return redirect(url_for("view_profile", user_id=user_id))
-
-
-@app.route('/friends', methods=['GET', 'POST'])
-def show_friends():
-    if session.get("is_guest"):
-        return redirect(url_for("main_menu"))
-
-    current_user = User.query.get(session.get('user_id'))
-    if current_user is None:
-        return redirect(url_for('show_login'))
-    
-    if request.method == 'POST':
-        from_user_id = session.get('user_id')
-        friend_username = request.form['friend_username'].strip().lower()
-        friend = User.query.filter_by(username=friend_username).first()
-
-        if friend:
-            try:
-                _, message = create_friend_request(from_user_id, friend.id)
-                db.session.commit()
-                flash(message)
-            except SQLAlchemyError as error:
-                db.session.rollback()
-                app.logger.warning(
-                    "Friend request failed for user %s and target %s. %s",
-                    from_user_id,
-                    friend.id,
-                    getattr(error, "orig", error)
-                )
-                flash("Friend request failed.")
-        else:
-            flash('User not found.')
-        
-        return redirect(url_for('show_friends'))
-    
-    # Get pending requests for current user
-    incoming_requests = FriendRequest.query.filter_by(
-        to_user_id=current_user.id, status='pending'
-    ).all()
-    
-    # Get friends (accepted requests)
-    friends = get_friends(current_user.id)
-    
-    return render_template(
-        'friends_view.html',
-        username=get_display_name(current_user),
-        current_user=current_user,
-        incoming_requests=incoming_requests,
-        friends=friends
-    )
-
-
-@app.route("/accept_friend/<int:request_id>")
-def accept_friend(request_id):
-    current_user = session.get('user_id')
-    if not current_user:
-        return redirect(url_for("show_login"))
-
-    friend_request = FriendRequest.query.get(request_id)
-    if friend_request and friend_request.to_user_id == current_user:
-        accept_pending_friend_request(friend_request)
-        db.session.commit()
-
-    return redirect(url_for("show_friends"))
-
-@app.route("/reject_friend/<int:request_id>")
-def reject_friend(request_id):
-    current_user = session.get('user_id')
-    if not current_user:
-        return redirect(url_for("show_login"))
-
-    friend_request = FriendRequest.query.get(request_id)
-    if friend_request and friend_request.to_user_id == current_user:
-        db.session.delete(friend_request)
-        db.session.commit()
-
-    return redirect(url_for("show_friends"))
-
-@app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
-def chat(friend_id):
-    current_user = session.get("user_id")
-
-    if current_user is None or session.get("is_guest"):
-        return redirect(url_for("show_login"))
-
-    friend = get_accepted_friend(current_user, friend_id)
-
-    if friend is None:
-        flash("You can only chat with users in your friends list.")
-        return redirect(url_for("show_friends"))
-
-    if request.method == "POST":
-        msg = request.form.get("message", "").strip()
-
-        if msg:
-            message = Message(
-                sender_id=session["user_id"],
-                receiver_id=friend_id,
-                message=msg,
-                timestamp=datetime.utcnow()
-            )
-            db.session.add(message)
-            db.session.commit()
-            return redirect(url_for("chat", friend_id=friend_id))
-
-    messages = Message.query.filter(
-        ((Message.sender_id == current_user) & (Message.receiver_id == friend_id)) |
-        ((Message.sender_id == friend_id) & (Message.receiver_id == current_user))
-    ).order_by(Message.timestamp).all()
-
-    return render_template(
-        "chat.html",
-        messages=messages,
-        friend=friend,
-        current_user=session["user_id"]
-    )
-
-
-@socketio.on("connect")
-def handle_socket_connect():
-    if session.get("user_id") is None or session.get("is_guest"):
-        return False
-
-
-@socketio.on("chat:join")
-def handle_chat_join(data):
-    current_user = session.get("user_id")
-    friend_id = parse_friend_id((data or {}).get("friend_id"))
-
-    if current_user is None or session.get("is_guest"):
-        return {"ok": False, "message": "Please log in to use chat."}
-
-    if friend_id is None:
-        socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
-        return {"ok": False, "message": "Chat user is invalid."}
-
-    friend = get_accepted_friend(current_user, friend_id)
-    if friend is None:
-        socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
-        return {"ok": False, "message": "You can only chat with accepted friends."}
-
-    room_key = build_chat_room_key(current_user, friend_id)
-    join_room(room_key)
-    return {
-        "ok": True,
-        "room": room_key,
-        "friend": {
-            "id": friend.id,
-            "username": friend.username,
-        },
-    }
-
-
-@socketio.on("chat:leave")
-def handle_chat_leave(data):
-    current_user = session.get("user_id")
-    friend_id = parse_friend_id((data or {}).get("friend_id"))
-
-    if current_user is None or friend_id is None:
-        return {"ok": False}
-
-    leave_room(build_chat_room_key(current_user, friend_id))
-    return {"ok": True}
-
-
-@socketio.on("chat:send")
-def handle_chat_send(data):
-    current_user = session.get("user_id")
-    friend_id = parse_friend_id((data or {}).get("friend_id"))
-    message_text = str((data or {}).get("message", "")).strip()
-
-    if current_user is None or session.get("is_guest"):
-        socketio.emit("chat:error", {"message": "Please log in to use chat."}, to=request.sid)
-        return {"ok": False, "message": "Please log in to use chat."}
-
-    if friend_id is None:
-        socketio.emit("chat:error", {"message": "Chat user is invalid."}, to=request.sid)
-        return {"ok": False, "message": "Chat user is invalid."}
-
-    if get_accepted_friend(current_user, friend_id) is None:
-        socketio.emit("chat:error", {"message": "You can only chat with accepted friends."}, to=request.sid)
-        return {"ok": False, "message": "You can only chat with accepted friends."}
-
-    if message_text == "":
-        socketio.emit("chat:error", {"message": "Message cannot be empty."}, to=request.sid)
-        return {"ok": False, "message": "Message cannot be empty."}
-
-    room_key = build_chat_room_key(current_user, friend_id)
-    join_room(room_key)
-
-    message = Message(
-        sender_id=current_user,
-        receiver_id=friend_id,
-        message=message_text,
-        timestamp=datetime.utcnow()
-    )
-    db.session.add(message)
-    db.session.commit()
-
-    payload = serialize_chat_message(message)
-    socketio.emit("chat:new", payload, to=room_key)
-
-    return {
-        "ok": True,
-        "message": payload,
-    }
-
-@app.route("/friend-stats/<int:friend_id>")
-def friend_stats(friend_id):
-    current_user_id = session.get("user_id")
-
-    if current_user_id is None or session.get("is_guest"):
-        return redirect(url_for("show_login"))
-
-    friendship = Friend.query.filter_by(
-        user_id=current_user_id,
-        friend_id=friend_id,
-        status="accepted"
-    ).first()
-
-    if friendship is None:
-        flash("You can only view stats for users in your friends list.")
-        return redirect(url_for("show_friends"))
-
-    friend = User.query.get(friend_id)
-    if friend is None:
-        flash("Friend not found.")
-        return redirect(url_for("show_friends"))
-
-    stats = get_user_stats(friend_id)
-
-    return render_template(
-        "friend_stats.html",
-        username=session.get("username", "Player"),
-        friend=friend,
-        stats=stats
-    )
+import routes
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)
