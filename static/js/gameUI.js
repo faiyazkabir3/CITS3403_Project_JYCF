@@ -1567,7 +1567,8 @@ export function bootGameUI({
       ["reload-rifle-btn", dead || interactionLocked || emergencyActive || !engine.state.rifle.owned],
       ["medkit-btn", dead || interactionLocked || emergencyActive],
       ["shield-btn", dead || interactionLocked || emergencyActive || !engine.state.shield.hasShield],
-      ["inventory-back-btn", dead || interactionLocked || emergencyActive]
+      ["inventory-back-btn", dead || interactionLocked || emergencyActive],
+      ["stats-back-btn", dead || interactionLocked || emergencyActive]
     ];
 
     buttonStates.forEach(([id, disabled]) => {
