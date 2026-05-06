@@ -331,7 +331,7 @@ It checks real browser flows such as:
 How it works:
 
 - `playwright.config.js` starts `scripts/run_playwright_server.py`.
-- The Flask app runs on `http://127.0.0.1:5000`.
+- The Flask app runs on `http://127.0.0.1:5002`.
 - The server uses `instance/playwright_smoke.db`.
 - Playwright launches headless Chrome.
 - Failed tests keep traces, screenshots, and videos.
@@ -653,7 +653,7 @@ PYTHON="./venv/bin/python" ./venv/bin/python -B scripts/run_playwright_server.py
 Then open:
 
 ```text
-http://127.0.0.1:5000/login
+http://127.0.0.1:5002/login
 ```
 
 If the app crashes, fix the Python error shown in the terminal.

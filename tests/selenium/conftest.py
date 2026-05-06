@@ -14,7 +14,7 @@ from selenium.webdriver.edge.options import Options as EdgeOptions
 
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = "http://127.0.0.1:5001"
 SELENIUM_CACHE_DIR = Path(tempfile.gettempdir()) / "selenium-manager-cache"
 SELENIUM_CACHE_DIR.mkdir(exist_ok=True)
 os.environ.setdefault("SE_CACHE_PATH", str(SELENIUM_CACHE_DIR))
@@ -77,7 +77,7 @@ def selenium_browser(selenium_server):
             options = ChromeOptions()
             browser_name = "chrome"
 
-        options.page_load_strategy = "none"
+        options.page_load_strategy = "eager"
         options.add_argument("--headless=new")
         options.add_argument("--window-size=1366,768")
         options.add_argument(f"--user-data-dir={profile_dir}")
