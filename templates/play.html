@@ -77,6 +77,31 @@
       </div>
     </section>
 
+    <section id="tutorial-screen" class="panel">
+      <button type="button" id="tutorial-back-btn" class="back-arrow" aria-label="Back">
+        â†
+      </button>
+
+      <h1>FIELD GUIDE</h1>
+      <p class="subtitle">Let Quite coach the first three tutorial levels with locked lessons and combat callouts.</p>
+
+      <div class="tutorial-choice-preview">
+        <img
+          src="{{ url_for('static', filename='images/players/quite_guide_portrait.png') }}"
+          alt="Quite field guide"
+        >
+        <div>
+          <strong>QUITE CAN GUIDE YOU</strong>
+          <p>She will pop in with comic-style instructions, glow the right controls, and step away once the tutorial route is clear.</p>
+        </div>
+      </div>
+
+      <div class="button-stack">
+        <button type="button" id="tutorial-guide-btn" class="primary-btn">GUIDE ME</button>
+        <button type="button" id="tutorial-skip-btn" class="secondary-btn">START WITHOUT GUIDE</button>
+      </div>
+    </section>
+
     <section id="load-screen" class="panel">
       <button type="button" id="load-back-btn" class="back-arrow" aria-label="Back">
         ←
@@ -151,6 +176,22 @@
             <div id="battle-stage" class="battle-stage" data-theme="tutorial">
               <div id="battle-backdrop" class="battle-backdrop" aria-hidden="true"></div>
               <div id="battle-overlay" class="battle-overlay" aria-hidden="true"></div>
+
+              <div id="tutorial-guide" class="tutorial-guide" role="status" aria-live="polite" hidden>
+                <img
+                  id="tutorial-guide-portrait"
+                  class="tutorial-guide-portrait"
+                  src="{{ url_for('static', filename='images/players/quite_guide_portrait.png') }}"
+                  alt="Quite guide"
+                >
+                <div class="tutorial-guide-bubble">
+                  <div class="tutorial-guide-header">
+                    <span>QUITE</span>
+                    <button type="button" id="tutorial-guide-skip-btn" class="tutorial-guide-skip-btn">SKIP GUIDE</button>
+                  </div>
+                  <p id="tutorial-guide-text"></p>
+                </div>
+              </div>
 
               <div id="battle-hud" class="battle-hud">
                 <section class="battle-status battle-status-player" aria-label="Player battle status">

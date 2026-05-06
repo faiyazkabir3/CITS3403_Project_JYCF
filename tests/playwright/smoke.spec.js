@@ -150,7 +150,9 @@ async function expectBattleSides(page) {
   expect(sides.playerRight).toBeLessThanOrEqual(sides.enemyLeft);
 }
 
-async function startNewGame(page, character = "leon") {
+async function startNewGame(page, character = "leon", options = {}) {
+  const { tutorial = "skip" } = options;
+
   await page.getByRole("button", { name: "PLAY GAME" }).click();
   await expect(page).toHaveURL(/\/play$/);
   await expectPanelCentered(page, "#start-screen");
@@ -169,9 +171,26 @@ async function startNewGame(page, character = "leon") {
   await expectPanelCentered(page, "#difficulty-screen");
 
   await page.getByRole("button", { name: "EASY" }).click();
+  await page.waitForFunction(() => (
+    document.querySelector("#tutorial-screen")?.classList.contains("active") ||
+    document.querySelector("#game-screen")?.classList.contains("active")
+  ));
+
+  if (tutorial === "guide") {
+    await expect(page.locator("#tutorial-screen")).toHaveClass(/active/);
+    await page.locator("#tutorial-guide-btn").click();
+  } else if (await page.locator("#tutorial-screen.active").isVisible()) {
+    await page.locator("#tutorial-skip-btn").click();
+  }
+
   await expect(page.locator("#game-screen")).toHaveClass(/active/);
-  await expect(page.locator("#save-btn")).toBeEnabled({ timeout: 20_000 });
-  await expect(page.locator("#stats-btn")).toBeEnabled({ timeout: 20_000 });
+  if (tutorial === "guide") {
+    await expect(page.locator("#tutorial-guide")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#attack-btn")).toBeEnabled({ timeout: 20_000 });
+  } else {
+    await expect(page.locator("#save-btn")).toBeEnabled({ timeout: 20_000 });
+    await expect(page.locator("#stats-btn")).toBeEnabled({ timeout: 20_000 });
+  }
   await expect(page.locator("#battle-stage")).toBeVisible();
 }
 
@@ -288,6 +307,22 @@ async function expectActionSubmenus(page) {
   }
   await page.locator("#inventory-back-btn").click();
   await expect(page.locator("#main-actions")).toBeVisible();
+}
+
+async function clickGuidedAttack(page, buttonSelector) {
+  await expect(page.locator("#attack-btn")).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator("#attack-btn")).toHaveClass(/is-tutorial-highlighted/);
+  await page.locator("#attack-btn").click();
+  await expect(page.locator(buttonSelector)).toBeVisible();
+  await expect(page.locator(buttonSelector)).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator(buttonSelector)).toHaveClass(/is-tutorial-highlighted/);
+  await page.locator(buttonSelector).click();
+}
+
+async function clickGuidedDefend(page) {
+  await expect(page.locator("#defend-btn")).toBeEnabled({ timeout: 20_000 });
+  await expect(page.locator("#defend-btn")).toHaveClass(/is-tutorial-highlighted/);
+  await page.locator("#defend-btn").click();
 }
 
 async function saveShopState(page) {
@@ -423,6 +458,99 @@ test("redirects unauthenticated play access back to login", async ({ page }) => 
 
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole("heading", { name: "Welcome, Survivor" })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+test("guest can choose the Quite guide and complete the tutorial lessons", async ({ page }) => {
+  const pageErrors = trackPageErrors(page);
+
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Guest Login" }).click();
+  await expect(page).toHaveURL(/\/main[-_]menu$/);
+
+  await startNewGame(page, "quite", { tutorial: "guide" });
+  await expect(page.locator("#tutorial-guide-text")).toContainText("fast zombie");
+  await expect(page.locator("#story-text")).not.toContainText("Here comes the fast zombie");
+  await expect(page.locator("#defend-btn")).toBeDisabled();
+  await expect(page.locator('#battle-player-loadout [data-weapon="knife"]')).toHaveAttribute(
+    "data-tutorial-highlight",
+    "true"
+  );
+
+  await clickGuidedAttack(page, "#knife-btn");
+  await expect(page.locator("#tutorial-guide-text")).toContainText("One more clean cut", { timeout: 20_000 });
+  await clickGuidedAttack(page, "#knife-btn");
+
+  await expect(page.locator("#battle-tags")).toContainText("LEVEL 2", { timeout: 25_000 });
+  await expect(page.locator("#tutorial-guide-text")).toContainText("Heavy zombie", { timeout: 20_000 });
+  await clickGuidedAttack(page, "#grenade-btn");
+  await expect(page.locator("#tutorial-guide-text")).toContainText("Spitter", { timeout: 20_000 });
+  await clickGuidedAttack(page, "#pistol-btn");
+
+  await expect(page.locator("#shop-box")).toBeVisible({ timeout: 25_000 });
+  await page.locator("#shop-continue-btn").click();
+
+  await expect(page.locator("#battle-tags")).toContainText("LEVEL 3", { timeout: 25_000 });
+  await expect(page.locator("#tutorial-guide-text")).toContainText("Charger lesson", { timeout: 20_000 });
+  await clickGuidedAttack(page, "#pistol-btn");
+  await expect(page.locator("#tutorial-guide-text")).toContainText("lined up", { timeout: 20_000 });
+
+  await page.evaluate(() => {
+    window.gameEngine.state.stats.agility = 999;
+    window.gameEngine.rng.chance = (probability) => probability >= 0.75;
+  });
+  await clickGuidedDefend(page);
+
+  await expect(page.locator("#tutorial-guide-text")).toContainText("finish the charger", { timeout: 20_000 });
+  await clickGuidedAttack(page, "#pistol-btn");
+  await expect(page.locator("#tutorial-guide-text")).toContainText("Screamer", { timeout: 20_000 });
+  await clickGuidedAttack(page, "#pistol-btn");
+
+  await expect(page.locator("#path-choice-box")).toBeVisible({ timeout: 25_000 });
+  await expect(page.locator("#tutorial-guide-text")).toContainText("Tutorial complete", { timeout: 20_000 });
+
+  const tutorialStorage = await page.evaluate(() => ({
+    completed: localStorage.getItem("shadows_quite_tutorial_completed"),
+    active: localStorage.getItem("shadows_quite_tutorial_active"),
+  }));
+  expect(tutorialStorage).toEqual({ completed: "true", active: "false" });
+
+  await page.locator("#game-back-btn").click();
+  await expect(page).toHaveURL(/\/main[-_]menu$/, { timeout: 10_000 });
+  await page.getByRole("button", { name: "PLAY GAME" }).click();
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.locator('.character-card[data-character="leon"]').click();
+  await page.getByRole("button", { name: "EASY" }).click();
+  await expect(page.locator("#tutorial-screen")).toHaveClass(/active/, { timeout: 20_000 });
+  await expect(page.locator("#tutorial-guide-btn")).toBeVisible();
+  await expect(page.locator("#tutorial-skip-btn")).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+test("guest can skip the Quite guide and start a normal run", async ({ page }) => {
+  const pageErrors = trackPageErrors(page);
+
+  await page.goto("/login");
+  await page.getByRole("button", { name: "Guest Login" }).click();
+  await expect(page).toHaveURL(/\/main[-_]menu$/);
+
+  await page.getByRole("button", { name: "PLAY GAME" }).click();
+  await expect(page).toHaveURL(/\/play$/);
+  await page.getByRole("button", { name: "NEW GAME" }).click();
+  await page.locator('.character-card[data-character="leon"]').click();
+  await page.getByRole("button", { name: "EASY" }).click();
+  await expect(page.locator("#tutorial-screen")).toHaveClass(/active/);
+  await page.locator("#tutorial-skip-btn").click();
+
+  await expect(page.locator("#game-screen")).toHaveClass(/active/, { timeout: 20_000 });
+  await expect(page.locator("#tutorial-guide")).toBeHidden();
+  await expect(page.locator("#stats-btn")).toBeEnabled({ timeout: 20_000 });
+
+  const tutorialStorage = await page.evaluate(() => ({
+    completed: localStorage.getItem("shadows_quite_tutorial_completed"),
+    active: localStorage.getItem("shadows_quite_tutorial_active"),
+  }));
+  expect(tutorialStorage).toEqual({ completed: null, active: "false" });
   expect(pageErrors).toEqual([]);
 });
 
