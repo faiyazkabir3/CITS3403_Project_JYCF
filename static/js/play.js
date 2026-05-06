@@ -1,4 +1,9 @@
 import { bootGameUI } from "./gameUI.js";
+import {
+  isQuiteTutorialActive,
+  setQuiteTutorialActive,
+  stopQuiteTutorial
+} from "./tutorialGuide.js";
 
 const STORAGE_KEY = "shadows_audio_settings";
 const UI_BUTTON_SOUND = "/static/audio/sfx/ui/button_click.mp3";
@@ -55,6 +60,7 @@ function playErrorBeep() {
 const startScreen = document.getElementById("start-screen");
 const characterScreen = document.getElementById("character-screen");
 const difficultyScreen = document.getElementById("difficulty-screen");
+const tutorialScreen = document.getElementById("tutorial-screen");
 const loadScreen = document.getElementById("load-screen");
 const gameScreen = document.getElementById("game-screen");
 
@@ -64,6 +70,7 @@ const loadGameBtn = document.getElementById("load-game-btn");
 const backToMainBtn = document.getElementById("back-to-main-btn");
 const characterBackBtn = document.getElementById("character-back-btn");
 const difficultyBackBtn = document.getElementById("difficulty-back-btn");
+const tutorialBackBtn = document.getElementById("tutorial-back-btn");
 const loadBackBtn = document.getElementById("load-back-btn");
 const gameBackBtn = document.getElementById("game-back-btn");
 
@@ -76,9 +83,12 @@ const loadLatestSaveBtn = document.getElementById("load-latest-save-btn");
 const loadLeonSaveBtn = document.getElementById("load-leon-save-btn");
 const loadQuiteSaveBtn = document.getElementById("load-quite-save-btn");
 const savePreview = document.getElementById("save-preview");
+const tutorialGuideBtn = document.getElementById("tutorial-guide-btn");
+const tutorialSkipBtn = document.getElementById("tutorial-skip-btn");
 
 let gameEngine = null;
 let selectedCharacter = "leon";
+let pendingDifficulty = "EASY";
 
 const CHARACTER_LABELS = {
   leon: "LEON",
@@ -95,6 +105,7 @@ function showScreen(screenToShow) {
     startScreen,
     characterScreen,
     difficultyScreen,
+    tutorialScreen,
     loadScreen,
     gameScreen
   ];
@@ -232,10 +243,21 @@ function bootNewRun(selectedDifficulty) {
 
   gameEngine = bootGameUI({
     difficultyText: selectedDifficulty,
-    selectedCharacter
+    selectedCharacter,
+    tutorialGuideActive: isQuiteTutorialActive()
   });
 
   window.gameEngine = gameEngine;
+}
+
+function beginNewRunWithGuideChoice(useGuide) {
+  if (useGuide) {
+    setQuiteTutorialActive(true);
+  } else {
+    stopQuiteTutorial();
+  }
+
+  bootNewRun(pendingDifficulty);
 }
 
 function bootLoadedRun(saveData) {
@@ -249,7 +271,8 @@ function bootLoadedRun(saveData) {
   gameEngine = bootGameUI({
     difficultyText: savedState.difficulty || "EASY",
     selectedCharacter,
-    savedState
+    savedState,
+    tutorialGuideActive: false
   });
 
   window.gameEngine = gameEngine;
@@ -374,6 +397,11 @@ difficultyBackBtn.addEventListener("click", () => {
   showScreen(characterScreen);
 });
 
+tutorialBackBtn.addEventListener("click", () => {
+  playUiButtonSound();
+  showScreen(difficultyScreen);
+});
+
 loadBackBtn.addEventListener("click", () => {
   playUiButtonSound();
   showScreen(startScreen);
@@ -400,10 +428,24 @@ characterButtons.forEach((button) => {
 difficultyButtons.forEach((button) => {
   button.addEventListener("click", () => {
     playUiButtonSound();
-    const selectedDifficulty = button.dataset.difficulty.toUpperCase();
-    bootNewRun(selectedDifficulty);
+    pendingDifficulty = button.dataset.difficulty.toUpperCase();
+    showScreen(tutorialScreen);
   });
 });
+
+if (tutorialGuideBtn) {
+  tutorialGuideBtn.addEventListener("click", () => {
+    playUiButtonSound();
+    beginNewRunWithGuideChoice(true);
+  });
+}
+
+if (tutorialSkipBtn) {
+  tutorialSkipBtn.addEventListener("click", () => {
+    playUiButtonSound();
+    beginNewRunWithGuideChoice(false);
+  });
+}
 
 if (loadLatestSaveBtn) {
   loadLatestSaveBtn.addEventListener("click", async () => {
