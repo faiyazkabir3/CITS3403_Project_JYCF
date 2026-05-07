@@ -32,7 +32,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models import (
-    db, User, SaveData, Friend, Message, FriendRequest, UserAchievement,
+    db, User, SaveData, Friend, Message, FriendRequest, WorldMessage, UserAchievement,
     ProfileReaction, ProfileComment
 )
 

@@ -97,6 +97,19 @@
 
     <div class="menu-container">
       <div class="top-bar">
+        <button
+          type="button"
+          class="world-chat-toggle"
+          data-world-chat-toggle
+          aria-expanded="false"
+          aria-controls="world-chat-modal"
+          aria-label="Open world chat"
+          title="Open world chat"
+        >
+          <img src="{{ url_for('static', filename='images/icons/world_chat_icon.svg') }}" alt="" aria-hidden="true">
+          <span data-i18n="worldChat.open">WORLD CHAT</span>
+        </button>
+
         <div class="friends-menu" data-friends-menu>
           {% if is_guest %}
             <button 
@@ -177,10 +190,47 @@
         </div>
       </div>
     </div>
+
+    <div id="world-chat-modal" class="world-chat-modal" data-world-chat-modal hidden aria-hidden="true">
+      <section
+        id="world-chat-panel"
+        class="world-chat-modal-panel"
+        data-world-chat-panel
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="world-chat-title"
+      >
+        <div class="world-chat-panel-header">
+          <h2 id="world-chat-title" data-i18n="worldChat.title">WORLD CHAT</h2>
+          <button type="button" class="world-chat-close" data-world-chat-close aria-label="Close world chat" data-i18n-aria-label="worldChat.closeLabel">X</button>
+        </div>
+
+        <div class="world-chat-status" data-world-chat-status data-i18n="worldChat.loading">Loading messages...</div>
+        <div class="world-chat-messages" data-world-chat-messages></div>
+
+        {% if is_guest %}
+          <p class="world-chat-note" data-i18n="worldChat.guestNote">Log in with a registered account to post in world chat.</p>
+        {% else %}
+          <form class="world-chat-form" data-world-chat-form>
+            <input
+              type="text"
+              name="message"
+              maxlength="1000"
+              placeholder="Type a message for all agents..."
+              autocomplete="off"
+              data-world-chat-input
+              data-i18n-placeholder="worldChat.inputPlaceholder"
+            >
+            <button type="submit" class="world-chat-send" data-world-chat-submit data-i18n="worldChat.send">Send</button>
+          </form>
+        {% endif %}
+      </section>
+    </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/friends-menu.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/world-chat.js') }}" defer></script>
 
   <div id="settings-modal" class="settings-modal" hidden aria-hidden="true">
     <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">

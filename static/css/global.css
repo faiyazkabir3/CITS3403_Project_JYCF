@@ -256,9 +256,9 @@ body::before {
 }
 
 .menu-page .menu-container {
-  max-height: calc(100dvh - 32px);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  max-height: none;
+  overflow: visible;
+  scrollbar-gutter: auto;
 }
 
 .agent-clipboard {
@@ -269,9 +269,9 @@ body::before {
   align-self: center;
   justify-self: stretch;
   width: 100%;
-  max-height: calc(100dvh - 40px);
+  max-height: none;
   padding: 70px 24px 24px;
-  overflow-y: auto;
+  overflow: visible;
   transform: none;
   border: 5px solid #25170e;
   border-radius: 10px;
@@ -1150,6 +1150,7 @@ a.agent-photo-frame:focus-visible {
   object-fit: contain;
 }
 
+.play-page .character-card[data-character="leon"] img,
 .play-page .character-card[data-character="quite"] img {
   object-fit: cover;
   object-position: center;
@@ -1191,6 +1192,41 @@ a.agent-photo-frame:focus-visible {
 .play-page #selected-character-display,
 .play-page #difficulty-display {
   color: var(--accent-cyan);
+}
+
+.play-page .tutorial-choice-preview {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  max-width: 660px;
+  margin-bottom: 20px;
+  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.58);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.play-page .tutorial-choice-preview img {
+  display: block;
+  width: 118px;
+  height: 150px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+.play-page .tutorial-choice-preview strong {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--accent-cyan);
+  font-size: 0.76rem;
+}
+
+.play-page .tutorial-choice-preview p {
+  margin: 0;
+  color: #dddddd;
+  font-size: 0.72rem;
+  line-height: 1.65;
 }
 
 .play-page .load-save-box {
@@ -1419,6 +1455,106 @@ a.agent-photo-frame:focus-visible {
   z-index: 2;
 }
 
+.play-page .tutorial-guide {
+  position: absolute;
+  left: clamp(14px, 2vw, 28px);
+  bottom: clamp(94px, 17vh, 150px);
+  z-index: 5;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  width: min(690px, calc(100% - 32px));
+  pointer-events: none;
+}
+
+.play-page .tutorial-guide[hidden] {
+  display: none !important;
+}
+
+.play-page .tutorial-guide-portrait {
+  display: block;
+  width: clamp(92px, 10vw, 132px);
+  height: clamp(116px, 16vh, 178px);
+  object-fit: contain;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 18px 20px rgba(0, 0, 0, 0.48));
+}
+
+.play-page .tutorial-guide-bubble {
+  position: relative;
+  max-width: min(500px, 100%);
+  min-height: 86px;
+  padding: 14px 16px 15px;
+  border: 4px solid #151515;
+  border-radius: 10px 24px 20px 10px;
+  background: #ffffff;
+  color: #151515;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36);
+}
+
+.play-page .tutorial-guide-bubble::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  bottom: 23px;
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  border-left: 4px solid #151515;
+  border-bottom: 4px solid #151515;
+  transform: rotate(45deg);
+}
+
+.play-page .tutorial-guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: #111111;
+  font-size: 0.62rem;
+}
+
+.play-page .tutorial-guide-skip-btn {
+  position: relative;
+  z-index: 1;
+  padding: 6px 8px;
+  border: 2px solid #151515;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #151515;
+  font-size: 0.52rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.play-page .tutorial-guide-skip-btn:hover {
+  background: #151515;
+  color: #ffffff;
+}
+
+.play-page .tutorial-guide-bubble p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.play-page .battle-stage[data-mode="shop"] .tutorial-guide {
+  left: clamp(420px, 36vw, 740px);
+  right: clamp(150px, 12vw, 260px);
+  bottom: clamp(42px, 6vh, 68px);
+  width: auto;
+  align-items: center;
+}
+
+.play-page .battle-stage[data-mode="shop"] .tutorial-guide-bubble {
+  max-width: min(560px, 100%);
+  min-height: 68px;
+  padding: 11px 14px 12px;
+}
+
 .play-page .battle-hud {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1546,6 +1682,13 @@ a.agent-photo-frame:focus-visible {
   animation: warning-pulse 0.72s ease-in-out infinite;
 }
 
+.play-page .battle-resource-row-health[data-tutorial-highlight="true"] {
+  outline: 2px solid rgba(255, 233, 132, 0.92);
+  outline-offset: 3px;
+  box-shadow: 0 0 18px rgba(255, 233, 132, 0.45);
+  animation: tutorial-pulse 1s ease-in-out infinite;
+}
+
 .play-page .battle-resource-row-shield[data-empty="true"] .battle-resource-icon-wrap,
 .play-page .battle-resource-row-shield[data-empty="true"] .battle-resource-value {
   opacity: 0.72;
@@ -1575,6 +1718,12 @@ a.agent-photo-frame:focus-visible {
   border-color: rgba(255, 255, 255, 0.24);
   background: linear-gradient(180deg, rgba(27, 39, 54, 0.88), rgba(9, 16, 23, 0.92));
   box-shadow: 0 0 18px var(--battle-edge-glow);
+}
+
+.play-page .battle-loadout-chip[data-tutorial-highlight="true"] {
+  border-color: rgba(255, 233, 132, 0.95);
+  box-shadow: 0 0 20px rgba(255, 233, 132, 0.5), inset 0 0 0 1px rgba(255, 233, 132, 0.22);
+  animation: tutorial-pulse 1s ease-in-out infinite;
 }
 
 .play-page .battle-loadout-icon,
@@ -1965,6 +2114,13 @@ a.agent-photo-frame:focus-visible {
   background: #ffffff;
 }
 
+.play-page .action-btn.is-tutorial-highlighted:not(:disabled) {
+  outline: 3px solid rgba(255, 233, 132, 0.98);
+  outline-offset: 3px;
+  box-shadow: 0 0 22px rgba(255, 233, 132, 0.62);
+  animation: tutorial-pulse 1s ease-in-out infinite;
+}
+
 .play-page .choice-title {
   font-size: 0.78rem;
 }
@@ -2303,6 +2459,17 @@ a.agent-photo-frame:focus-visible {
   }
 }
 
+@keyframes tutorial-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.18);
+  }
+}
+
 @keyframes enemy-idle {
   0%,
   100% {
@@ -2615,6 +2782,15 @@ a.agent-photo-frame:focus-visible {
     margin-left: 58px;
   }
 
+  .play-page .tutorial-choice-preview {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .play-page .tutorial-choice-preview img {
+    width: 92px;
+    height: 120px;
+  }
+
   .play-page .game-bottom {
     grid-template-columns: 1fr;
     height: auto;
@@ -2640,6 +2816,28 @@ a.agent-photo-frame:focus-visible {
 
   .play-page .battle-stage {
     padding: 14px;
+  }
+
+  .play-page .tutorial-guide {
+    left: 10px;
+    right: 10px;
+    bottom: 82px;
+    width: auto;
+    gap: 8px;
+  }
+
+  .play-page .tutorial-guide-portrait {
+    width: 76px;
+    height: 104px;
+  }
+
+  .play-page .tutorial-guide-bubble {
+    min-height: 0;
+    padding: 11px 12px 12px;
+  }
+
+  .play-page .tutorial-guide-bubble p {
+    font-size: 0.58rem;
   }
 
   .play-page .battle-actors {
@@ -2737,7 +2935,10 @@ a.agent-photo-frame:focus-visible {
   .play-page .battle-player-resources[data-health-state="critical"] .battle-resource-row-health .battle-resource-icon,
   .play-page .battle-player-resources[data-health-state="critical"] .battle-resource-row-health .battle-resource-value,
   .play-page .battle-loadout-chip[data-low="true"] .battle-loadout-count-icon,
-  .play-page .battle-loadout-chip[data-low="true"] .battle-loadout-count-value {
+  .play-page .battle-loadout-chip[data-low="true"] .battle-loadout-count-value,
+  .play-page .battle-resource-row-health[data-tutorial-highlight="true"],
+  .play-page .battle-loadout-chip[data-tutorial-highlight="true"],
+  .play-page .action-btn.is-tutorial-highlighted:not(:disabled) {
     animation: none !important;
     opacity: 1;
   }
@@ -2824,6 +3025,289 @@ a.agent-photo-frame:focus-visible {
 
 .friends-menu.is-open .friends-dropdown {
     display: block;
+}
+
+.menu-page .top-bar .friends-btn {
+    width: auto;
+    min-width: 0;
+    border: 2px solid #00ffcc;
+    background: #000000;
+    color: #00ffcc;
+    box-shadow: none;
+}
+
+.menu-page .top-bar .friends-btn:hover {
+    background: #00ffcc;
+    color: #000000;
+}
+
+.menu-page .top-bar .world-chat-toggle {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    min-width: 42px;
+    height: 38px;
+    padding: 0;
+    border: 2px solid transparent;
+    background: transparent;
+    color: #00ffcc;
+    box-shadow: none;
+    z-index: 102;
+}
+
+.menu-page .top-bar .world-chat-toggle:hover {
+    background: transparent;
+    color: #00ffcc;
+    opacity: 0.8;
+}
+
+.menu-page .top-bar .world-chat-toggle span {
+    display: none;
+}
+
+.menu-page .top-bar .world-chat-toggle img {
+    width: 18px;
+    height: 18px;
+    display: block;
+    object-fit: contain;
+}
+
+.menu-page .top-bar .friends-btn {
+    min-width: 156px;
+}
+
+.world-chat-modal[hidden] {
+    display: none;
+}
+
+.world-chat-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.72);
+}
+
+.menu-page .world-chat-modal-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(816px, calc(100vw - 40px));
+    max-height: min(744px, calc(100vh - 48px));
+    padding: 20px;
+    border: 3px solid #ffffff;
+    background: rgba(20, 20, 20, 0.96);
+    box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+}
+
+.menu-page .world-chat-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.18);
+}
+
+.menu-page .world-chat-panel-header h2 {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #00ffcc;
+}
+
+.menu-page .world-chat-close {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 2px solid #b83a3a;
+    background: #8b1e1e;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.menu-page .world-chat-close:hover {
+    background: #5f1111;
+    color: #ffffff;
+    border-color: #d65a5a;
+}
+
+.menu-page .world-chat-send {
+    width: auto;
+    min-width: 84px;
+    padding: 10px 14px;
+}
+
+.menu-page .world-chat-status {
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.66rem;
+}
+
+.menu-page .world-chat-status[data-state="error"] {
+    color: #ff7b86;
+}
+
+.menu-page .world-chat-status[data-state="online"] {
+    color: #7dffb2;
+}
+
+.menu-page .world-chat-messages {
+    flex: 1;
+    min-height: clamp(220px, 32vh, 320px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.75);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-family: var(--font-display);
+}
+
+.menu-page .world-chat-empty {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.7rem;
+}
+
+.menu-page .world-chat-message {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 70%;
+    box-sizing: border-box;
+    padding: 12px 16px;
+    margin: 0;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.menu-page .world-chat-message.outgoing {
+    background: var(--accent-cyan);
+    color: #1f1f1f;
+    margin-left: auto;
+    text-align: right;
+}
+
+.menu-page .world-chat-message.incoming {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    margin-right: auto;
+    text-align: left;
+}
+
+.menu-page .world-chat-message-meta {
+    display: block;
+    font-size: 0.62rem;
+}
+
+.menu-page .world-chat-message-meta strong,
+.menu-page .world-chat-profile-link {
+    color: #00ffcc;
+}
+
+.menu-page .world-chat-message.outgoing .world-chat-message-meta strong,
+.menu-page .world-chat-message.outgoing .world-chat-profile-link {
+    color: rgba(31, 31, 31, 0.82);
+}
+
+.menu-page .world-chat-profile-link {
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.menu-page .world-chat-profile-link:hover,
+.menu-page .world-chat-profile-link:focus-visible {
+    text-decoration: underline;
+}
+
+.menu-page .world-chat-message p {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    letter-spacing: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.menu-page .world-chat-message time {
+    font-size: 0.58rem;
+    opacity: 0.72;
+}
+
+.menu-page .world-chat-form {
+    display: flex;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.menu-page .world-chat-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: var(--panel-border);
+    background: rgba(0, 0, 0, 0.75);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+}
+
+.menu-page .world-chat-form input::placeholder {
+    color: rgba(255, 255, 255, 0.46);
+}
+
+.menu-page .world-chat-note {
+    margin: 14px 0 0;
+    color: rgba(255, 255, 255, 0.75);
+    font-family: var(--font-body);
+    font-size: 0.74rem;
+    letter-spacing: 0;
+}
+
+@media (max-width: 640px) {
+    .world-chat-modal {
+        padding: 16px;
+    }
+
+    .menu-page .world-chat-modal-panel {
+        width: 100%;
+        max-height: calc(100vh - 32px);
+        padding: 16px;
+    }
+
+    .menu-page .world-chat-form {
+        flex-direction: column;
+    }
+
+    .menu-page .world-chat-send {
+        width: 100%;
+    }
 }
 
 .friends-hub-link {

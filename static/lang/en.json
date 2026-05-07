@@ -82,6 +82,15 @@
   "language.title": "CHANGE LANGUAGE",
   "language.confirm": "CONFIRM",
 
+  "worldChat.open": "WORLD CHAT",
+  "worldChat.openLabel": "Open world chat",
+  "worldChat.title": "WORLD CHAT",
+  "worldChat.closeLabel": "Close world chat",
+  "worldChat.loading": "Loading messages...",
+  "worldChat.guestNote": "Log in with a registered account to post in world chat.",
+  "worldChat.inputPlaceholder": "Type a message for all agents...",
+  "worldChat.send": "Send",
+
   "play.pageTitle": "Play Game",
   "play.title": "PLAY GAME",
   "play.startSubtitle": "Choose how you want to begin.",
@@ -161,6 +170,15 @@
   "play.skipHold": "SKIP / HOLD 2X",
   "play.skipMissionFeedLabel": "Skip mission feed text, or hold to play text at double speed",
   "play.skipShopFeedLabel": "Skip shop mission feed text, or hold to play text at double speed",
+
+  "play.fieldGuide": "FIELD GUIDE",
+  "play.fieldGuideSubtitle": "Let Quite coach the first three tutorial levels with locked lessons and combat callouts.",
+  "play.quiteCanGuide": "QUITE CAN GUIDE YOU",
+  "play.quiteGuideDesc": "She will pop in with comic-style instructions, glow the right controls, and step away once the tutorial route is clear.",
+  "play.guideMe": "GUIDE ME",
+  "play.startWithoutGuide": "START WITHOUT GUIDE",
+  "play.quiteGuideName": "QUITE",
+  "play.skipGuide": "SKIP GUIDE",
 
   "profile.pageTitle": "Customize Profile",
   "profile.heading": "Profile Customisation",

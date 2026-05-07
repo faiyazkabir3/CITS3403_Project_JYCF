@@ -7,6 +7,7 @@ import {
   getPlayerVisual,
   getLevelVisual
 } from "./visuals.js";
+import { createTutorialGuide } from "./tutorialGuide.js";
 
 const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
@@ -523,6 +524,7 @@ function createLoadoutChip({
   active = false,
   low = false,
   empty = false,
+  tutorialHighlighted = false,
   ariaLabel
 }) {
   const chip = document.createElement("div");
@@ -531,6 +533,7 @@ function createLoadoutChip({
   chip.dataset.active = active ? "true" : "false";
   chip.dataset.low = low ? "true" : "false";
   chip.dataset.empty = empty ? "true" : "false";
+  chip.dataset.tutorialHighlight = tutorialHighlighted ? "true" : "false";
   chip.setAttribute("aria-label", ariaLabel);
   chip.title = ariaLabel;
 
@@ -561,7 +564,8 @@ function createLoadoutChip({
   return chip;
 }
 
-function buildPlayerLoadout(state, activeWeaponKey) {
+function buildPlayerLoadout(state, activeWeaponKey, tutorialLoadoutHighlights = []) {
+  const tutorialHighlights = new Set(tutorialLoadoutHighlights);
   const chips = [
     {
       weaponKey: "pistol",
@@ -642,7 +646,8 @@ function buildPlayerLoadout(state, activeWeaponKey) {
 
   return chips.map((chip) => ({
     ...chip,
-    active: chip.weaponKey === activeWeaponKey
+    active: chip.weaponKey === activeWeaponKey,
+    tutorialHighlighted: tutorialHighlights.has(chip.weaponKey)
   }));
 }
 
@@ -862,7 +867,7 @@ function inferBattleFx(actionKey, events) {
   return effect;
 }
 
-function renderBattleScene(engine, battleSceneState) {
+function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
   const state = engine.state;
   const currentLevel = engine.getCurrentLevel();
   const enemy = state.combat.enemy;
@@ -971,7 +976,7 @@ function renderBattleScene(engine, battleSceneState) {
   if (playerLoadout) {
     playerLoadout.replaceChildren();
 
-    buildPlayerLoadout(state, battleSceneState.activeWeaponKey).forEach((chipConfig) => {
+    buildPlayerLoadout(state, battleSceneState.activeWeaponKey, tutorialCue?.loadoutHighlights || []).forEach((chipConfig) => {
       playerLoadout.appendChild(createLoadoutChip(chipConfig));
     });
   }
@@ -1081,6 +1086,103 @@ function renderWeaponVisibility(engine) {
 
   if (medkitBtn) {
     medkitBtn.style.gridColumn = shieldOwned ? "" : "1 / -1";
+  }
+}
+
+const TUTORIAL_ACTION_BUTTON_IDS = [
+  "attack-btn",
+  "defend-btn",
+  "inventory-btn",
+  "stats-btn",
+  "save-btn",
+  "pistol-btn",
+  "rifle-btn",
+  "knife-btn",
+  "grenade-btn",
+  "attack-back-btn",
+  "reload-btn",
+  "reload-rifle-btn",
+  "medkit-btn",
+  "shield-btn",
+  "inventory-back-btn",
+  "stats-back-btn"
+];
+
+const ACTION_GROUP_BACK_BUTTONS = {
+  "attack-actions": "attack-back-btn",
+  "inventory-actions": "inventory-back-btn",
+  "stats-actions": "stats-back-btn"
+};
+
+function getVisibleActionGroupId() {
+  return ACTION_GROUP_IDS.find((id) => {
+    const element = document.getElementById(id);
+    return element && window.getComputedStyle(element).display !== "none";
+  }) || "main-actions";
+}
+
+function getAllowedTutorialButtonIds(tutorialCue) {
+  if (!tutorialCue?.requiredAction) return null;
+
+  const visibleGroupId = getVisibleActionGroupId();
+
+  if (visibleGroupId === "main-actions") {
+    if (tutorialCue.requiredGroup === "attack") return new Set(["attack-btn"]);
+    if (tutorialCue.requiredGroup === "inventory") return new Set(["inventory-btn"]);
+    return new Set([tutorialCue.requiredButtonId].filter(Boolean));
+  }
+
+  if (visibleGroupId === `${tutorialCue.requiredGroup}-actions`) {
+    return new Set([tutorialCue.requiredButtonId].filter(Boolean));
+  }
+
+  return new Set([ACTION_GROUP_BACK_BUTTONS[visibleGroupId]].filter(Boolean));
+}
+
+function applyTutorialActionState(tutorialCue) {
+  const highlightedButtons = new Set(tutorialCue?.buttonHighlights || []);
+  const allowedButtons = getAllowedTutorialButtonIds(tutorialCue);
+
+  TUTORIAL_ACTION_BUTTON_IDS.forEach((id) => {
+    const button = document.getElementById(id);
+    if (!button) return;
+
+    button.classList.toggle("is-tutorial-highlighted", highlightedButtons.has(id));
+
+    if (allowedButtons && !allowedButtons.has(id)) {
+      button.disabled = true;
+    }
+  });
+
+  const healthRow = $("#battle-player-health-row");
+  if (healthRow) {
+    healthRow.dataset.tutorialHighlight = tutorialCue?.highlightHealth ? "true" : "false";
+  }
+}
+
+function renderTutorialGuide(tutorialCue, onSkip) {
+  const guide = $("#tutorial-guide");
+  const guideText = $("#tutorial-guide-text");
+  const skipButton = $("#tutorial-guide-skip-btn");
+
+  if (!guide || !guideText) return;
+
+  if (!tutorialCue) {
+    guide.hidden = true;
+    guide.dataset.cue = "";
+    guideText.textContent = "";
+    return;
+  }
+
+  guide.hidden = false;
+  guide.dataset.cue = tutorialCue.id;
+  guide.dataset.complete = tutorialCue.complete ? "true" : "false";
+  guideText.textContent = tutorialCue.text;
+
+  if (skipButton) {
+    skipButton.onclick = () => {
+      onSkip();
+    };
   }
 }
 
@@ -1283,12 +1385,16 @@ async function saveGameToBackend(engine) {
 export function bootGameUI({
   difficultyText = "EASY",
   selectedCharacter = "leon",
-  savedState = null
+  savedState = null,
+  tutorialGuideActive = false
 } = {}) {
   const engine = createCombatEngine({
     difficulty: difficultyText,
     character: selectedCharacter,
     savedState
+  });
+  const tutorialGuide = createTutorialGuide({
+    active: tutorialGuideActive && !savedState
   });
 
   const storyText = $("#story-text");
@@ -1461,7 +1567,8 @@ export function bootGameUI({
       ["reload-rifle-btn", dead || interactionLocked || emergencyActive || !engine.state.rifle.owned],
       ["medkit-btn", dead || interactionLocked || emergencyActive],
       ["shield-btn", dead || interactionLocked || emergencyActive || !engine.state.shield.hasShield],
-      ["inventory-back-btn", dead || interactionLocked || emergencyActive]
+      ["inventory-back-btn", dead || interactionLocked || emergencyActive],
+      ["stats-back-btn", dead || interactionLocked || emergencyActive]
     ];
 
     buttonStates.forEach(([id, disabled]) => {
@@ -1568,19 +1675,25 @@ export function bootGameUI({
     const interactionLocked = isInteractionLocked();
     const bothShopAndChoicesOpen = engine.isShopOpen() && engine.hasChoices();
     const gameMain = document.querySelector(".game-main");
+    const tutorialCue = tutorialGuide.getCue(engine);
 
     if (gameMain) {
       gameMain.classList.toggle("shop-choice-scroll", bothShopAndChoicesOpen);
     }
 
     renderStats(engine);
-    renderBattleScene(engine, battleSceneState);
+    renderBattleScene(engine, battleSceneState, tutorialCue);
     renderWeaponVisibility(engine);
     renderChoiceBox(engine, handlePathChoice, interactionLocked);
     renderShopBox(engine, interactionLocked, handleShopBuy, handleShopSell, handleShopContinue);
     renderContinueBox(engine, interactionLocked, handleContinueLevel);
     renderEmergencyBox();
     updateActionAvailability();
+    applyTutorialActionState(tutorialCue);
+    renderTutorialGuide(tutorialCue, () => {
+      tutorialGuide.skip();
+      renderAll();
+    });
     updateMissionSkipControls();
   }
 
@@ -1632,11 +1745,16 @@ export function bootGameUI({
 
   async function handleAction(actionKey) {
     if (isInteractionLocked() || isGameOver(engine) || engine.hasEmergency()) return;
+    if (!tutorialGuide.canPerformAction(actionKey, engine)) {
+      renderAll();
+      return;
+    }
 
     locked = true;
     updateActiveWeapon(actionKey);
     renderAll();
     const events = engine.dispatch(actionKey);
+    tutorialGuide.recordAction(actionKey, engine);
     playCombatActionSfx(actionKey, events);
     playDerivedCombatSfx(events);
     triggerBattleFx(actionKey, events);

@@ -265,6 +265,73 @@ def format_agent_joined_date(user):
     return joined_at.strftime("%d %b %Y").upper()
 
 
+WORLD_CHAT_LIMIT = 30
+
+
+def serialize_world_message(message):
+    author = getattr(message, "user", None)
+
+    if author is None:
+        display_name = "Unknown Agent"
+        profile_image = url_for("static", filename=PROFILE_IMAGE_DEFAULT)
+        is_current_message_user = False
+    else:
+        display_name = get_display_name(author)
+        profile_image = url_for("static", filename=(author.profile_image or PROFILE_IMAGE_DEFAULT))
+        is_current_message_user = current_user.is_authenticated and current_user.id == message.user_id
+
+    return {
+        "id": message.id,
+        "user_id": message.user_id,
+        "display_name": display_name,
+        "profile_image": profile_image,
+        "message": message.message,
+        "created_at": message.created_at.isoformat() if message.created_at else None,
+        "is_current_user": is_current_message_user,
+    }
+
+
+@app.route("/world-chat/messages", methods=["GET"])
+def get_world_chat_messages():
+    messages = (
+        WorldMessage.query
+        .order_by(WorldMessage.created_at.desc(), WorldMessage.id.desc())
+        .limit(WORLD_CHAT_LIMIT)
+        .all()
+    )
+    messages.reverse()
+
+    return jsonify({
+        "ok": True,
+        "messages": [serialize_world_message(message) for message in messages],
+    })
+
+
+@app.route("/world-chat/messages", methods=["POST"])
+def post_world_chat_message():
+    if not current_user.is_authenticated or session.get("is_guest"):
+        return jsonify({"ok": False, "message": "Please log in to post in world chat."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    message = normalize_chat_message(payload.get("message"))
+    error = validate_chat_message(message)
+
+    if error:
+        return jsonify({"ok": False, "message": error}), 400
+
+    world_message = WorldMessage(
+        user_id=current_user.id,
+        message=message,
+    )
+    db.session.add(world_message)
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "message": serialize_world_message(world_message),
+    })
+
+
 @app.route("/main-menu")
 @app.route("/main_menu")
 def main_menu():

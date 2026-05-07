@@ -39,7 +39,7 @@
 
       <div class="character-grid">
         <button type="button" class="character-card" data-character="leon">
-          <img src="{{ url_for('static', filename='images/players/leon_idle.png') }}" alt="Leon character">
+          <img src="{{ url_for('static', filename='images/players/leon_right_idle.png') }}" alt="Leon character">
           <span class="character-name">LEON</span>
           <div class="character-desc">
             <strong data-i18n="play.leonRole">TACTICAL SPECIALIST</strong>
@@ -74,6 +74,31 @@
       <div class="button-stack">
         <button type="button" class="primary-btn difficulty-btn" data-difficulty="Easy" data-i18n="play.easy">EASY</button>
         <button type="button" class="danger-btn difficulty-btn" data-difficulty="Hard" data-i18n="play.hard">HARD</button>
+      </div>
+    </section>
+
+    <section id="tutorial-screen" class="panel">
+      <button type="button" id="tutorial-back-btn" class="back-arrow" aria-label="Back">
+        ←
+      </button>
+
+      <h1 data-i18n="play.fieldGuide">FIELD GUIDE</h1>
+      <p class="subtitle" data-i18n="play.fieldGuideSubtitle">Let Quite coach the first three tutorial levels with locked lessons and combat callouts.</p>
+
+      <div class="tutorial-choice-preview">
+        <img
+          src="{{ url_for('static', filename='images/players/quite_guide_portrait.png') }}"
+          alt="Quite field guide"
+        >
+        <div>
+          <strong data-i18n="play.quiteCanGuide">QUITE CAN GUIDE YOU</strong>
+          <p data-i18n="play.quiteGuideDesc">She will pop in with comic-style instructions, glow the right controls, and step away once the tutorial route is clear.</p>
+        </div>
+      </div>
+
+      <div class="button-stack">
+        <button type="button" id="tutorial-guide-btn" class="primary-btn" data-i18n="play.guideMe">GUIDE ME</button>
+        <button type="button" id="tutorial-skip-btn" class="secondary-btn" data-i18n="play.startWithoutGuide">START WITHOUT GUIDE</button>
       </div>
     </section>
 
@@ -154,6 +179,22 @@
             <div id="battle-stage" class="battle-stage" data-theme="tutorial">
               <div id="battle-backdrop" class="battle-backdrop" aria-hidden="true"></div>
               <div id="battle-overlay" class="battle-overlay" aria-hidden="true"></div>
+
+              <div id="tutorial-guide" class="tutorial-guide" role="status" aria-live="polite" hidden>
+                <img
+                  id="tutorial-guide-portrait"
+                  class="tutorial-guide-portrait"
+                  src="{{ url_for('static', filename='images/players/quite_guide_portrait.png') }}"
+                  alt="Quite guide"
+                >
+                <div class="tutorial-guide-bubble">
+                  <div class="tutorial-guide-header">
+                    <span data-i18n="play.quiteGuideName">QUITE</span>
+                    <button type="button" id="tutorial-guide-skip-btn" class="tutorial-guide-skip-btn" data-i18n="play.skipGuide">SKIP GUIDE</button>
+                  </div>
+                  <p id="tutorial-guide-text"></p>
+                </div>
+              </div>
 
               <div id="battle-hud" class="battle-hud">
                 <section class="battle-status battle-status-player" aria-label="Player battle status">
