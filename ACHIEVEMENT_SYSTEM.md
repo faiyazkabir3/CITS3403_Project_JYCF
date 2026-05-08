@@ -112,18 +112,16 @@ The old FBI seal is still used as a visual dossier stamp in the top-right of the
 Relevant automated coverage is in:
 
 ```text
-tests/playwright/social-progress.spec.js
-tests/playwright/smoke.spec.js
+tests/unit/test_helpers.py
+tests/selenium/test_browser_flows.py
 ```
 
 The intended coverage checks:
 
-- registered users see the formatted agent ID, licence number, and blood group
-- guests show `AGENT ID: GUEST`
-- achievement badge images load
-- bronze/silver/gold tier labels render from saved progress
-- the main-menu clipboard shows no more than three earned badges
-- the main menu and logo remain centered in the available right-side layout lane
+- achievement unlock logic handles regular and sharpshooter rules
+- registered users can open the achievements page
+- achievement progress stats such as kills and reloads render in the browser
+- registered users can save profile/game progress without breaking the achievement flow
 
 Run the fast template/static sanity check with:
 
@@ -131,8 +129,8 @@ Run the fast template/static sanity check with:
 npm run check:js
 ```
 
-Run browser coverage with:
+Run the required Python and Selenium test suite with:
 
 ```powershell
-npm run test:e2e
+python -m pytest
 ```

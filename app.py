@@ -346,9 +346,9 @@ def handle_unauthorized_user():
         return jsonify({"ok": False, "message": "Please log in."}), 401
 
     if session.get("is_guest"):
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("main.main_menu"))
 
-    return redirect(url_for("show_login"))
+    return redirect(url_for("main.show_login"))
 
 
 @app.before_request
@@ -2028,7 +2028,9 @@ def build_save_payload(save_data):
 
 sys.modules.setdefault("app", sys.modules[__name__])
 
-import routes
+from routes import main_bp
+
+app.register_blueprint(main_bp)
 
 if __name__ == "__main__":
     socketio.run(app, debug=True)

@@ -1,7 +1,10 @@
 import re
+from flask import Blueprint
+
 from app import *
 
 
+main_bp = Blueprint("main", __name__)
 
 MIN_USERNAME_LENGTH = 3
 MAX_USERNAME_LENGTH = 80
@@ -153,8 +156,8 @@ def sanitize_save_request_payload(data):
     }
 
 
-@app.route("/")
-@app.route("/login", methods=["GET", "POST"])
+@main_bp.route("/")
+@main_bp.route("/login", methods=["GET", "POST"])
 def show_login():
     if request.method == "GET" and request.path == "/login" and current_user.is_authenticated:
         logout_user()
@@ -162,7 +165,7 @@ def show_login():
         return render_template("login.html", error=None)
 
     if current_user.is_authenticated:
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("main.main_menu"))
 
     if request.method == "POST":
         username = normalize_auth_username(request.form.get("username", ""))
@@ -191,15 +194,15 @@ def show_login():
         session["display_name"] = get_display_name(user)
         session["is_guest"] = False
 
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("main.main_menu"))
 
     return render_template("login.html", error=None)
 
 
-@app.route("/register", methods=["GET", "POST"])
+@main_bp.route("/register", methods=["GET", "POST"])
 def show_register():
     if current_user.is_authenticated:
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("main.main_menu"))
 
     if request.method == "POST":
         username = normalize_auth_username(request.form.get("username", ""))
@@ -233,12 +236,12 @@ def show_register():
         db.session.add(new_user)
         db.session.commit()
 
-        return redirect(url_for("show_login"))
+        return redirect(url_for("main.show_login"))
 
     return render_template("register.html", error=None)
 
 
-@app.route("/guest-login", methods=["POST"])
+@main_bp.route("/guest-login", methods=["POST"])
 def guest_login():
     name = make_guest_name()
 
@@ -247,14 +250,14 @@ def guest_login():
     session["username"] = name
     session["is_guest"] = True
 
-    return redirect(url_for("main_menu"))
+    return redirect(url_for("main.main_menu"))
 
 
-@app.route("/logout", methods=["POST"])
+@main_bp.route("/logout", methods=["POST"])
 def logout():
     logout_user()
     session.clear()
-    return redirect(url_for("show_login"))
+    return redirect(url_for("main.show_login"))
 
 
 def format_agent_joined_date(user):
@@ -291,7 +294,7 @@ def serialize_world_message(message):
     }
 
 
-@app.route("/world-chat/messages", methods=["GET"])
+@main_bp.route("/world-chat/messages", methods=["GET"])
 def get_world_chat_messages():
     messages = (
         WorldMessage.query
@@ -307,7 +310,7 @@ def get_world_chat_messages():
     })
 
 
-@app.route("/world-chat/messages", methods=["POST"])
+@main_bp.route("/world-chat/messages", methods=["POST"])
 def post_world_chat_message():
     if not current_user.is_authenticated or session.get("is_guest"):
         return jsonify({"ok": False, "message": "Please log in to post in world chat."}), 403
@@ -332,8 +335,8 @@ def post_world_chat_message():
     })
 
 
-@app.route("/main-menu")
-@app.route("/main_menu")
+@main_bp.route("/main-menu")
+@main_bp.route("/main_menu")
 def main_menu():
     is_guest = bool(session.get("is_guest")) and not current_user.is_authenticated
     username = get_display_name(current_user) if current_user.is_authenticated else session.get("username")
@@ -344,7 +347,7 @@ def main_menu():
     agent_showcase_badges = []
 
     if not username:
-        return redirect(url_for("show_login"))
+        return redirect(url_for("main.show_login"))
 
     friends = []
     unread_message_count = 0
@@ -364,7 +367,7 @@ def main_menu():
         unread_message_count = get_unread_message_count(user_id)
     elif not is_guest:
         session.clear()
-        return redirect(url_for("show_login"))
+        return redirect(url_for("main.show_login"))
 
     return render_template(
         "main_menu_view.html",
@@ -382,7 +385,7 @@ def main_menu():
     )
 
 
-@app.route("/profile", methods=["GET", "POST"])
+@main_bp.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
     user = current_user
@@ -546,7 +549,7 @@ def profile():
     )
 
 
-@app.route("/profile/<int:user_id>", methods=["GET", "POST"])
+@main_bp.route("/profile/<int:user_id>", methods=["GET", "POST"])
 @login_required
 def view_profile(user_id):
     current_user_id = current_user.id
@@ -554,7 +557,7 @@ def view_profile(user_id):
     profile_user = User.query.get(user_id)
     if profile_user is None:
         flash("Profile not found.")
-        return redirect(url_for("main_menu"))
+        return redirect(url_for("main.main_menu"))
 
     if request.method == "POST":
         action = request.form.get("action")
@@ -620,7 +623,7 @@ def view_profile(user_id):
             )
             flash("Profile action failed.")
 
-        return redirect(url_for("view_profile", user_id=user_id))
+        return redirect(url_for("main.view_profile", user_id=user_id))
 
     leaderboard_entry = None if profile_user.hide_from_leaderboard else get_leaderboard_entry_for_user(
         user_id,
@@ -653,23 +656,23 @@ def view_profile(user_id):
     )
 
 
-@app.route("/favicon.ico")
+@main_bp.route("/favicon.ico")
 def favicon():
     return app.send_static_file("images/icons/game_logo.svg")
 
 
-@app.route("/play")
+@main_bp.route("/play")
 def show_play():
     if "username" not in session:
-        return redirect(url_for("show_login"))
+        return redirect(url_for("main.show_login"))
 
     return render_template("play.html")
 
 
-@app.route("/achievements")
+@main_bp.route("/achievements")
 def show_achievements():
     if "username" not in session:
-        return redirect(url_for("show_login"))
+        return redirect(url_for("main.show_login"))
 
     user_id = session.get("user_id")
     username = session.get("username", "Player")
@@ -692,7 +695,7 @@ def show_achievements():
     )
 
 
-@app.route("/save-game", methods=["POST"])
+@main_bp.route("/save-game", methods=["POST"])
 @login_required
 def save_game():
     user_id = current_user.id
@@ -754,7 +757,7 @@ def save_game():
     })
 
 
-@app.route("/load-game")
+@main_bp.route("/load-game")
 @login_required
 def load_game():
     user_id = current_user.id
@@ -798,19 +801,19 @@ def load_game():
         "save_data": save_payload
     })
 
-@app.route("/add_friend/<int:user_id>", methods=["POST"])
+@main_bp.route("/add_friend/<int:user_id>", methods=["POST"])
 @login_required
 def add_friend(user_id):
     current_user_id = current_user.id
 
     if current_user_id == user_id:
         flash("You cannot add yourself.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     target_user = User.query.get(user_id)
     if target_user is None:
         flash("User not found.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     try:
         _, message = create_friend_request(current_user_id, user_id)
@@ -826,10 +829,10 @@ def add_friend(user_id):
         )
         flash("Friend request failed.")
 
-    return redirect(url_for("view_profile", user_id=user_id))
+    return redirect(url_for("main.view_profile", user_id=user_id))
 
 
-@app.route('/friends', methods=['GET', 'POST'])
+@main_bp.route('/friends', methods=['GET', 'POST'])
 @login_required
 def show_friends():
     user = current_user
@@ -841,11 +844,11 @@ def show_friends():
 
         if friend_username_error is not None:
             flash(friend_username_error)
-            return redirect(url_for('show_friends'))
+            return redirect(url_for('main.show_friends'))
 
         if friend_username == user.username:
             flash("You cannot add yourself.")
-            return redirect(url_for('show_friends'))
+            return redirect(url_for('main.show_friends'))
 
         friend = User.query.filter_by(username=friend_username).first()
 
@@ -866,7 +869,7 @@ def show_friends():
         else:
             flash('User not found.')
 
-        return redirect(url_for('show_friends'))
+        return redirect(url_for('main.show_friends'))
 
     # Get pending requests for current user
     incoming_requests = FriendRequest.query.filter_by(
@@ -886,7 +889,7 @@ def show_friends():
     )
 
 
-@app.route("/accept_friend/<int:request_id>", methods=["POST"])
+@main_bp.route("/accept_friend/<int:request_id>", methods=["POST"])
 @login_required
 def accept_friend(request_id):
     current_user_id = current_user.id
@@ -896,10 +899,10 @@ def accept_friend(request_id):
         accept_pending_friend_request(friend_request)
         db.session.commit()
 
-    return redirect(url_for("show_friends"))
+    return redirect(url_for("main.show_friends"))
 
 
-@app.route("/reject_friend/<int:request_id>", methods=["POST"])
+@main_bp.route("/reject_friend/<int:request_id>", methods=["POST"])
 @login_required
 def reject_friend(request_id):
     current_user_id = current_user.id
@@ -909,9 +912,9 @@ def reject_friend(request_id):
         db.session.delete(friend_request)
         db.session.commit()
 
-    return redirect(url_for("show_friends"))
+    return redirect(url_for("main.show_friends"))
 
-@app.route("/unfriend/<int:friend_id>", methods=["POST"])
+@main_bp.route("/unfriend/<int:friend_id>", methods=["POST"])
 @login_required
 def unfriend(friend_id):
     current_user_id = current_user.id
@@ -919,7 +922,7 @@ def unfriend(friend_id):
     friend = User.query.get(friend_id)
     if friend is None:
         flash("Friend not found.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     friendships = Friend.query.filter(
         Friend.status == "accepted",
@@ -931,7 +934,7 @@ def unfriend(friend_id):
 
     if not friendships:
         flash("That user is not in your friends list.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     try:
         for friendship in friendships:
@@ -949,10 +952,10 @@ def unfriend(friend_id):
         )
         flash("Could not remove friend.")
 
-    return redirect(url_for("show_friends"))
+    return redirect(url_for("main.show_friends"))
 
 
-@app.route("/chat/keys/<int:friend_id>", methods=["GET", "POST"])
+@main_bp.route("/chat/keys/<int:friend_id>", methods=["GET", "POST"])
 @login_required
 def chat_keys(friend_id):
     user = current_user._get_current_object()
@@ -980,7 +983,7 @@ def chat_keys(friend_id):
         "friend_key": serialize_chat_public_key(friend),
     })
 
-@app.route("/chat/keys", methods=["POST"])
+@main_bp.route("/chat/keys", methods=["POST"])
 @login_required
 def register_chat_key():
     user = current_user._get_current_object()
@@ -1009,7 +1012,7 @@ def register_chat_key():
         "current_user_key": serialize_chat_public_key(user),
     })
 
-@app.route("/chat/<int:friend_id>", methods=["GET", "POST"])
+@main_bp.route("/chat/<int:friend_id>", methods=["GET", "POST"])
 @login_required
 def chat(friend_id):
     current_user_id = current_user.id
@@ -1018,11 +1021,11 @@ def chat(friend_id):
 
     if friend is None:
         flash("You can only chat with users in your friends list.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     if not friend.allow_friend_messages:
         flash("This friend is not accepting messages right now.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     if request.method == "POST":
         encrypted_payload = validate_encrypted_chat_payload({
@@ -1045,7 +1048,7 @@ def chat(friend_id):
             )
             db.session.add(message)
             db.session.commit()
-            return redirect(url_for("chat", friend_id=friend_id))
+            return redirect(url_for("main.chat", friend_id=friend_id))
 
         flash("Message encryption failed.")
 
@@ -1170,7 +1173,7 @@ def handle_chat_send(data):
         "message": payload,
     }
 
-@app.route("/friend-stats/<int:friend_id>")
+@main_bp.route("/friend-stats/<int:friend_id>")
 @login_required
 def friend_stats(friend_id):
     current_user_id = current_user.id
@@ -1183,12 +1186,12 @@ def friend_stats(friend_id):
 
     if friendship is None:
         flash("You can only view stats for users in your friends list.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     friend = User.query.get(friend_id)
     if friend is None:
         flash("Friend not found.")
-        return redirect(url_for("show_friends"))
+        return redirect(url_for("main.show_friends"))
 
     if not can_view_friend_stats(current_user_id, friend):
         return render_template(

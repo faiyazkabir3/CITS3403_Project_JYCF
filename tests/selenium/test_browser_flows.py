@@ -48,7 +48,9 @@ def login_user(driver, base_url, credentials):
     driver.find_element(By.ID, "password").send_keys(credentials["password"])
     driver.find_element(By.CSS_SELECTOR, ".login-btn").click()
     wait_for_url_contains(driver, "/main")
-    assert driver.find_element(By.CSS_SELECTOR, ".operator-name").text == credentials["username"]
+    assert driver.find_element(By.CSS_SELECTOR, ".operator-name").text == credentials["username"], (
+        "Logged-in main menu should show the registered username."
+    )
 
 
 def register_and_login(driver, base_url, label):
@@ -62,7 +64,9 @@ def test_play_requires_login(driver, base_url):
     driver.get(f"{base_url}/play")
 
     wait_for_url_contains(driver, "/login")
-    assert driver.find_element(By.TAG_NAME, "h1").text == "Welcome, Survivor"
+    assert driver.find_element(By.TAG_NAME, "h1").text == "Welcome, Survivor", (
+        "Unauthenticated /play access should redirect back to the login page."
+    )
 
 
 def test_login_rejects_unknown_user(driver, base_url):
@@ -93,9 +97,13 @@ def test_register_requires_matching_password_confirmation(driver, base_url):
 def test_user_can_register_and_login(driver, base_url):
     credentials = register_and_login(driver, base_url, "seleniumuser")
 
-    assert "/main" in driver.current_url
-    assert driver.find_element(By.CSS_SELECTOR, ".operator-name").text == credentials["username"]
-    assert driver.find_element(By.CSS_SELECTOR, ".play-btn").is_displayed()
+    assert "/main" in driver.current_url, "Registered user should land on the main menu after login."
+    assert driver.find_element(By.CSS_SELECTOR, ".operator-name").text == credentials["username"], (
+        "Main menu should display the username for the logged-in registered user."
+    )
+    assert driver.find_element(By.CSS_SELECTOR, ".play-btn").is_displayed(), (
+        "Registered user should see the play button on the main menu."
+    )
 
 
 def test_guest_login_settings_modal(driver, base_url):
@@ -103,12 +111,14 @@ def test_guest_login_settings_modal(driver, base_url):
     wait_for_clickable(driver, By.CSS_SELECTOR, ".guest-btn").click()
     wait_for_url_contains(driver, "/main")
 
-    assert "GUEST MODE" in driver.page_source
+    assert "GUEST MODE" in driver.page_source, "Guest login should show guest mode on the main menu."
     driver.find_element(By.ID, "open-settings-btn").click()
     WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, "settings-modal")))
 
     driver.find_element(By.ID, "mute-audio").click()
-    assert driver.find_element(By.ID, "mute-status").text == "ON"
+    assert driver.find_element(By.ID, "mute-status").text == "ON", (
+        "Settings modal should update the mute status when the mute checkbox is clicked."
+    )
 
 
 def test_guest_friends_button_is_disabled(driver, base_url):
@@ -117,8 +127,12 @@ def test_guest_friends_button_is_disabled(driver, base_url):
     wait_for_url_contains(driver, "/main")
 
     friends_button = wait_for_element(driver, By.CSS_SELECTOR, ".friends-btn")
-    assert friends_button.get_attribute("disabled") == "true"
-    assert friends_button.get_attribute("title") == "Friends are only available for registered players."
+    assert friends_button.get_attribute("disabled") == "true", (
+        "Guest users should not be able to open the registered-user friends feature."
+    )
+    assert friends_button.get_attribute("title") == "Friends are only available for registered players.", (
+        "Disabled friends button should explain that friends require a registered account."
+    )
 
 
 def test_registered_user_can_open_achievements(driver, base_url):
@@ -127,8 +141,12 @@ def test_registered_user_can_open_achievements(driver, base_url):
     driver.find_element(By.XPATH, "//button[normalize-space()='ACHIEVEMENTS']").click()
     wait_for_url_contains(driver, "/achievements")
 
-    assert driver.find_element(By.ID, "kills").is_displayed()
-    assert driver.find_element(By.ID, "reloads").is_displayed()
+    assert driver.find_element(By.ID, "kills").is_displayed(), (
+        "Achievements page should show the kills progress stat."
+    )
+    assert driver.find_element(By.ID, "reloads").is_displayed(), (
+        "Achievements page should show the reloads progress stat."
+    )
 
 
 def test_registered_user_can_open_friends_hub(driver, base_url):
@@ -141,9 +159,15 @@ def test_registered_user_can_open_friends_hub(driver, base_url):
     driver.find_element(By.CSS_SELECTOR, ".friends-hub-link").click()
     wait_for_url_contains(driver, "/friends")
 
-    assert f"{credentials['username']}'s Friends" in driver.find_element(By.TAG_NAME, "h1").text
-    assert driver.find_element(By.CSS_SELECTOR, "[data-friend-username]").is_displayed()
-    assert "No friends yet" in driver.page_source
+    assert f"{credentials['username']}'s Friends" in driver.find_element(By.TAG_NAME, "h1").text, (
+        "Friends hub heading should identify the logged-in registered user."
+    )
+    assert driver.find_element(By.CSS_SELECTOR, "[data-friend-username]").is_displayed(), (
+        "Friends hub should render the friend search username field."
+    )
+    assert "No friends yet" in driver.page_source, (
+        "Newly registered user should start with an empty friends list."
+    )
 
 
 def test_profile_background_save_success(driver, base_url):
@@ -174,8 +198,10 @@ def test_profile_background_save_success(driver, base_url):
             }));
     """)
 
-    assert result["ok"] is True
-    assert "Profile updated." in result["text"]
+    assert result["ok"] is True, "Profile form POST should succeed for a logged-in registered user."
+    assert "Profile updated." in result["text"], (
+        "Profile update response should confirm the profile was saved."
+    )
 
 
 def test_registered_user_can_logout(driver, base_url):
@@ -184,4 +210,6 @@ def test_registered_user_can_logout(driver, base_url):
     wait_for_clickable(driver, By.CSS_SELECTOR, ".logout-form button[type='submit']").click()
     wait_for_url_contains(driver, "/login")
 
-    assert driver.find_element(By.TAG_NAME, "h1").text == "Welcome, Survivor"
+    assert driver.find_element(By.TAG_NAME, "h1").text == "Welcome, Survivor", (
+        "Logout should return the registered user to the login page."
+    )

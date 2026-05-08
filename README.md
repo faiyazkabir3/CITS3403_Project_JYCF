@@ -280,18 +280,6 @@ Run the full JavaScript sanity check:
 npm run sanity:js
 ```
 
-Run browser-level smoke checks with Playwright:
-
-```powershell
-npm run sanity:browser
-```
-
-Run the full local sanity suite:
-
-```powershell
-npm run sanity:all
-```
-
 Auto-fix lint issues where possible:
 
 ```powershell
@@ -300,12 +288,18 @@ npm run lint:js:fix
 
 ## Python Unit And Selenium Tests
 
-The repo includes pytest unit tests and a Selenium browser suite for the rubric testing requirement.
+The repo includes pytest unit tests and a Selenium browser suite for the rubric testing requirement. These are the required project testing evidence.
 
 - `python -m pytest tests/unit`: run the Python unit tests
 - `python -m pytest tests/selenium`: run the Selenium browser tests with Chrome by default
 - `python -m pytest`: run all Python unit and Selenium tests
 - `python -m pytest --collect-only`: confirm pytest discovers at least 5 unit tests and 5 Selenium tests
+
+On this Mac, use the virtual environment interpreter if plain `python` is not on PATH:
+
+```bash
+.venv/bin/python -m pytest
+```
 
 The Selenium suite starts a dedicated Flask test server on `http://127.0.0.1:5001` and uses an isolated temporary test database. Chrome is the default browser. To run the same Selenium tests in Edge instead:
 
@@ -314,15 +308,7 @@ $env:SELENIUM_BROWSER = "edge"
 python -m pytest tests/selenium
 ```
 
-## Playwright Smoke Tests
-
-The repo includes Playwright smoke tests for real browser-level checks.
-
-- `npm run test:e2e`: run the Playwright suite headlessly
-- `npm run test:e2e:headed`: run the suite with a visible browser
-- `npm run sanity:browser`: run the smoke test file only
-
-The Playwright config uses Chromium by default, or the browser channel in `PLAYWRIGHT_CHANNEL` when one is set, and starts a dedicated Flask test server with an isolated SQLite database at `instance/playwright_smoke.db`. This keeps smoke-test accounts and save data out of your main local run.
+The optional JavaScript sanity check is useful while developing, but it is separate from the teacher's required unit and Selenium testing requirement.
 
 ## VS Code Debugging
 

@@ -14,7 +14,7 @@
 <body class="play-page friends-page" data-user-id="{{ current_user.id }}">
   <div class="screen-wrap">
     <section class="panel active">
-      <a href="{{ url_for('main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
+      <a href="{{ url_for('main.main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
       <h1>{{ username }}'s Friends</h1>
 
@@ -33,15 +33,15 @@
         <ul>
           {% for req in incoming_requests %}
             <li>
-              <a class="friend-name-link" href="{{ url_for('view_profile', user_id=req.from_user.id) }}">
+              <a class="friend-name-link" href="{{ url_for('main.view_profile', user_id=req.from_user.id) }}">
                 {{ req.from_user.display_name or req.from_user.username }}
               </a>
               <div class="friend-actions">
-                <form method="POST" action="{{ url_for('accept_friend', request_id=req.id) }}" class="inline-action-form">
+                <form method="POST" action="{{ url_for('main.accept_friend', request_id=req.id) }}" class="inline-action-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="primary-btn">Accept</button>
                 </form>
-                <form method="POST" action="{{ url_for('reject_friend', request_id=req.id) }}" class="inline-action-form">
+                <form method="POST" action="{{ url_for('main.reject_friend', request_id=req.id) }}" class="inline-action-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="danger-btn">Reject</button>
                 </form>
@@ -61,16 +61,16 @@
             <li>
               <div class="friend-identity">
                 <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
-                <a class="friend-name-link" href="{{ url_for('view_profile', user_id=f.id) }}">
+                <a class="friend-name-link" href="{{ url_for('main.view_profile', user_id=f.id) }}">
                   {{ f.display_name or f.username }}
                 </a>
                 <span class="presence-label">{{ presence.label }}</span>
               </div>
-              <a class="primary-btn" href="{{ url_for('chat', friend_id=f.id) }}">Chat</a>
-              <a class="primary-btn" href="{{ url_for('friend_stats', friend_id=f.id) }}">View Stats</a>
+              <a class="primary-btn" href="{{ url_for('main.chat', friend_id=f.id) }}">Chat</a>
+              <a class="primary-btn" href="{{ url_for('main.friend_stats', friend_id=f.id) }}">View Stats</a>
               <form
                 method="POST"
-                action="{{ url_for('unfriend', friend_id=f.id) }}"
+                action="{{ url_for('main.unfriend', friend_id=f.id) }}"
                 class="inline-action-form"
                 onsubmit="return confirm('Remove {{ (f.display_name or f.username)|e }} from your friends?');"
               >
@@ -92,7 +92,7 @@
             <li>
               <div class="friend-identity">
                 <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
-                <a class="friend-name-link" href="{{ url_for('chat', friend_id=conversation.friend.id) }}">
+                <a class="friend-name-link" href="{{ url_for('main.chat', friend_id=conversation.friend.id) }}">
                   {{ conversation.display_name }}
                 </a>
                 <span class="presence-label">{{ presence.label }}</span>

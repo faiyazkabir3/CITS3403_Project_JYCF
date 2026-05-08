@@ -114,9 +114,9 @@ The update keeps standard Flask session-cookie behavior:
 
 This is the normal and expected behavior for cookie-based web apps.
 
-### 2.5 Better test coverage
+### 2.5 Test coverage targets
 
-The update added Playwright coverage for:
+The marking-focused suite keeps chat coverage in pytest and Selenium. Useful coverage targets are:
 
 - same-browser shared session behavior
 - separate browser context behavior
@@ -131,7 +131,7 @@ The update added Playwright coverage for:
 - `app.py`
 - `models.py`
 - `requirements.txt`
-- `scripts/run_playwright_server.py`
+- `scripts/run_selenium_server.py`
 
 ### Frontend
 
@@ -140,9 +140,10 @@ The update added Playwright coverage for:
 - `static/js/chat.js`
 - `static/css/global.css`
 
-### Browser tests
+### Tests
 
-- `tests/playwright/chat.spec.js`
+- `tests/unit/test_helpers.py`
+- `tests/selenium/test_browser_flows.py`
 
 ## 4. How The Old Chat Worked
 

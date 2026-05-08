@@ -60,8 +60,8 @@ This branch does not claim to solve every security problem. HTTPS certificates, 
 | Login/register/profile/friend/chat forms | `templates/*.html` |
 | Chat E2EE client | `static/js/chat.js` |
 | Save-game CSRF fetch | `static/js/gameUI.js` |
-| Browser tests | `tests/playwright/*.spec.js` |
-| Test Flask server secrets | `scripts/run_playwright_server.py` |
+| Browser tests | `tests/selenium/test_browser_flows.py` |
+| Test Flask server secrets | `scripts/run_selenium_server.py` |
 | Setup instructions | `README.md` |
 | Database overview | `DATABASE_GUIDE.md` |
 | Chat encryption details | `END_TO_END_ENCRYPTED_CHAT.md` |
@@ -617,10 +617,10 @@ npm run check:js
 Run browser checks:
 
 ```bash
-npm run sanity:browser
+python -m pytest tests/selenium
 ```
 
-The Playwright config uses a Chrome project. If Chrome is missing, install it or adjust the Playwright channel.
+The Selenium suite uses Chrome by default and starts an isolated Flask test server.
 
 ## Manual Security Checks
 
