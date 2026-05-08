@@ -12,7 +12,9 @@
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body class="play-page">
+<body class="play-page video-bg-page">
+  {% include "_background_video.html" %}
+
   <div class="screen-wrap">
 
     <section id="start-screen" class="panel active">
