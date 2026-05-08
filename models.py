@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
+
+
+def utc_now():
+    """Return a naive UTC timestamp for existing SQLAlchemy DateTime columns."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(UserMixin, db.Model):
@@ -18,7 +23,7 @@ class User(UserMixin, db.Model):
     allow_friend_messages = db.Column(db.Boolean, nullable=False, default=True)
     hide_from_leaderboard = db.Column(db.Boolean, nullable=False, default=False)
     last_seen = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
     password_hash = db.Column(db.String(255), nullable=False)
     chat_public_key = db.Column(db.Text, nullable=True)
     chat_key_id = db.Column(db.String(64), nullable=True)
@@ -63,7 +68,7 @@ class SaveData(db.Model):
 
     has_started_game = db.Column(db.Boolean, nullable=False, default=False)
     run_state_json = db.Column(db.Text, nullable=True)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utc_now)
 
 class Friend(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -92,7 +97,7 @@ class Message(db.Model):
     recipient_key_id = db.Column(db.String(64), nullable=True)
     recipient_public_key = db.Column(db.Text, nullable=True)
     encryption_version = db.Column(db.Integer, nullable=False, default=1)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utc_now)
     read_at = db.Column(db.DateTime, nullable=True)
 
 
@@ -100,7 +105,7 @@ class WorldMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
 
     user = db.relationship("User", foreign_keys=[user_id])
 
@@ -109,7 +114,7 @@ class UserAchievement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     achievement_id = db.Column(db.String(80), nullable=False)
-    unlocked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    unlocked_at = db.Column(db.DateTime, nullable=False, default=utc_now)
 
     __table_args__ = (
         db.UniqueConstraint("user_id", "achievement_id", name="uq_user_achievement"),
@@ -120,8 +125,8 @@ class ProfileReaction(db.Model):
     profile_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     reactor_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     reaction_type = db.Column(db.String(20), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utc_now)
 
     __table_args__ = (
         db.UniqueConstraint("profile_user_id", "reactor_user_id", name="uq_profile_reaction"),
@@ -132,6 +137,6 @@ class ProfileComment(db.Model):
     profile_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     author_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     comment = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
 
     author = db.relationship("User", foreign_keys=[author_user_id])

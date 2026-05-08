@@ -110,7 +110,7 @@ async function parseWorldChatResponse(response, fallbackMessage) {
   if (responseText) {
     try {
       payload = JSON.parse(responseText);
-    } catch (_error) {
+    } catch {
       payload = null;
     }
   }
@@ -226,7 +226,7 @@ async function handleWorldChatSubmit(event) {
       body: JSON.stringify({ message }),
     });
 
-    const payload = await parseWorldChatResponse(response, "Unable to send message.");
+    await parseWorldChatResponse(response, "Unable to send message.");
 
     worldChatInput.value = "";
     setWorldChatStatus("Message sent.", "online");

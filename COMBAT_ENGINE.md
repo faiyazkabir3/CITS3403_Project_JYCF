@@ -1,6 +1,6 @@
 # Combat Engine Documentation
 
-Updated: 19 April 2026
+Updated: 8 May 2026
 
 This document describes the implementation in `static/js/combat-engine.js` and the surrounding save/UI integration. If this file and the code ever disagree, the code is the source of truth.
 
@@ -15,7 +15,7 @@ The combat engine is the gameplay state machine for the playable run. It is resp
 - handling level completion, route choice, shop access, and emergency events
 - returning narrative event strings for the UI to animate and log
 
-The engine does not touch the DOM directly and does not perform network requests. `gameUI.js` handles rendering and `app.py` handles persistence.
+The engine does not touch the DOM directly and does not perform network requests. `gameUI.js` handles rendering, while the Flask persistence routes now live in the `main` Blueprint in `routes.py` and use shared setup/helpers from `app.py`.
 
 ## 2. File Structure
 
@@ -676,11 +676,12 @@ The UI:
 
 `gameUI.js` persists the run by sending `structuredClone(engine.state)` as `run_state` to `/save-game`.
 
-`app.py`:
+Flask persistence layer:
 
-- ensures the `save_data.run_state_json` column exists
-- serializes the `run_state` payload to JSON
-- serves it back through `/load-game`
+- `routes.py` owns the `/save-game` and `/load-game` Blueprint routes
+- `app.py` owns shared app setup, database setup, and persistence helpers
+- the save route serializes the `run_state` payload to JSON
+- the load route serves it back through `/load-game`
 
 This means save/load now preserves far more than the legacy flat fields, including:
 
@@ -731,7 +732,7 @@ Update these places:
 - `createNewGameState()`
 - `normalizeStateShape()`
 - `gameUI.js` save payload builder if the field also needs flat legacy mirrors
-- Flask persistence code if a new database column or derived preview field is needed
+- Flask persistence code in `routes.py`/`app.py` if a new database column or derived preview field is needed
 
 ### 14.4 Changing route or shop rules
 

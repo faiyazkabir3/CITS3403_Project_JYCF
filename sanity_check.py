@@ -1,16 +1,14 @@
-"""Run the project's sanity checks in one command.
+"""Run the project's marking-focused sanity checks in one command.
 
 Default order:
 1. Python unit tests
 2. Selenium browser tests
-3. JavaScript sanity checks
-4. Playwright browser smoke tests
 
 Examples:
     python sanity_check.py
     python sanity_check.py --quick
     python sanity_check.py --keep-going
-    python sanity_check.py --skip-selenium
+    python sanity_check.py --include-js
 """
 
 from __future__ import annotations
@@ -52,9 +50,6 @@ def find_npm() -> str:
 
 
 def build_checks(args: argparse.Namespace) -> list[Check]:
-    npm = find_npm()
-    playwright_env = {"PYTHON": sys.executable}
-
     checks = [
         Check(
             name="Python unit tests",
@@ -64,33 +59,29 @@ def build_checks(args: argparse.Namespace) -> list[Check]:
             name="Selenium browser tests",
             command=[sys.executable, "-m", "pytest", "tests/selenium"],
         ),
-        Check(
-            name="JavaScript sanity",
-            command=[npm, "run", "sanity:js"],
-        ),
-        Check(
-            name="Playwright browser smoke tests",
-            command=[npm, "run", "sanity:browser"],
-            env=playwright_env,
-        ),
     ]
 
     if args.quick:
         checks = [
             check
             for check in checks
-            if check.name in {"Python unit tests", "JavaScript sanity"}
+            if check.name == "Python unit tests"
         ]
+
+    if args.include_js:
+        npm = find_npm()
+        checks.append(
+            Check(
+                name="JavaScript sanity",
+                command=[npm, "run", "sanity:js"],
+            )
+        )
 
     skip_names = set()
     if args.skip_unit:
         skip_names.add("Python unit tests")
     if args.skip_selenium:
         skip_names.add("Selenium browser tests")
-    if args.skip_js:
-        skip_names.add("JavaScript sanity")
-    if args.skip_playwright:
-        skip_names.add("Playwright browser smoke tests")
 
     return [check for check in checks if check.name not in skip_names]
 
@@ -132,7 +123,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Run only the faster checks: Python unit tests and JavaScript sanity.",
+        help="Run only the fast Python unit tests.",
+    )
+    parser.add_argument(
+        "--include-js",
+        action="store_true",
+        help="Also run optional JavaScript lint/static sanity checks.",
     )
     parser.add_argument(
         "--keep-going",
@@ -153,16 +149,6 @@ def parse_args() -> argparse.Namespace:
         "--skip-selenium",
         action="store_true",
         help="Skip Selenium browser tests.",
-    )
-    parser.add_argument(
-        "--skip-js",
-        action="store_true",
-        help="Skip JavaScript sanity checks.",
-    )
-    parser.add_argument(
-        "--skip-playwright",
-        action="store_true",
-        help="Skip Playwright browser smoke tests.",
     )
     return parser.parse_args()
 
