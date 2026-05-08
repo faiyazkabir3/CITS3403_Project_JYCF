@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from flask_wtf.csrf import generate_csrf
 from werkzeug.security import generate_password_hash
 
 from app import app
-from models import User, WorldMessage, db
+from models import User, WorldMessage, db, utc_now
 
 
 @pytest.fixture(autouse=True)
@@ -63,7 +63,7 @@ def get_csrf_headers(client, path="/"):
 def test_get_world_chat_messages_returns_saved_history_in_order(client):
     first_user_id = create_user("world_alpha", "Alpha")
     second_user_id = create_user("world_bravo", "Bravo")
-    base_time = datetime.utcnow()
+    base_time = utc_now()
 
     with app.app_context():
         db.session.add_all([

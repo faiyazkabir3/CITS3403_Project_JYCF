@@ -1,8 +1,8 @@
 # Security Upgrade Guide
 
-Updated: 30 April 2026
+Updated: 8 May 2026
 
-This document is the security reference for the `db_security` branch. It explains what the project protects, how each security layer works, which files are involved, how to verify the behavior, and what risks still remain.
+This document is the security reference for the current Route Zero project. It explains what the project protects, how each security layer works, which files are involved, how to verify the behavior, and what risks still remain.
 
 The project is still a Flask game application, but the security model now has several separate layers:
 
@@ -22,7 +22,7 @@ The important design rule is that different security jobs use different secrets.
 
 ## Security Goals
 
-This branch is designed to protect against these realistic project threats:
+The current app is designed to protect against these realistic project threats:
 
 - Someone copies the local SQLite database file and tries to read user, save, or chat data.
 - Someone copies fallback save files from `instance/save_fallbacks/`.
@@ -33,7 +33,7 @@ This branch is designed to protect against these realistic project threats:
 - The app is started without required secrets and accidentally creates weak or plaintext local state.
 - Direct chat text is stored on the Flask server in plaintext.
 
-This branch does not claim to solve every security problem. HTTPS certificates, production server hardening, key backup UI, multi-device chat key sync, rate limiting, and formal cryptographic verification are outside the current project scope.
+This project does not claim to solve every security problem. HTTPS certificates, production server hardening, key backup UI, multi-device chat key sync, rate limiting, and formal cryptographic verification are outside the current project scope.
 
 ## Lecture Compliance Summary
 
@@ -54,7 +54,7 @@ This branch does not claim to solve every security problem. HTTPS certificates, 
 
 | Area | Files |
 | --- | --- |
-| Flask app security wiring | `app.py` |
+| Flask app security wiring | `app.py`, `routes.py` |
 | SQLAlchemy models | `models.py` |
 | Python dependencies | `requirements.txt` |
 | Login/register/profile/friend/chat forms | `templates/*.html` |
@@ -189,7 +189,7 @@ Core pieces:
 
 - `User` inherits `UserMixin`.
 - `LoginManager(app)` is initialized in `app.py`.
-- `login_manager.login_view = "show_login"` points unauthenticated users to the login page.
+- The custom unauthorized handler redirects unauthenticated users to the Blueprint login route.
 - `@login_manager.user_loader` reloads a `User` by ID from the signed session.
 - Successful login calls `login_user(user)`.
 - Logout calls `logout_user()` and clears the session.
@@ -597,7 +597,7 @@ pip install -r requirements.txt
 Compile Python:
 
 ```bash
-python -m py_compile app.py models.py
+python -m py_compile app.py routes.py models.py
 ```
 
 Confirm Flask-Migrate CLI is available:
@@ -617,7 +617,7 @@ npm run check:js
 Run browser checks:
 
 ```bash
-python -m pytest tests/selenium
+.venv/bin/python -m pytest tests/selenium
 ```
 
 The Selenium suite uses Chrome by default and starts an isolated Flask test server.
@@ -793,7 +793,7 @@ These limitations are acceptable for the current project scope, but they should 
 
 ## Security Upgrade Summary
 
-Before this branch, local storage files and chat rows could expose much more readable data. After this branch:
+Before the security upgrade, local storage files and chat rows could expose much more readable data. In the current app:
 
 - Registered accounts use salted password hashes.
 - Session auth is handled by Flask-Login.

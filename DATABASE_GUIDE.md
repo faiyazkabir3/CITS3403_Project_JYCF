@@ -1,5 +1,7 @@
 # Database Guide
 
+Updated: 8 May 2026
+
 ## Database files are local only
 
 The database file is now ignored by Git. Developers should **not commit `project.db`**, even though the current database is encrypted with SQLCipher.
@@ -206,7 +208,8 @@ At the moment, it mainly supports these areas:
 3. profile information
 4. social features such as friends and friend requests
 5. direct messages between users
-6. achievements, profile reactions, and profile comments
+6. world chat messages
+7. achievements, profile reactions, and profile comments
 
 So in simple terms, the database remembers who the users are, what profile they use, what game progress they have made, and how they interact with other users.
 
@@ -250,7 +253,7 @@ In this project:
 
 - **model** = the SQLAlchemy models in `models.py`
 - **view** = the HTML pages built from Jinja templates
-- **controller** = the Flask request handlers in `routes.py` that read and update the models
+- **controller** = the Flask request handlers in the `main` Blueprint in `routes.py` that read and update the models
 
 This separation is useful because it keeps storage, page rendering, and request handling as different concerns.
 
@@ -258,16 +261,17 @@ This separation is useful because it keeps storage, page rendering, and request 
 
 ## Current database tables
 
-The current database has 8 app tables, plus Alembic's migration-version table:
+The current database has 9 app tables, plus Alembic's migration-version table:
 
 1. `user`
 2. `save_data`
 3. `friend`
 4. `friend_request`
 5. `message`
-6. `user_achievement`
-7. `profile_reaction`
-8. `profile_comment`
+6. `world_message`
+7. `user_achievement`
+8. `profile_reaction`
+9. `profile_comment`
 
 The `user` table is the central table because the other app tables all connect back to users in some way.
 
@@ -502,7 +506,41 @@ Direct chat is now designed for end-to-end encrypted payloads. Flask stores and 
 
 ---
 
-## Table 6: `user_achievement`
+## Table 6: `world_message`
+
+### What it stores
+
+This table stores global world-chat messages shown on the main-menu world chat panel.
+
+World chat is different from direct chat:
+
+- world chat is a shared public feed for logged-in registered users
+- world chat stores the message text so it can be displayed to everyone
+- direct chat uses the `message` table and stores encrypted payloads instead of plaintext
+
+### Columns
+
+- `id` - primary key
+- `user_id` - foreign key to `user.id`
+- `message` - validated world-chat text
+- `created_at` - when the message was posted
+
+### Key points
+
+- anonymous users and guests cannot post world-chat messages
+- empty and overlong messages are rejected
+- message output is serialized by the Flask route before being returned to the browser
+- the unit tests cover listing history, rejecting invalid users/messages, and saving a valid post
+
+### What it is used for
+
+- loading recent world-chat history
+- saving registered-user world-chat posts
+- showing public lobby-style messages on the main menu
+
+---
+
+## Table 7: `user_achievement`
 
 ### What it stores
 
@@ -529,7 +567,7 @@ This table stores which base achievements a registered user has unlocked.
 
 ---
 
-## Table 7: `profile_reaction`
+## Table 8: `profile_reaction`
 
 ### What it stores
 
@@ -551,7 +589,7 @@ This table stores one reaction from one user to another user's public profile.
 
 ---
 
-## Table 8: `profile_comment`
+## Table 9: `profile_comment`
 
 ### What it stores
 
@@ -590,6 +628,9 @@ A user can be connected to many other users through friendship rows.
 ### `user` -> `message`
 A user can send many messages and receive many messages.
 
+### `user` -> `world_message`
+A user can post many world-chat messages.
+
 ### `user` -> `user_achievement`
 A user can unlock many base achievements. Each base achievement can appear once per user.
 
@@ -627,6 +668,9 @@ Friendship rows are created in `friend`.
 ### 6. They chat
 Rows are created in `message`. New chat rows store encrypted payload fields instead of plaintext message text.
 
+### 7. They post in world chat
+Rows are created in `world_message`. These are public lobby messages, not encrypted one-to-one messages.
+
 This shows how the current schema supports both the game side and the social side of the web app.
 
 ---
@@ -642,5 +686,6 @@ Its job is to support:
 - saved progress
 - friend relationships
 - direct messages
+- world chat messages
 
 The design follows the course stack of Flask + SQLite + SQLAlchemy, with the models acting as the database-backed model layer of the application.

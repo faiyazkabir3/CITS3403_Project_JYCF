@@ -1,9 +1,13 @@
 # CITS3403_Project_JYCF
-A collaborative full-stack web application built using Flask, SQLAlchemy, and Bootstrap. Developed using Agile methodologies to deliver a user-centric, data-persistent platform. Created by JYCF
+
+Route Zero is a collaborative Flask zombie-survival game with registered accounts, guest play, persistent save data, achievements, friends, profile pages, world chat, and encrypted direct chat. The backend uses Flask Blueprints, Flask-Login, Flask-WTF, Flask-SQLAlchemy, Flask-Migrate, SQLCipher, and Flask-SocketIO. The frontend uses Jinja templates, custom CSS, and browser JavaScript modules.
+
+Created by JYCF.
 
 ## Group Members
 
 | UWA ID   | Name          | GitHub username  |
+| --- | --- | --- |
 | 24773532 | Faiyaz Kabir  | faiyazkabir3     |
 | 24112617 | Looi Yong Lun | looiyonglun-cmyk |
 | 24220597 | Joshua Evans  | Joshua-Evans05 & 24220597   |
@@ -11,9 +15,14 @@ A collaborative full-stack web application built using Flask, SQLAlchemy, and Bo
 ## Documentation
 
 - [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
+- [Combat Engine](COMBAT_ENGINE.md)
+- [Database Guide](DATABASE_GUIDE.md)
 - [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
+- [Level Design](LEVEL_DESIGN.md)
 - [Realtime Chat](REALTIME_CHAT.md)
+- [Sanity Checks Guide](SANITY_CHECKS.md)
 - [Security Upgrade](SECURITY_UPGRADE.md)
+- [Validation Rules](Validation.md)
 
 ## Security Lecture Compliance
 
@@ -174,7 +183,7 @@ Then open:
 http://127.0.0.1:5000
 ```
 
-If you already have an old plaintext `project.db`, SQLCipher may reject it because this branch expects a fresh encrypted database. For local development, rename the old file and let migrations create a new encrypted one:
+If you already have an old plaintext `project.db`, SQLCipher may reject it because the current app expects an encrypted database. For local development, rename the old file and let migrations create a new encrypted one:
 
 ```powershell
 mv project.db project.plaintext.backup.db
@@ -324,8 +333,12 @@ For frontend debugging, set breakpoints in the browser-loaded JS modules. Node i
 
 ## Documentation
 
+- [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
 - [Level Design](LEVEL_DESIGN.md)
 - [Combat Engine](COMBAT_ENGINE.md)
+- [Database Guide](DATABASE_GUIDE.md)
+- [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
 - [Realtime Chat](REALTIME_CHAT.md)
-- [Hybrid Security Upgrade](SECURITY_UPGRADE.md)
+- [Security Upgrade](SECURITY_UPGRADE.md)
 - [Sanity Checks Guide](SANITY_CHECKS.md)
+- [Validation Rules](Validation.md)

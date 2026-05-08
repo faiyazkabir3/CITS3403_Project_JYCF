@@ -1,6 +1,6 @@
 # End-To-End Encrypted Chat Documentation
 
-Updated: 29 April 2026
+Updated: 8 May 2026
 
 This document explains how the direct chat end-to-end encryption system works in this project. It focuses on the encrypted chat layer built on top of the realtime Socket.IO chat system.
 
@@ -8,6 +8,7 @@ If this document and the code ever disagree, the code is the source of truth. Th
 
 - `static/js/chat.js`
 - `templates/chat.html`
+- `routes.py`
 - `app.py`
 - `models.py`
 
@@ -165,7 +166,7 @@ with this shape:
 }
 ```
 
-Flask handles this in `handle_chat_send()` in `app.py`.
+Flask handles this in `handle_chat_send()` in `routes.py`. The handler is attached to the shared `socketio` instance created in `app.py`.
 
 The server then:
 

@@ -1,5 +1,7 @@
 # Achievement System And Agent Clipboard
 
+Updated: 8 May 2026
+
 This document explains the current Route Zero achievement, tier badge, and agent clipboard presentation system.
 
 ## Overview
@@ -123,7 +125,7 @@ The intended coverage checks:
 - achievement progress stats such as kills and reloads render in the browser
 - registered users can save profile/game progress without breaking the achievement flow
 
-Run the fast template/static sanity check with:
+Run the optional JavaScript/template sanity check with:
 
 ```powershell
 npm run check:js
@@ -133,4 +135,10 @@ Run the required Python and Selenium test suite with:
 
 ```powershell
 python -m pytest
+```
+
+On this Mac, use the virtual environment interpreter if plain `python` is not on PATH:
+
+```bash
+.venv/bin/python -m pytest
 ```

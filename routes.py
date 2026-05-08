@@ -593,7 +593,7 @@ def view_profile(user_id):
                         ))
                     else:
                         reaction.reaction_type = reaction_type
-                        reaction.updated_at = datetime.utcnow()
+                        reaction.updated_at = utc_now()
 
                     flash("Profile reaction saved.")
             elif action == "profile_comment":
@@ -974,7 +974,7 @@ def chat_keys(friend_id):
 
         user.chat_public_key = public_key
         user.chat_key_id = build_chat_key_id(public_key)
-        user.chat_key_created_at = datetime.utcnow()
+        user.chat_key_created_at = utc_now()
         db.session.commit()
 
     return jsonify({
@@ -996,7 +996,7 @@ def register_chat_key():
     try:
         user.chat_public_key = public_key
         user.chat_key_id = build_chat_key_id(public_key)
-        user.chat_key_created_at = datetime.utcnow()
+        user.chat_key_created_at = utc_now()
         db.session.commit()
     except SQLAlchemyError as error:
         rollback_database_session("Chat key registration")
@@ -1044,7 +1044,7 @@ def chat(friend_id):
                 receiver_id=friend_id,
                 message=None,
                 **encrypted_payload,
-                timestamp=datetime.utcnow()
+                timestamp=utc_now()
             )
             db.session.add(message)
             db.session.commit()
@@ -1065,7 +1065,7 @@ def chat(friend_id):
 
     if unread_messages:
         for message in unread_messages:
-            message.read_at = datetime.utcnow()
+            message.read_at = utc_now()
         db.session.commit()
 
     return render_template(
@@ -1160,7 +1160,7 @@ def handle_chat_send(data):
         receiver_id=friend_id,
         message=None,
         **encrypted_payload,
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     )
     db.session.add(message)
     db.session.commit()

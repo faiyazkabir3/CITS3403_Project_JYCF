@@ -33,7 +33,7 @@ from werkzeug.utils import secure_filename
 
 from models import (
     db, User, SaveData, Friend, Message, FriendRequest, WorldMessage, UserAchievement,
-    ProfileReaction, ProfileComment
+    ProfileReaction, ProfileComment, utc_now
 )
 
 try:
@@ -328,7 +328,7 @@ db.init_app(app)
 migrate = Migrate(app, db)
 csrf = CSRFProtect(app)
 login_manager = LoginManager(app)
-login_manager.login_view = "show_login"
+login_manager.login_view = "main.show_login"
 socketio = SocketIO(app, async_mode="threading")
 
 
@@ -508,6 +508,7 @@ MIGRATION_REQUIRED_TABLES = {
     "friend",
     "friend_request",
     "message",
+    "world_message",
     "user_achievement",
     "profile_reaction",
     "profile_comment",
@@ -546,7 +547,7 @@ def require_migrated_database():
 def seed_demo_command():
     """Create deterministic demo users and saves for local development."""
     demo_password = "RouteZero123!"
-    now = datetime.utcnow()
+    now = utc_now()
     demo_specs = [
         {
             "username": "leon_demo",
@@ -677,7 +678,7 @@ def refresh_current_user_presence():
     if user_id is None or session.get("is_guest"):
         return
 
-    now = datetime.utcnow()
+    now = utc_now()
     last_presence_refresh = parse_iso_datetime(session.get("last_presence_refresh_at"))
 
     if (
@@ -712,7 +713,7 @@ def is_user_online(user):
     if user is None or user.last_seen is None:
         return False
 
-    return datetime.utcnow() - user.last_seen <= ONLINE_WINDOW
+    return utc_now() - user.last_seen <= ONLINE_WINDOW
 
 
 def get_friend_presence(user):
@@ -1150,7 +1151,7 @@ def unlock_achievements_for_user(user_id):
             row = UserAchievement(
                 user_id=user_id,
                 achievement_id=definition.id,
-                unlocked_at=datetime.utcnow()
+                unlocked_at=utc_now()
             )
             db.session.add(row)
             unlocked.append(definition.name)
@@ -1736,7 +1737,7 @@ COUNTER_ANALYTICS_FIELDS = {
 
 
 def build_save_payload_from_request(data, updated_at=None):
-    timestamp = updated_at or datetime.utcnow()
+    timestamp = updated_at or utc_now()
 
     return {
         "difficulty": str(data.get("difficulty", "EASY")).upper(),
@@ -1983,7 +1984,7 @@ def update_save_data(save_data, data):
     save_data.run_state_json = json.dumps(data.get("run_state")) if data.get("run_state") is not None else save_data.run_state_json
 
     save_data.has_started_game = True
-    save_data.updated_at = datetime.utcnow()
+    save_data.updated_at = utc_now()
 
 
 def build_save_payload(save_data):
