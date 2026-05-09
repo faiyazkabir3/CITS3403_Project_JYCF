@@ -1,6 +1,6 @@
 # Level Design and Combat Documentation
 
-Updated: 19 April 2026
+Updated: 8 May 2026
 
 This document reflects the current implemented build in this repository. If this file and the game code ever disagree, the JavaScript and Flask code are the source of truth.
 

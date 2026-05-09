@@ -23,7 +23,7 @@
   <div class="screen-wrap">
     <section class="panel active chat-panel">
       <div class="chat-topbar">
-        <a href="{{ url_for('show_friends') }}" class="back-arrow">←</a>
+        <a href="{{ url_for('main.show_friends') }}" class="back-arrow">←</a>
 
         <div class="chat-heading">
           <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
@@ -60,7 +60,7 @@
           <input type="hidden" name="recipient_public_key" data-chat-recipient-public-key>
           <input type="hidden" name="recipient_key_id" data-chat-recipient-key-id>
           <input type="hidden" name="encryption_version" value="1">
-          <button type="submit" class="primary-btn" data-chat-submit  data-i18n="chat.send">Send</button>
+          <button type="submit" class="primary-btn" data-chat-submit data-i18n="chat.send">Send</button>
         </form>
       </div>
     </section>

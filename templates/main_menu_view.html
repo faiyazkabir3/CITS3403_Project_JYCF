@@ -24,7 +24,7 @@
             <img src="{{ url_for('static', filename=profile_image) }}" alt="Agent profile picture">
           </div>
         {% else %}
-          <a href="{{ url_for('profile') }}" class="agent-photo-frame" aria-label="Customize profile">
+          <a href="{{ url_for('main.profile') }}" class="agent-photo-frame" aria-label="Customize profile">
             <img src="{{ url_for('static', filename=profile_image) }}" alt="Agent profile picture">
           </a>
         {% endif %}
@@ -58,14 +58,14 @@
         <strong>{{ agent_joined_date }}</strong>
       </div>
 
-      <a href="{{ url_for('show_achievements') }}" class="agent-achievements" data-i18n="menu.achievements">
+      <a href="{{ url_for('main.show_achievements') }}" class="agent-achievements" data-i18n="menu.achievements">
         ACHIEVEMENTS
       </a>
 
       <section class="agent-badge-strip" aria-label="Top achievement badges">
         {% for badge in agent_showcase_badges %}
           <a
-            href="{{ url_for('show_achievements') }}"
+            href="{{ url_for('main.show_achievements') }}"
             class="agent-showcase-badge agent-showcase-{{ badge.tier_name }}"
             title="{{ badge.label }} - {{ badge.tier_label }}"
             data-agent-showcase-badge
@@ -105,6 +105,8 @@
           aria-controls="world-chat-modal"
           aria-label="Open world chat"
           title="Open world chat"
+          data-i18n-aria-label="worldChat.openLabel"
+          data-i18n-title="worldChat.openLabel"
         >
           <img src="{{ url_for('static', filename='images/icons/world_chat_icon.svg') }}" alt="" aria-hidden="true">
           <span data-i18n="worldChat.open">WORLD CHAT</span>
@@ -132,11 +134,11 @@
               <span data-i18n="menu.friends">FRIENDS</span>{% if unread_message_count %} ({{ unread_message_count }}){% endif %} &#9662;
             </button>
             <div id="friends-dropdown" class="friends-dropdown" data-friends-dropdown>
-              <a href="{{ url_for('show_friends') }}" class="friends-hub-link" data-i18n="menu.manageFriends">Manage Friends</a>
+              <a href="{{ url_for('main.show_friends') }}" class="friends-hub-link" data-i18n="menu.manageFriends">Manage Friends</a>
               {% if friends %}
                 {% for friend in friends %}
                   {% set presence = get_friend_presence(friend) %}
-                  <a href="{{ url_for('view_profile', user_id=friend.id) }}">
+                  <a href="{{ url_for('main.view_profile', user_id=friend.id) }}">
                     <span class="presence-dot presence-{{ presence.class_name }}" aria-hidden="true"></span>
                     {{ friend.display_name or friend.username }}
                     <span class="presence-label">{{ presence.label }}</span>
@@ -162,7 +164,7 @@
                   <span>#{{ entry.rank }}</span>
                   {% if can_view_profiles %}
                     <a
-                      href="{{ url_for('view_profile', user_id=entry.user_id) }}"
+                      href="{{ url_for('main.view_profile', user_id=entry.user_id) }}"
                       class="leaderboard-name{% if entry.is_current_user %} leaderboard-name-current{% endif %}"
                     >
                       {{ entry.display_name }}
@@ -180,10 +182,10 @@
         </div>
 
         <div class="menu-buttons">
-          <a href="{{ url_for('show_play') }}"><button class="play-btn" type="button" data-i18n="menu.play">PLAY GAME</button></a>
+          <a href="{{ url_for('main.show_play') }}"><button class="play-btn" type="button" data-i18n="menu.play">PLAY GAME</button></a>
           <button type="button" id="open-settings-btn" data-i18n="menu.settings">SETTINGS</button>
-          <a href="{{ url_for('show_achievements') }}"><button type="button" data-i18n="menu.achievements">ACHIEVEMENTS</button></a>
-          <form method="POST" action="{{ url_for('logout') }}" class="logout-form">
+          <a href="{{ url_for('main.show_achievements') }}"><button type="button" data-i18n="menu.achievements">ACHIEVEMENTS</button></a>
+          <form method="POST" action="{{ url_for('main.logout') }}" class="logout-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" data-i18n="menu.logout">LOG OUT</button>
           </form>
