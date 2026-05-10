@@ -1,3 +1,6 @@
+import { initLanguage } from "./translation.js";
+await initLanguage();
+
 import { bootGameUI } from "./gameUI.js";
 import {
   isQuiteTutorialActive,

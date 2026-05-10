@@ -3,6 +3,7 @@
 let currentLang = "en";
 let translations = {};
 let fallbackTranslations = {};
+let languageLoadPromise = null;
 
 // Load language files
 export async function loadLanguage(lang) {
@@ -22,6 +23,15 @@ export async function loadLanguage(lang) {
   } catch (err) {
     console.error("Error loading language:", err);
   }
+}
+
+export function initLanguage() {
+  if (!languageLoadPromise) {
+    const savedLang = localStorage.getItem("lang") || "en";
+    languageLoadPromise = loadLanguage(savedLang);
+  }
+
+  return languageLoadPromise;
 }
 
 // applying translations to HTML
@@ -92,7 +102,7 @@ export function t(key, vars = {}) {
 
   // Replace variables like {amount}
   Object.keys(vars).forEach(k => {
-    text = text.replace(`{${k}}`, vars[k]);
+    text = text.replaceAll(`{${k}}`, String(vars[k]));
   });
 
   return text;
@@ -100,6 +110,5 @@ export function t(key, vars = {}) {
 
 // Auto-run on every page
 document.addEventListener("DOMContentLoaded", () => {
-  const savedLang = localStorage.getItem("lang") || "en";
-  loadLanguage(savedLang);
+  initLanguage();
 });
