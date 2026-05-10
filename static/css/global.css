@@ -1391,6 +1391,13 @@ a.agent-photo-frame:focus-visible {
   --battle-edge-glow: rgba(78, 232, 163, 0.34);
 }
 
+.play-page .battle-stage[data-theme="biohazard"] {
+  --battle-accent: #a7f06b;
+  --battle-accent-soft: rgba(124, 211, 82, 0.22);
+  --battle-edge-glow: rgba(166, 240, 107, 0.34);
+  --battle-vignette: rgba(3, 10, 6, 0.82);
+}
+
 .play-page .battle-backdrop,
 .play-page .battle-overlay {
   position: absolute;
@@ -1442,6 +1449,20 @@ a.agent-photo-frame:focus-visible {
 .play-page .battle-stage[data-mode="emergency"] .battle-overlay::after {
   opacity: 0.92;
   animation: battle-alert 1.15s ease-in-out infinite;
+}
+
+.play-page .battle-stage[data-scene="boss-grab"] .battle-backdrop,
+.play-page .battle-stage[data-scene="boss-hide"] .battle-backdrop,
+.play-page .battle-stage[data-scene="boss-stunned"] .battle-backdrop {
+  background-image:
+    linear-gradient(180deg, rgba(4, 8, 8, 0.08), rgba(3, 7, 6, 0.6)),
+    var(--battle-backdrop-image);
+}
+
+.play-page .battle-stage[data-scene="boss-grab"] .battle-actors,
+.play-page .battle-stage[data-scene="boss-hide"] .battle-actors,
+.play-page .battle-stage[data-scene="boss-stunned"] .battle-actors {
+  opacity: 0;
 }
 
 .play-page .battle-stage[data-mode="shop"] .battle-backdrop::before,
@@ -2018,6 +2039,11 @@ a.agent-photo-frame:focus-visible {
 
 .play-page .battle-enemy.impact-charge .battle-actor-image {
   filter: drop-shadow(0 0 30px rgba(120, 174, 255, 0.28));
+}
+
+.play-page .battle-enemy.impact-boss .battle-actor-image {
+  max-height: min(100%, clamp(260px, 38vh, 440px));
+  filter: drop-shadow(0 0 36px rgba(176, 255, 119, 0.28));
 }
 
 .play-page .battle-stage[data-effect="shot"] .battle-player {

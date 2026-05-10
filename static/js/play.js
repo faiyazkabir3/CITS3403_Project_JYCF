@@ -209,6 +209,7 @@ function buildSavedState(saveData) {
       axeReactions: saveData.axe_reactions ?? 0,
       axeSharpenChargesSpent: saveData.axe_sharpen_charges_spent ?? 0,
       enemiesKilled: saveData.kills ?? 0,
+      nemesisKills: saveData.nemesis_kills ?? 0,
       damageDealt: saveData.damage_dealt ?? 0,
       damageTaken: saveData.damage_taken ?? 0,
       dodgesPrepared: 0,

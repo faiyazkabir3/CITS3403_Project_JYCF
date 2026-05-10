@@ -145,6 +145,7 @@ def sanitize_save_request_payload(data):
         "awaiting_choice": coerce_bool(data.get("awaiting_choice"), False),
         "game_won": coerce_bool(data.get("game_won"), False),
         "kills": coerce_bounded_int(data.get("kills"), 0, minimum=0, maximum=100000),
+        "nemesis_kills": coerce_bounded_int(data.get("nemesis_kills"), 0, minimum=0, maximum=100000),
         "damage_dealt": coerce_bounded_int(data.get("damage_dealt"), 0, minimum=0, maximum=1000000),
         "damage_taken": coerce_bounded_int(data.get("damage_taken"), 0, minimum=0, maximum=1000000),
         "pistol_shots": coerce_bounded_int(data.get("pistol_shots"), 0, minimum=0, maximum=100000),

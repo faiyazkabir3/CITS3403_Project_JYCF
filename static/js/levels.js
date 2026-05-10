@@ -169,7 +169,8 @@ export const LEVELS = {
       },
       failDamage: 12
     },
-    completeText: "You restore the relay, outrun the blackout, and hit extraction ahead of the swarm."
+    completeText: "You restore the relay, outrun the blackout, and find the quarantine route still sealed ahead.",
+    next: "7"
   },
 
   "4B": {
@@ -219,7 +220,8 @@ export const LEVELS = {
     introText: "No single weapon solves this room for you.",
     enemySequence: ["heavy", "exploder", "berserker", "charger"],
     enemyCount: 4,
-    completeText: "You survive the balanced route with a build that can flex both ways."
+    completeText: "You survive the balanced route with a build that can flex both ways, then catch the quarantine gate cycling open.",
+    next: "7"
   },
 
   "4C": {
@@ -337,7 +339,8 @@ export const LEVELS = {
     introText: "Courage finale: identify the priority target fast, weather the burst, and let the build you funded carry you home.",
     enemySequence: ["heavy", "screamer", "berserker", "heavy", "charger"],
     enemyCount: 5,
-    completeText: "You survive the holdout, drag yourself through extraction, and leave the station impossible to shake."
+    completeText: "You survive the holdout and reach a quarantine cache stamped with biohazard warnings.",
+    next: "7"
   },
 
   "6D": {
@@ -376,6 +379,39 @@ export const LEVELS = {
       },
       failDamage: 12
     },
-    completeText: "You hold Lockjaw Gate, survive the final crush, and force the last route open by sheer stubbornness."
+    completeText: "You hold Lockjaw Gate, survive the final crush, and force the quarantine route open by sheer stubbornness.",
+    next: "7"
+  },
+
+  "7": {
+    id: "7",
+    title: "Quarantine Cache",
+    description: "A sealed emergency locker waits outside the bio-research facility gate.",
+    introText: "Bonus level: the cache unlocks with a tired hydraulic cough. You grab rifle ammunition and medkits before the final breach.",
+    enemySequence: [],
+    enemyCount: 0,
+    autoComplete: true,
+    manualContinueAfterClear: true,
+    rewards: [
+      {
+        type: "supplies",
+        rifle: true,
+        rifleAmmo: 10,
+        medKits: 3,
+        text: "The quarantine cache grants rifle access, 10 rifle rounds, and 3 medkits."
+      }
+    ],
+    completeText: "The locker slams shut behind you. Only the bio-research facility gate remains.",
+    next: "8"
+  },
+
+  "8": {
+    id: "8",
+    title: "Nemesis-T Type",
+    description: "A biohazardous research lab stretches beyond the quarantine gate, all warning lights and cracked containment glass.",
+    introText: "The operator forces open the quarantine gate into a bio-research facility. Sirens flood the lab, glass containment tanks split, and something enormous answers from the dark.",
+    enemySequence: ["nemesisT"],
+    enemyCount: 1,
+    completeText: "Nemesis-T Type collapses under the lab strobes. The facility falls silent, and the mission is finally over."
   }
 };
