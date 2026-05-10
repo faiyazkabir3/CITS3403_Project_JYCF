@@ -15,11 +15,13 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
 <body
-  class="play-page chat-page"
+  class="play-page chat-page video-bg-page"
   data-current-user-id="{{ current_user }}"
   data-friend-id="{{ friend.id }}"
   data-friend-username="{{ friend.username }}"
 >
+  {% include "_background_video.html" %}
+
   <div class="screen-wrap">
     <section class="panel active chat-panel">
       <div class="chat-topbar">

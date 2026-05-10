@@ -8,6 +8,8 @@ from app import (
     build_chat_room_key,
     build_chat_key_id,
     choose_latest_save_payload,
+    get_achievement_badge_image,
+    get_achievement_definitions,
     normalize_save_payload,
     parse_friend_id,
     parse_level_number,
@@ -76,6 +78,7 @@ def test_save_payload_sanitization_clamps_and_defaults_values():
         "shield_on": "",
         "current_level_id": "level-2",
         "kills": "100001",
+        "nemesis_kills": "100001",
         "damage_dealt": "42",
         "run_state": "not-a-dict",
     })
@@ -92,6 +95,7 @@ def test_save_payload_sanitization_clamps_and_defaults_values():
     assert payload["shield_on"] is False
     assert payload["current_level_id"] == "level-2"
     assert payload["kills"] == 100000
+    assert payload["nemesis_kills"] == 100000
     assert payload["damage_dealt"] == 42
     assert payload["run_state"] is None
 
@@ -118,7 +122,7 @@ def test_save_payload_normalization_prefers_run_state_and_latest_timestamp():
             "player": {"characterId": "quite"},
             "inventory": {"health": 88},
             "progression": {"currentLevelId": "level-3", "enemiesRemaining": 2, "levelComplete": True},
-            "analytics": {"enemiesKilled": 5, "damageDealt": 300},
+            "analytics": {"enemiesKilled": 5, "nemesisKills": 1, "damageDealt": 300},
         },
     })
 
@@ -135,6 +139,7 @@ def test_save_payload_normalization_prefers_run_state_and_latest_timestamp():
     assert normalized["enemies_remaining"] == 2
     assert normalized["level_complete"] is True
     assert normalized["kills"] == 5
+    assert normalized["nemesis_kills"] == 1
     assert normalized["damage_dealt"] == 300
     assert latest["character_id"] == "leon"
     assert choose_latest_save_payload(None, {}) is None
@@ -185,8 +190,27 @@ def test_achievement_unlock_logic_handles_regular_and_sharpshooter_rules():
         metric="damage_dealt",
         icon="S",
     )
+    nemesis = AchievementDefinition(
+        id="nemesis_hunter",
+        name="Nemesis Hunter",
+        description="Defeat Nemesis-T Type once.",
+        target=1,
+        metric="nemesis_kills",
+        icon="NT",
+    )
 
     assert achievement_is_unlocked(regular, {"kills": 1}) is True
     assert achievement_is_unlocked(regular, {"kills": 0}) is False
     assert achievement_is_unlocked(sharpshooter, {"damage_dealt": 500, "pistol_shots": 10}) is True
     assert achievement_is_unlocked(sharpshooter, {"damage_dealt": 500, "pistol_shots": 11}) is False
+    assert achievement_is_unlocked(nemesis, {"nemesis_kills": 1}) is True
+    assert achievement_is_unlocked(nemesis, {"nemesis_kills": 0}) is False
+
+
+def test_nemesis_hunter_definition_uses_custom_jpeg_badge():
+    definitions = {definition.id: definition for definition in get_achievement_definitions()}
+    nemesis = definitions["nemesis_hunter"]
+
+    assert nemesis.metric == "nemesis_kills"
+    assert nemesis.tier_thresholds == (1, 1, 1)
+    assert get_achievement_badge_image(nemesis, "gold") == "images/badges/nemesis_hunter.jpeg"

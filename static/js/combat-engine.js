@@ -47,7 +47,11 @@ const RULES = {
   exploderGrenadeBlast: 28,
   poisonDamage: 4,
   corrosionShieldDamage: 10,
-  emergencyFailChipDamage: 8
+  emergencyFailChipDamage: 8,
+  nemesisRushDamage: [34, 42],
+  nemesisGrabChance: 0.65,
+  nemesisGrabFailDamage: 22,
+  nemesisGrabCounterDamage: 24
 };
 
 const EFFECTIVENESS = {
@@ -186,6 +190,23 @@ const ENEMY_TYPES = {
       knife: "good",
       grenade: "worst"
     }
+  },
+  nemesisT: {
+    name: "Nemesis-T Type",
+    maxHp: 1000,
+    dmg: [18, 26],
+    coins: [0, 0],
+    weaponProfile: {
+      pistol: "good",
+      rifle: "best",
+      knife: "worst",
+      grenade: "good"
+    },
+    lightDamageResistance: 0.12,
+    boss: true,
+    bossStunThresholds: [150, 50],
+    bossStunTurns: 1,
+    bossGrabChance: RULES.nemesisGrabChance
   }
 };
 
@@ -462,6 +483,7 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
       axeReactions: 0,
       axeSharpenChargesSpent: 0,
       enemiesKilled: 0,
+      nemesisKills: 0,
       damageDealt: 0,
       damageTaken: 0,
       dodgesPrepared: 0,
@@ -478,7 +500,9 @@ export function createNewGameState({ difficulty = "EASY", seed, character = "leo
       enemy: null,
       pendingDodge: false,
       guardStacks: 0,
-      pendingDefeatContext: null
+      pendingDefeatContext: null,
+      coverTurns: 0,
+      qte: null
     },
 
     progression: {
@@ -633,6 +657,8 @@ function repairProgressionState(state) {
     state.progression.emergency = null;
     state.combat.inCombat = false;
     state.combat.enemy = null;
+    state.combat.qte = null;
+    state.combat.coverTurns = 0;
     state.progression.enemiesRemaining = 0;
   }
 }
@@ -699,6 +725,7 @@ function normalizeStateShape(state) {
   state.analytics.axeReactions ??= 0;
   state.analytics.axeSharpenChargesSpent ??= 0;
   state.analytics.enemiesKilled ??= 0;
+  state.analytics.nemesisKills ??= 0;
   state.analytics.damageDealt ??= 0;
   state.analytics.damageTaken ??= 0;
   state.analytics.dodgesPrepared ??= 0;
@@ -715,10 +742,26 @@ function normalizeStateShape(state) {
   state.combat.pendingDodge ??= false;
   state.combat.guardStacks ??= 0;
   state.combat.pendingDefeatContext ??= null;
+  state.combat.coverTurns ??= 0;
+  state.combat.qte ??= null;
 
   if (state.combat.enemy && !ENEMY_TYPES[state.combat.enemy.type]) {
     state.combat.enemy = null;
     state.combat.inCombat = false;
+  }
+
+  if (state.combat.enemy?.type === "nemesisT") {
+    state.combat.enemy.isBoss = true;
+    state.combat.enemy.bossActionStep ??= 0;
+    state.combat.enemy.bossStunThresholds ??= [150, 50];
+    state.combat.enemy.triggeredStunThresholds ??= [];
+    state.combat.enemy.bossStunTurns ??= 1;
+    state.combat.enemy.bossGrabChance ??= RULES.nemesisGrabChance;
+  }
+
+  if (state.combat.qte?.active) {
+    state.progression.emergency = null;
+    state.combat.inCombat = Boolean(state.combat.enemy);
   }
 
   state.progression ||= {};
@@ -759,6 +802,8 @@ function endGame(state) {
   state.progression.gameOver = true;
   state.combat.inCombat = false;
   state.combat.pendingDodge = false;
+  state.combat.coverTurns = 0;
+  state.combat.qte = null;
   state.combat.enemy = null;
   state.progression.shopOpen = false;
   state.progression.emergency = null;
@@ -840,6 +885,12 @@ function buildEnemy(typeKey) {
     rageBonus: type.rageBonus ? [...type.rageBonus] : null,
     summonAfterTurns: type.summonAfterTurns || null,
     summonType: type.summonType || null,
+    isBoss: Boolean(type.boss),
+    bossActionStep: 0,
+    bossStunThresholds: type.bossStunThresholds ? [...type.bossStunThresholds] : [],
+    triggeredStunThresholds: [],
+    bossStunTurns: type.bossStunTurns || 0,
+    bossGrabChance: type.bossGrabChance || 0,
     turnsAlive: 0,
     rageActive: false,
     summonedReinforcement: false,
@@ -881,6 +932,8 @@ function spawnCurrentEnemy(state, rng, level, events = []) {
   state.combat.pendingDodge = false;
   state.combat.pendingDefeatContext = null;
   state.combat.guardStacks = 0;
+  state.combat.coverTurns = 0;
+  state.combat.qte = null;
   state.progression.enemiesRemaining =
     state.progression.encounterOrder.length - state.progression.currentEncounterIndex;
 
@@ -935,6 +988,38 @@ function applyRewards(state, rewards, events) {
           events.push(reward.text);
         }
       }
+      return;
+    }
+
+    if (reward.type === "supplies") {
+      if (reward.text) {
+        events.push(reward.text);
+      }
+
+      if (reward.rifle) {
+        const unlockedNow = !state.rifle.owned;
+        state.rifle.owned = true;
+
+        if (reward.rifleAmmo) {
+          state.rifle.ammoInBag += reward.rifleAmmo;
+        }
+
+        if (unlockedNow && state.rifle.ammoInGun <= 0 && state.rifle.ammoInBag > 0) {
+          const loaded = Math.min(state.rifle.magCapacity, state.rifle.ammoInBag);
+          state.rifle.ammoInGun += loaded;
+          state.rifle.ammoInBag -= loaded;
+        }
+      } else if (reward.rifleAmmo) {
+        state.rifle.ammoInBag += reward.rifleAmmo;
+      }
+
+      if (reward.medKits) {
+        state.inventory.medKits += reward.medKits;
+      }
+
+      events.push(
+        `Supplies now: ${state.rifle.ammoInGun}/${state.rifle.magCapacity} rifle loaded, ${state.rifle.ammoInBag} reserve, ${state.inventory.medKits} medkit${state.inventory.medKits === 1 ? "" : "s"}.`
+      );
     }
   });
 }
@@ -960,7 +1045,9 @@ function awardStats(state, agility = 0, courage = 0, events = null) {
 }
 
 function refreshAchievements(state) {
-  state.analytics.achievementsUnlocked = [];
+  state.analytics.achievementsUnlocked = state.analytics.nemesisKills > 0
+    ? ["Nemesis Hunter"]
+    : [];
 }
 
 function applyRewardBundle(state, reward, events) {
@@ -975,9 +1062,32 @@ function applyRewardBundle(state, reward, events) {
   }
 }
 
-function dealSpecialEnemyDamage(state, damage) {
+function isNemesisEnemy(enemy) {
+  return enemy?.type === "nemesisT";
+}
+
+function maybeTriggerThresholdStun(enemy, events) {
+  if (!enemy?.bossStunThresholds?.length || enemy.hp <= 0) return;
+
+  enemy.triggeredStunThresholds ||= [];
+
+  enemy.bossStunThresholds.forEach((threshold) => {
+    if (enemy.hp <= threshold && !enemy.triggeredStunThresholds.includes(threshold)) {
+      enemy.triggeredStunThresholds.push(threshold);
+      enemy.stunnedTurns = Math.max(enemy.stunnedTurns || 0, enemy.bossStunTurns || 1);
+      enemy.bossActionStep = 0;
+      events.push(`${enemy.name} buckles at ${threshold} HP and is stunned for one turn.`);
+    }
+  });
+}
+
+function dealSpecialEnemyDamage(state, damage, events = null) {
   state.combat.enemy.hp -= damage;
   state.analytics.damageDealt += damage;
+
+  if (events) {
+    maybeTriggerThresholdStun(state.combat.enemy, events);
+  }
 }
 
 function getEnemyEffectiveness(enemy, weaponKey) {
@@ -1063,6 +1173,10 @@ function getPreparedDodgeChance(state, enemy) {
   return Math.min(chance, 0.95);
 }
 
+function isCoverAction(actionKey) {
+  return ["heal", "reloadPistol", "reloadRifle", "holdCover"].includes(actionKey);
+}
+
 function applyDamage(state, rawDamage, rng, events, options = {}) {
   const {
     ignoreArmour = false,
@@ -1137,6 +1251,7 @@ function performQuiteQuickShot(state, rng, events) {
       `Quite dodges and fires the parry sidearm for ${outcome.damage} damage${outcome.crit ? " (CRIT!)" : ""}.`
     );
 
+    maybeTriggerThresholdStun(state.combat.enemy, events);
     maybeTriggerBerserkerRage(state.combat.enemy, events);
 
     if (state.combat.enemy.hp <= 0) {
@@ -1170,6 +1285,7 @@ function performQuiteQuickShot(state, rng, events) {
     `Quite dodges and answers with a quick pistol shot for ${outcome.damage} damage${outcome.crit ? " (CRIT!)" : ""}.`
   );
 
+  maybeTriggerThresholdStun(state.combat.enemy, events);
   maybeTriggerBerserkerRage(state.combat.enemy, events);
 
   if (state.combat.enemy.hp <= 0) {
@@ -1275,7 +1391,7 @@ function maybeTriggerLeonAxeReaction(state, rng, events, enemyType, incomingDama
   });
 
   state.analytics.axeReactions += 1;
-  dealSpecialEnemyDamage(state, axeDamage);
+  dealSpecialEnemyDamage(state, axeDamage, events);
   events.push(
     `Leon tears free with the rescue axe, loses ${selfDamage} HP, and deals ${axeDamage} damage${sharpened ? " with a sharpened edge" : ""}.`
   );
@@ -1310,6 +1426,27 @@ function maybeSetEmergency(state, rng, level, events) {
   state.combat.enemy = null;
   events.push(`${state.progression.emergency.title}: ${state.progression.emergency.prompt}`);
   return true;
+}
+
+function createNemesisGrabQte(phase = "escape") {
+  const isCounter = phase === "counter";
+
+  return {
+    active: true,
+    kind: "combat",
+    combatKind: "nemesisGrab",
+    phase,
+    scene: "boss-grab",
+    title: isCounter ? "QUICK ATTACK" : "NEMESIS GRAB",
+    prompt: isCounter
+      ? "Nemesis reels back. Mash V or click to drive a quick counterattack into its exposed core."
+      : "Nemesis has you in its grip. Mash G or click to break free before it crushes you.",
+    key: isCounter ? "V" : "G",
+    required: isCounter ? 7 : 10,
+    timeLimitMs: isCounter ? 4300 : 5200,
+    actionLabel: "MASH KEY / CLICK",
+    abortLabel: "FAIL CHECK"
+  };
 }
 
 const ACTIONS = {
@@ -1354,6 +1491,7 @@ const ACTIONS = {
       events.push(
         `${hero} fired the pistol and dealt ${outcome.damage} damage${outcome.crit ? " (CRIT!)" : ""}.`
       );
+      maybeTriggerThresholdStun(state.combat.enemy, events);
       maybeTriggerBerserkerRage(state.combat.enemy, events);
 
       if (state.combat.enemy.hp <= 0) {
@@ -1395,6 +1533,7 @@ const ACTIONS = {
     }
 
     events.push(`${hero} fired the rifle for ${outcome.damage} damage${outcome.crit ? " (CRIT!)" : ""}.`);
+    maybeTriggerThresholdStun(state.combat.enemy, events);
     maybeTriggerBerserkerRage(state.combat.enemy, events);
 
     if (state.combat.enemy.hp <= 0) {
@@ -1417,6 +1556,7 @@ const ACTIONS = {
       events.push(`${hero} lunges with the knife, but the attack fails to connect well.`);
     } else {
       events.push(`${hero} attacked with the knife and dealt ${outcome.damage} damage.`);
+      maybeTriggerThresholdStun(state.combat.enemy, events);
       if (bestKnifeCase) {
         state.combat.enemy.stunnedTurns = Math.max(state.combat.enemy.stunnedTurns || 0, 1);
         state.combat.enemy.chargeReady = false;
@@ -1459,6 +1599,7 @@ const ACTIONS = {
     }
 
     events.push(`${hero} threw a grenade and dealt ${outcome.damage} damage.`);
+    maybeTriggerThresholdStun(state.combat.enemy, events);
     maybeTriggerBerserkerRage(state.combat.enemy, events);
 
     if (state.combat.enemy.hp <= 0) {
@@ -1554,6 +1695,19 @@ const ACTIONS = {
     return true;
   },
 
+  holdCover(state, rng, events) {
+    const hero = state.player.characterName;
+
+    if (state.combat.coverTurns <= 0) {
+      events.push(`${hero} has no cover to hold right now.`);
+      return false;
+    }
+
+    events.push(`${hero} stays tucked behind the lab pillar and catches one clean breath.`);
+    refreshAchievements(state);
+    return true;
+  },
+
   toggleShield(state, rng, events) {
     const hero = state.player.characterName;
 
@@ -1573,6 +1727,84 @@ const ACTIONS = {
   }
 };
 
+function consumeBossCoverTurn(state, events) {
+  if (state.combat.coverTurns <= 0) return false;
+
+  state.combat.coverTurns -= 1;
+  state.combat.pendingDodge = false;
+  events.push("Nemesis stalks past the lab pillar while you stay hidden. The safe turn is spent.");
+  applyStatusTick(state, events);
+  return true;
+}
+
+function resolveNemesisNormalAttack(state, rng, events) {
+  const hero = state.player.characterName;
+  const enemy = state.combat.enemy;
+  const dodged = resolvePendingDodge(state, rng, events);
+
+  if (state.combat.enemy?.hp <= 0) {
+    return;
+  }
+
+  if (dodged) {
+    events.push("Nemesis overextends, but the opening is too brief to hide.");
+    applyStatusTick(state, events);
+    return;
+  }
+
+  if (rng.chance(0.1)) {
+    events.push(`${enemy.name} swings through a lab console and misses ${hero}.`);
+    applyStatusTick(state, events);
+    return;
+  }
+
+  const rawDamage = rng.int(enemy.dmg[0], enemy.dmg[1]);
+  const damage = applyDamage(state, rawDamage, rng, events);
+  events.push(`${enemy.name} hammers ${hero} for ${damage} damage.`);
+  maybeTriggerLeonAxeReaction(state, rng, events, enemy.type, damage);
+  if (state.combat.enemy?.hp <= 0 || isDead(state)) {
+    return;
+  }
+  applyStatusTick(state, events);
+}
+
+function resolveNemesisRush(state, rng, events) {
+  const hero = state.player.characterName;
+  const enemy = state.combat.enemy;
+  const dodged = resolvePendingDodge(state, rng, events);
+
+  if (state.combat.enemy?.hp <= 0) {
+    return;
+  }
+
+  enemy.bossActionStep = 0;
+
+  if (dodged) {
+    state.combat.coverTurns = 1;
+    events.push(`${hero} dives behind a bio-lab pillar as ${enemy.name} crashes through the lane.`);
+    events.push("You have one hidden turn: heal, reload, or hold cover.");
+    applyStatusTick(state, events);
+    return;
+  }
+
+  const rawDamage = rng.int(RULES.nemesisRushDamage[0], RULES.nemesisRushDamage[1]);
+  const damage = applyDamage(state, rawDamage, rng, events);
+  events.push(`${enemy.name} rushes ${hero} for ${damage} damage.`);
+  maybeTriggerLeonAxeReaction(state, rng, events, enemy.type, damage);
+
+  if (state.combat.enemy?.hp <= 0 || isDead(state)) {
+    return;
+  }
+
+  if (rng.chance(enemy.bossGrabChance || RULES.nemesisGrabChance)) {
+    state.combat.qte = createNemesisGrabQte("escape");
+    events.push(`${enemy.name} grabs ${hero}. Break free before it crushes you.`);
+    return;
+  }
+
+  applyStatusTick(state, events);
+}
+
 function enemyTurn(state, rng, events) {
   if (!state.combat.inCombat || !state.combat.enemy) return;
   if (state.combat.enemy.hp <= 0) return;
@@ -1581,11 +1813,35 @@ function enemyTurn(state, rng, events) {
   const enemy = state.combat.enemy;
   enemy.turnsAlive += 1;
 
+  if (isNemesisEnemy(enemy) && consumeBossCoverTurn(state, events)) {
+    return;
+  }
+
   if (enemy.stunnedTurns > 0) {
     enemy.stunnedTurns -= 1;
     enemy.chargeReady = false;
     events.push(`The ${enemy.name} is stunned and cannot act this turn.`);
     applyStatusTick(state, events);
+    return;
+  }
+
+  if (isNemesisEnemy(enemy)) {
+    if (enemy.bossActionStep === 0) {
+      enemy.bossActionStep = 1;
+      resolveNemesisNormalAttack(state, rng, events);
+      return;
+    }
+
+    if (enemy.bossActionStep === 1) {
+      enemy.bossActionStep = 2;
+      state.combat.pendingDodge = false;
+      events.push(`${enemy.name} lowers its shoulder and lines up a brutal rush.`);
+      events.push("Prepare to dodge on your next turn, then use the pillar cover to heal or reload.");
+      applyStatusTick(state, events);
+      return;
+    }
+
+    resolveNemesisRush(state, rng, events);
     return;
   }
 
@@ -1692,57 +1948,18 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     refreshAchievements(state);
   }
 
-  function handleEnemyDefeat(events) {
+  function completeCurrentLevel(events) {
     const hero = state.player.characterName;
-    const defeatedEnemy = { ...state.combat.enemy };
-    const coinReward = rng.int(defeatedEnemy.coins[0], defeatedEnemy.coins[1]);
     const level = getCurrentLevelData(state);
-
-    state.progression.currentEncounterIndex += 1;
-    state.analytics.enemiesKilled += 1;
-    events.push(`${hero} killed ${defeatedEnemy.name}.`);
-    awardCoins(state, coinReward, events);
-
-    if (defeatedEnemy.type === "exploder") {
-      const defeatWeapon = state.combat.pendingDefeatContext?.weaponKey || "pistol";
-      if (defeatWeapon === "grenade") {
-        const backlash = applyDamage(state, RULES.exploderGrenadeBlast, rng, events, {
-          ignoreShield: true,
-          ignoreArmour: true
-        });
-        events.push(`The grenade chain reaction backfires for ${backlash} damage.`);
-      } else if (defeatWeapon === "knife" || defeatWeapon === "axe") {
-        const backlash = applyDamage(state, RULES.exploderCloseBlast, rng, events, {
-          ignoreShield: true,
-          ignoreArmour: true
-        });
-        events.push(`The exploder goes off at point-blank range for ${backlash} damage.`);
-      }
-    }
-
-    if (isDead(state)) {
-      endGame(state);
-      events.push(`${hero} died in the aftermath. Game over.`);
-      return events;
-    }
-
-    state.combat.pendingDodge = false;
-    state.combat.enemy = null;
-    state.combat.inCombat = false;
-    state.combat.guardStacks = 0;
-    state.combat.pendingDefeatContext = null;
-    state.progression.enemiesRemaining =
-      state.progression.encounterOrder.length - state.progression.currentEncounterIndex;
-
-    if (state.progression.currentEncounterIndex < state.progression.encounterOrder.length) {
-      events.push(`${state.progression.enemiesRemaining} enemies remain in this level.`);
-      spawnCurrentEnemy(state, rng, getCurrentLevelData(state), events);
-      refreshAchievements(state);
-      return events;
-    }
 
     state.status.poisonTurns = 0;
     state.status.corrosionTurns = 0;
+    state.combat.pendingDodge = false;
+    state.combat.coverTurns = 0;
+    state.combat.qte = null;
+    state.combat.enemy = null;
+    state.combat.inCombat = false;
+    state.progression.enemiesRemaining = 0;
     state.progression.levelComplete = true;
     state.progression.roundsSinceShop += 1;
     events.push(`${hero} cleared Level ${level.id}.`);
@@ -1782,6 +1999,131 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     return events;
   }
 
+  function handleEnemyDefeat(events) {
+    const hero = state.player.characterName;
+    const defeatedEnemy = { ...state.combat.enemy };
+    const coinReward = rng.int(defeatedEnemy.coins[0], defeatedEnemy.coins[1]);
+
+    state.progression.currentEncounterIndex += 1;
+    state.analytics.enemiesKilled += 1;
+    if (defeatedEnemy.type === "nemesisT") {
+      state.analytics.nemesisKills += 1;
+    }
+    events.push(`${hero} killed ${defeatedEnemy.name}.`);
+    if (coinReward > 0) {
+      awardCoins(state, coinReward, events);
+    }
+
+    if (defeatedEnemy.type === "exploder") {
+      const defeatWeapon = state.combat.pendingDefeatContext?.weaponKey || "pistol";
+      if (defeatWeapon === "grenade") {
+        const backlash = applyDamage(state, RULES.exploderGrenadeBlast, rng, events, {
+          ignoreShield: true,
+          ignoreArmour: true
+        });
+        events.push(`The grenade chain reaction backfires for ${backlash} damage.`);
+      } else if (defeatWeapon === "knife" || defeatWeapon === "axe") {
+        const backlash = applyDamage(state, RULES.exploderCloseBlast, rng, events, {
+          ignoreShield: true,
+          ignoreArmour: true
+        });
+        events.push(`The exploder goes off at point-blank range for ${backlash} damage.`);
+      }
+    }
+
+    if (isDead(state)) {
+      endGame(state);
+      events.push(`${hero} died in the aftermath. Game over.`);
+      return events;
+    }
+
+    state.combat.pendingDodge = false;
+    state.combat.enemy = null;
+    state.combat.inCombat = false;
+    state.combat.guardStacks = 0;
+    state.combat.pendingDefeatContext = null;
+    state.combat.coverTurns = 0;
+    state.combat.qte = null;
+    state.progression.enemiesRemaining =
+      state.progression.encounterOrder.length - state.progression.currentEncounterIndex;
+
+    if (state.progression.currentEncounterIndex < state.progression.encounterOrder.length) {
+      events.push(`${state.progression.enemiesRemaining} enemies remain in this level.`);
+      spawnCurrentEnemy(state, rng, getCurrentLevelData(state), events);
+      refreshAchievements(state);
+      return events;
+    }
+
+    return completeCurrentLevel(events);
+  }
+
+  function resolveCombatQte(success, progress = 0) {
+    const events = [];
+    const qte = state.combat.qte;
+    const hero = state.player.characterName;
+    const enemy = state.combat.enemy;
+
+    if (!qte?.active) {
+      events.push("No combat quick-time event is active.");
+      return events;
+    }
+
+    if (!enemy || qte.combatKind !== "nemesisGrab") {
+      state.combat.qte = null;
+      events.push("The combat quick-time event fizzles out.");
+      return events;
+    }
+
+    if (!success) {
+      state.combat.qte = null;
+
+      if (qte.phase === "counter") {
+        events.push(`${hero} breaks free but misses the quick counterattack.`);
+      } else {
+        const damage = applyDamage(state, RULES.nemesisGrabFailDamage, rng, events, {
+          ignoreShield: true
+        });
+        events.push(`${enemy.name} crushes ${hero} for ${damage} damage before throwing them clear.`);
+      }
+
+      if (progress > 0) {
+        events.push(`Progress reached: ${progress}.`);
+      }
+
+      if (isDead(state)) {
+        endGame(state);
+        events.push(`${hero} died in Nemesis' grip. Game over.`);
+      }
+
+      refreshAchievements(state);
+      return events;
+    }
+
+    if (qte.phase === "escape") {
+      state.combat.qte = createNemesisGrabQte("counter");
+      events.push(`${hero} breaks Nemesis' grip and finds a narrow opening.`);
+      events.push(state.combat.qte.prompt);
+      refreshAchievements(state);
+      return events;
+    }
+
+    state.combat.qte = null;
+    enemy.hp -= RULES.nemesisGrabCounterDamage;
+    state.analytics.damageDealt += RULES.nemesisGrabCounterDamage;
+    events.push(`${hero} lands a quick counterattack for ${RULES.nemesisGrabCounterDamage} damage.`);
+    maybeTriggerThresholdStun(enemy, events);
+
+    if (enemy.hp <= 0) {
+      state.combat.pendingDefeatContext = {
+        weaponKey: "counter"
+      };
+      return handleEnemyDefeat(events);
+    }
+
+    refreshAchievements(state);
+    return events;
+  }
+
   function startCurrentLevel(events) {
     const level = getCurrentLevelData(state);
 
@@ -1803,6 +2145,8 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     state.combat.pendingDodge = false;
     state.combat.guardStacks = 0;
     state.combat.pendingDefeatContext = null;
+    state.combat.coverTurns = 0;
+    state.combat.qte = null;
 
     if (state.progression.currentLevelId === "1") {
       events.push(`${state.player.characterName} entered the mission.`);
@@ -1814,7 +2158,9 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     events.push(level.description);
     events.push(level.introText);
 
-    if (!maybeSetEmergency(state, rng, level, events)) {
+    if (level.autoComplete && state.progression.encounterOrder.length === 0) {
+      completeCurrentLevel(events);
+    } else if (!maybeSetEmergency(state, rng, level, events)) {
       spawnCurrentEnemy(state, rng, level, events);
     }
 
@@ -1951,14 +2297,18 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     },
 
     hasEmergency() {
-      return Boolean(state.progression.emergency?.active);
+      return Boolean(state.progression.emergency?.active || state.combat.qte?.active);
     },
 
     getEmergency() {
-      return state.progression.emergency;
+      return state.combat.qte?.active ? state.combat.qte : state.progression.emergency;
     },
 
     resolveEmergency(success, progress = 0) {
+      if (state.combat.qte?.active) {
+        return resolveCombatQte(success, progress);
+      }
+
       const events = [];
       const emergency = state.progression.emergency;
       const hero = state.player.characterName;
@@ -2054,6 +2404,13 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
         return events;
       }
 
+      if (state.combat.qte?.active) {
+        events.push(`${hero} resumed the saved game.`);
+        events.push(`LEVEL ${level.id}: ${level.title}`);
+        events.push(`${state.combat.qte.title}: ${state.combat.qte.prompt}`);
+        return events;
+      }
+
       if (state.progression.shopOpen || state.progression.awaitingChoice) {
         events.push(`${hero} resumed the saved game.`);
         events.push(`LEVEL ${level.id}: ${level.title}`);
@@ -2116,8 +2473,8 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
         return events;
       }
 
-      if (state.progression.emergency?.active) {
-        events.push("Resolve the emergency event first.");
+      if (state.progression.emergency?.active || state.combat.qte?.active) {
+        events.push("Resolve the quick-time event first.");
         return events;
       }
 
@@ -2129,6 +2486,11 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
       const action = ACTIONS[actionKey];
       if (!action) {
         events.push(`Unknown action: ${actionKey}`);
+        return events;
+      }
+
+      if (state.combat.coverTurns > 0 && !isCoverAction(actionKey)) {
+        events.push("You are hidden for one turn. Heal, reload, or hold cover before Nemesis finds you again.");
         return events;
       }
 

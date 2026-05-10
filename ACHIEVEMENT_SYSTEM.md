@@ -46,14 +46,17 @@ Base unlocks are written by `unlock_achievements_for_user()` after save-game req
 | Sharpshooter | damage dealt | 500 | 500 | 1000 | 1500 |
 | Medic | medkits used | 5 | 5 | 10 | 15 |
 | Untouchable | no-damage saved runs | 1 | 1 | 2 | 3 |
+| Nemesis Hunter | Nemesis-T Type kills | 1 | 1 | 1 | 1 |
 
 Sharpshooter keeps its extra unlock rule: the player must reach the damage target with 10 or fewer pistol shots. Its tier progress still displays against damage dealt.
 
 Untouchable is derived from saved runs where `has_started_game` is true and `damage_taken` is zero. Duplicate database/fallback payloads are de-duplicated by character and update timestamp.
 
+Nemesis Hunter is derived from the `nemesisKills` run-state analytics counter and unlocks after the player defeats Nemesis-T Type once.
+
 ## Badge Assets
 
-Badge PNG assets live in:
+Badge image assets live in:
 
 ```text
 static/images/badges/
@@ -70,6 +73,12 @@ Examples:
 - `medic_bronze.png`
 - `medic_silver.png`
 - `medic_gold.png`
+
+Single-art achievements can set a custom badge path instead of using the tier suffix convention. Nemesis Hunter uses:
+
+```text
+static/images/badges/nemesis_hunter.jpeg
+```
 
 The current badge art is fictional Route Zero artwork inspired by military badge shapes, not official insignia. The source sheet is kept as:
 

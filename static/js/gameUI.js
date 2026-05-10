@@ -1,5 +1,6 @@
 import { createCombatEngine } from "./combat-engine.js";
 import {
+  BOSS_SCENE_VISUALS,
   ENEMY_VISUALS,
   FX_VISUALS,
   OVERLAY_VISUALS,
@@ -201,8 +202,13 @@ function playCombatActionSfx(actionKey, events) {
     }
   }
 
-  if (actionKey === "dodge") {
-    if (text.includes("prepared to dodge") || text.includes("dodged successfully") || text.includes("tried to dodge, but failed")) {
+  if (actionKey === "dodge" || actionKey === "holdCover") {
+    if (
+      text.includes("prepared to dodge") ||
+      text.includes("dodged successfully") ||
+      text.includes("tried to dodge, but failed") ||
+      text.includes("stays tucked")
+    ) {
       playSfxAudio(whooshAudio);
       return;
     }
@@ -751,7 +757,11 @@ function getBattleTags(engine, currentLevel) {
   tags.push(`DIFF ${state.difficulty}`);
 
   if (engine.hasEmergency()) {
-    tags.push("EMERGENCY");
+    tags.push(state.combat.qte?.active ? "QTE" : "EMERGENCY");
+  }
+
+  if (state.combat.coverTurns > 0) {
+    tags.push("HIDDEN");
   }
 
   if (engine.isShopOpen()) {
@@ -794,6 +804,16 @@ function getEnemyTags(enemy) {
 
   if (enemy.chargeReady) {
     tags.push("CHARGING");
+  }
+
+  if (enemy.type === "nemesisT") {
+    tags.push("BOSS");
+
+    if (enemy.bossActionStep === 2) {
+      tags.push("RUSH READY");
+    } else if (enemy.bossActionStep === 1) {
+      tags.push("PRESSURE");
+    }
   }
 
   if (enemy.poisonTurns > 0) {
@@ -842,6 +862,7 @@ function inferBattleFx(actionKey, events) {
       effect.effect = "reload";
       break;
     case "dodge":
+    case "holdCover":
       effect.effect = "dodge";
       break;
     case "toggleShield":
@@ -874,6 +895,23 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
   const battleMode = getBattleMode(engine);
   const levelVisual = getLevelVisual(state.progression.currentLevelId);
   const activeVisual = battleMode === "shop" ? SPECIAL_VISUALS.shop : levelVisual;
+  const combatQte = state.combat.qte?.active ? state.combat.qte : null;
+  const bossScene =
+    combatQte?.scene === "boss-grab"
+      ? "boss-grab"
+      : enemy?.type === "nemesisT" && state.combat.coverTurns > 0
+        ? "boss-hide"
+        : enemy?.type === "nemesisT" && enemy.stunnedTurns > 0
+          ? "boss-stunned"
+          : "default";
+  const bossSceneBackdrop =
+    bossScene === "boss-grab"
+      ? BOSS_SCENE_VISUALS.grab
+      : bossScene === "boss-hide"
+        ? BOSS_SCENE_VISUALS.hide
+        : bossScene === "boss-stunned"
+          ? BOSS_SCENE_VISUALS.stunned
+          : "";
   const playerPoseKey = battleSceneState.effect ? battleSceneState.lastActionKey : "";
   const playerVisual = getPlayerVisual(state.player.characterId, playerPoseKey);
   const enemyVisual = enemy ? ENEMY_VISUALS[enemy.type] : null;
@@ -908,10 +946,11 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
 
   stage.dataset.theme = activeVisual.theme;
   stage.dataset.mode = battleMode;
+  stage.dataset.scene = bossScene;
   stage.dataset.effect = battleSceneState.effect || "idle";
   stage.dataset.impact = battleSceneState.impact ? "hit" : "idle";
 
-  backdrop.style.setProperty("--battle-backdrop-image", `url("${activeVisual.backdrop}")`);
+  backdrop.style.setProperty("--battle-backdrop-image", `url("${bossSceneBackdrop || activeVisual.backdrop}")`);
   overlay.style.setProperty("--battle-overlay-image", `url("${OVERLAY_VISUALS.scanline}")`);
   overlay.style.setProperty(
     "--battle-danger-image",
@@ -1001,7 +1040,11 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
           ? `STUNNED ${enemy.stunnedTurns}`
           : enemy.chargeReady
             ? "CHARGING"
-            : "HOSTILE";
+            : enemy.type === "nemesisT" && enemy.bossActionStep === 2
+              ? "RUSHING"
+              : enemy.type === "nemesisT" && enemy.bossActionStep === 1
+                ? "PRESSURING"
+                : "HOSTILE";
       enemyMeta.textContent = `HP ${Math.max(enemy.hp, 0)}/${enemy.baseHp} | ${enemyStatus}`;
     } else {
       enemyMeta.textContent = "SCAN ONLINE";
@@ -1339,6 +1382,7 @@ function buildSavePayload(engine) {
     awaiting_choice: state.progression.awaitingChoice,
     game_won: state.progression.gameWon,
     kills: state.analytics.enemiesKilled,
+    nemesis_kills: state.analytics.nemesisKills,
     damage_dealt: state.analytics.damageDealt,
     damage_taken: state.analytics.damageTaken,
     pistol_shots: state.analytics.pistolShotsFired,
@@ -1455,7 +1499,7 @@ export function bootGameUI({
 
   function triggerBattleFx(actionKey, events) {
     if (
-      ["pistol", "rifle", "knife", "grenade", "reloadPistol", "reloadRifle", "heal", "dodge", "toggleShield"].includes(
+      ["pistol", "rifle", "knife", "grenade", "reloadPistol", "reloadRifle", "heal", "dodge", "holdCover", "toggleShield"].includes(
         actionKey
       )
     ) {
@@ -1550,23 +1594,24 @@ export function bootGameUI({
     const shopOpen = engine.isShopOpen();
     const emergencyActive = engine.hasEmergency();
     const interactionLocked = isInteractionLocked();
+    const coverActive = engine.state.combat.coverTurns > 0;
     const lockedOut = dead || interactionLocked || emergencyActive || shopOpen || waitingForChoice;
 
     const buttonStates = [
-      ["attack-btn", dead || lockedOut || !inCombat],
+      ["attack-btn", dead || lockedOut || !inCombat || coverActive],
       ["defend-btn", dead || lockedOut || !inCombat],
       ["inventory-btn", dead || lockedOut],
-      ["save-btn", interactionLocked || emergencyActive],
-      ["stats-btn", lockedOut],
-      ["pistol-btn", dead || interactionLocked || !inCombat],
-      ["rifle-btn", dead || interactionLocked || !inCombat || !engine.state.rifle.owned],
-      ["knife-btn", dead || interactionLocked || !inCombat],
-      ["grenade-btn", dead || interactionLocked || !inCombat],
+      ["save-btn", interactionLocked || emergencyActive || coverActive],
+      ["stats-btn", lockedOut || coverActive],
+      ["pistol-btn", dead || interactionLocked || !inCombat || coverActive],
+      ["rifle-btn", dead || interactionLocked || !inCombat || !engine.state.rifle.owned || coverActive],
+      ["knife-btn", dead || interactionLocked || !inCombat || coverActive],
+      ["grenade-btn", dead || interactionLocked || !inCombat || coverActive],
       ["attack-back-btn", dead || interactionLocked || emergencyActive],
       ["reload-btn", dead || interactionLocked || emergencyActive],
       ["reload-rifle-btn", dead || interactionLocked || emergencyActive || !engine.state.rifle.owned],
       ["medkit-btn", dead || interactionLocked || emergencyActive],
-      ["shield-btn", dead || interactionLocked || emergencyActive || !engine.state.shield.hasShield],
+      ["shield-btn", dead || interactionLocked || emergencyActive || coverActive || !engine.state.shield.hasShield],
       ["inventory-back-btn", dead || interactionLocked || emergencyActive],
       ["stats-back-btn", dead || interactionLocked || emergencyActive]
     ];
@@ -1577,6 +1622,11 @@ export function bootGameUI({
         element.disabled = disabled;
       }
     });
+
+    const defendButton = document.getElementById("defend-btn");
+    if (defendButton) {
+      defendButton.textContent = coverActive ? "HOLD COVER" : "DEFEND";
+    }
 
     if (dead) {
       showMainActions();
@@ -1664,10 +1714,12 @@ export function bootGameUI({
 
     if (emergencyActionBtn) {
       emergencyActionBtn.disabled = locked || !emergencySession.active;
+      emergencyActionBtn.textContent = emergency.actionLabel || "MASH KEY / CLICK";
     }
 
     if (emergencyFailBtn) {
       emergencyFailBtn.disabled = locked || !emergencySession.active;
+      emergencyFailBtn.textContent = emergency.abortLabel || "ABORT EVENT";
     }
   }
 
@@ -1733,7 +1785,11 @@ export function bootGameUI({
       return;
     }
 
-    if (engine.state.progression.levelComplete && !engine.state.progression.gameWon) {
+    if (
+      engine.state.progression.levelComplete &&
+      !engine.state.progression.gameWon &&
+      !engine.getCurrentLevel()?.manualContinueAfterClear
+    ) {
       await sleep(700);
       const nextLevelEvents = engine.advanceToNextLevel();
       await runAndRender(nextLevelEvents);
@@ -1968,7 +2024,7 @@ export function bootGameUI({
 
   if (defendBtn) {
     defendBtn.addEventListener("click", async () => {
-      await handleAction("dodge");
+      await handleAction(engine.state.combat.coverTurns > 0 ? "holdCover" : "dodge");
     });
   }
 

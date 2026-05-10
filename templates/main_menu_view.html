@@ -11,7 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}" />
 </head>
-<body class="menu-page" data-user-id="{{ user_id or '' }}">
+<body class="menu-page video-bg-page" data-user-id="{{ user_id or '' }}">
+  {% include "_background_video.html" %}
 
   <aside class="agent-clipboard" aria-label="Agent information">
     <div class="agent-clip" aria-hidden="true"></div>

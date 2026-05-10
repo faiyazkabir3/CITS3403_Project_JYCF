@@ -389,6 +389,27 @@ Additional finale note:
 
 - `6A` now includes a guaranteed pre-combat emergency, `Prime the Override`, with `10` inputs in `6.2` seconds, rewarding `Agility +5` on success or `Agility +2` on failure with `12` damage taken
 - `6D` uses a chained emergency sequence, `Ram Gate Lockdown`, before combat begins
+- All Level 6 finales now route into Level `7`, then the Level `8` boss fight.
+
+### 7.6 Boss Extension
+
+#### 7 - Quarantine Cache
+
+- No-combat bonus level that auto-completes but requires a manual continue.
+- Rewards rifle access if missing, exactly `10` total rifle rounds, and `3` medkits.
+- Purpose: give every route enough resources to attempt the boss without opening a full shop.
+
+#### 8 - Nemesis-T Type
+
+- Enemy sequence: `Nemesis-T Type`
+- Boss HP: `1000`
+- Best weapon: rifle
+- Good weapons: pistol and grenade
+- Poor weapon: knife, with extra light-damage resistance
+- Stun thresholds: boss is stunned for one turn after crossing `150` HP and again after crossing `50` HP
+- Pattern: normal pressure, telegraphed rush, then rush resolution
+- Successful rush dodge gives one hidden cover turn for healing, pistol reload, rifle reload, or holding cover
+- Failed or ignored rush can trigger a two-step grab QTE: escape first, then mash again for a quick counterattack
 
 ## 8. Emergency Event Rules
 
