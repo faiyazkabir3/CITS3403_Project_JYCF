@@ -187,6 +187,15 @@ def should_skip_text(text: str) -> bool:
 
     return False
 
+def has_existing_key_field(js_source: str, match_end: int, field: str) -> bool:
+    """
+    Checks shortly after a matched field to see if the matching fieldKey already exists.
+    Example:
+      title: "First Cut",
+      titleKey: "levels.1.title.firstCut"
+    """
+    context = js_source[match_end:match_end + 120]
+    return re.search(rf'\b{re.escape(field)}Key\s*:', context) is not None
 
 def extract_and_rewrite(js_path: Path, prefix: str, write: bool, mode: str) -> None:
     js_source = js_path.read_text(encoding="utf-8")
@@ -201,6 +210,9 @@ def extract_and_rewrite(js_path: Path, prefix: str, write: bool, mode: str) -> N
         text = match.group("text")
 
         if should_skip_text(text):
+            continue
+
+        if mode == "levels" and has_existing_key_field(js_source, match.end(), field):
             continue
 
         if mode == "levels":
@@ -240,7 +252,7 @@ def extract_and_rewrite(js_path: Path, prefix: str, write: bool, mode: str) -> N
             new_fragment = f'{field}: "{text}",\n    {field}Key: "{key}"'
         else:
             new_fragment = f'{field}: t("{key}")'
-            
+
         replacements.append((old_fragment, new_fragment, key, text))
 
     print(f"\nScanning: {js_path}")

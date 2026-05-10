@@ -135,6 +135,7 @@ class ChatMessagePayload:
 @dataclass
 class PlayerStats:
     kills: int = 0
+    nemesis_kills: int = 0
     damage_dealt: int = 0
     damage_taken: int = 0
     pistol_shots: int = 0
@@ -184,6 +185,7 @@ class AchievementDefinition:
     icon: str
     tier_thresholds: tuple = ()
     badge_family: str = ""
+    badge_image: str = ""
 
     def __post_init__(self):
         if not self.tier_thresholds:
@@ -832,6 +834,7 @@ def get_user_stats(user_id):
 
     return asdict(PlayerStats(
         kills=total("kills"),
+        nemesis_kills=total("nemesis_kills"),
         damage_dealt=total("damage_dealt"),
         damage_taken=total("damage_taken"),
         pistol_shots=total("pistol_shots"),
@@ -941,6 +944,17 @@ def get_achievement_definitions():
             tier_thresholds=(1, 2, 3),
             badge_family="untouchable",
         ),
+        AchievementDefinition(
+            id="nemesis_hunter",
+            name="Nemesis Hunter",
+            description="Defeat Nemesis-T Type once.",
+            target=1,
+            metric="nemesis_kills",
+            icon="NT",
+            tier_thresholds=(1, 1, 1),
+            badge_family="nemesis_hunter",
+            badge_image="images/badges/nemesis_hunter.jpeg",
+        ),
     ]
 
 def get_achievement_progress(user_id, stats=None):
@@ -950,6 +964,7 @@ def get_achievement_progress(user_id, stats=None):
 
     return {
         "kills": coerce_int(stats.get("kills"), 0),
+        "nemesis_kills": coerce_int(stats.get("nemesis_kills"), 0),
         "levels": latest_level,
         "damage_dealt": coerce_int(stats.get("damage_dealt"), 0),
         "medkits": coerce_int(stats.get("medkits"), 0),
@@ -1024,6 +1039,9 @@ def get_next_achievement_tier(definition, current):
 
 
 def get_achievement_badge_image(definition, tier_name=None):
+    if definition.badge_image:
+        return definition.badge_image
+
     badge_tier = tier_name or ACHIEVEMENT_TIER_ORDER[0]
     return f"images/badges/{definition.badge_family}_{badge_tier}.png"
 
@@ -1726,6 +1744,7 @@ def coerce_bool(value, default=False):
 
 COUNTER_ANALYTICS_FIELDS = {
     "kills": "enemiesKilled",
+    "nemesis_kills": "nemesisKills",
     "damage_dealt": "damageDealt",
     "damage_taken": "damageTaken",
     "pistol_shots": "pistolShotsFired",
@@ -1758,6 +1777,7 @@ def build_save_payload_from_request(data, updated_at=None):
         "game_won": coerce_bool(data.get("game_won"), False),
         "has_started_game": True,
         "kills": coerce_int(data.get("kills"), 0),
+        "nemesis_kills": coerce_int(data.get("nemesis_kills"), 0),
         "damage_dealt": coerce_int(data.get("damage_dealt"), 0),
         "damage_taken": coerce_int(data.get("damage_taken"), 0),
         "pistol_shots": coerce_int(data.get("pistol_shots"), 0),

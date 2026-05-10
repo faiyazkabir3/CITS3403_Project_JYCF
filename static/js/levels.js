@@ -209,8 +209,9 @@ export const LEVELS = {
       },
       failDamage: 12
     },
-    completeText: "You restore the relay, outrun the blackout, and hit extraction ahead of the swarm.",
-    completeTextKey: "levels.6A.completeText"
+    completeText: "You restore the relay, outrun the blackout, and find the quarantine route still sealed ahead.",
+    completeTextKey: "levels.6A.completeText",
+    next: "7"
   },
 
   "4B": {
@@ -273,8 +274,9 @@ export const LEVELS = {
     introTextKey: "levels.6B.introText",
     enemySequence: ["heavy", "exploder", "berserker", "charger"],
     enemyCount: 4,
-    completeText: "You survive the balanced route with a build that can flex both ways.",
-    completeTextKey: "levels.6B.completeText"
+    completeText: "You survive the balanced route with a build that can flex both ways, then catch the quarantine gate cycling open.",
+    completeTextKey: "levels.6B.completeText",
+    next: "7"
   },
 
   "4C": {
@@ -420,8 +422,9 @@ export const LEVELS = {
     introTextKey: "levels.6C.introText",
     enemySequence: ["heavy", "screamer", "berserker", "heavy", "charger"],
     enemyCount: 5,
-    completeText: "You survive the holdout, drag yourself through extraction, and leave the station impossible to shake.",
-    completeTextKey: "levels.6C.completeText"
+    completeText: "You survive the holdout and reach a quarantine cache stamped with biohazard warnings.",
+    completeTextKey: "levels.6C.completeText",
+    next: "7"
   },
 
   "6D": {
@@ -465,7 +468,49 @@ export const LEVELS = {
       },
       failDamage: 12
     },
-    completeText: "You hold Lockjaw Gate, survive the final crush, and force the last route open by sheer stubbornness.",
-    completeTextKey: "levels.unknown.completeText.youHoldLockjawGateSurviveThe"
+    completeText: "You hold Lockjaw Gate, survive the final crush, and force the quarantine route open by sheer stubbornness.",
+    completeTextKey: "levels.unknown.completeText.youHoldLockjawGateSurviveThe",
+    next: "7"
+  },
+
+  "7": {
+    id: "7",
+    title: "Quarantine Cache",
+    titleKey: "levels.7.title.quarantineCache",
+    description: "A sealed emergency locker waits outside the bio-research facility gate.",
+    descriptionKey: "levels.7.description.aSealedEmergencyLockerWaitsOutside",
+    introText: "Bonus level: the cache unlocks with a tired hydraulic cough. You grab rifle ammunition and medkits before the final breach.",
+    introTextKey: "levels.7.introText",
+    enemySequence: [],
+    enemyCount: 0,
+    autoComplete: true,
+    manualContinueAfterClear: true,
+    rewards: [
+      {
+        type: "supplies",
+        rifle: true,
+        rifleAmmo: 10,
+        medKits: 3,
+        text: "The quarantine cache grants rifle access, 10 rifle rounds, and 3 medkits.",
+    textKey: "levels.7.text.theQuarantineCacheGrantsRifleAccess"
+      }
+    ],
+    completeText: "The locker slams shut behind you. Only the bio-research facility gate remains.",
+    completeTextKey: "levels.7.completeText",
+    next: "8"
+  },
+
+  "8": {
+    id: "8",
+    title: "Nemesis-T Type",
+    titleKey: "levels.8.title.nemesisTType",
+    description: "A biohazardous research lab stretches beyond the quarantine gate, all warning lights and cracked containment glass.",
+    descriptionKey: "levels.8.description.aBiohazardousResearchLabStretchesBeyond",
+    introText: "The operator forces open the quarantine gate into a bio-research facility. Sirens flood the lab, glass containment tanks split, and something enormous answers from the dark.",
+    introTextKey: "levels.8.introText",
+    enemySequence: ["nemesisT"],
+    enemyCount: 1,
+    completeText: "Nemesis-T Type collapses under the lab strobes. The facility falls silent, and the mission is finally over.",
+    completeTextKey: "levels.8.completeText"
   }
 };

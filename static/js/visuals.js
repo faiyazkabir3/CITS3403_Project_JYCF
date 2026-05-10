@@ -37,6 +37,12 @@ export const SPECIAL_VISUALS = {
   }
 };
 
+export const BOSS_SCENE_VISUALS = {
+  grab: `${IMAGE_ROOT}/boss/boss_grab.png`,
+  hide: `${IMAGE_ROOT}/boss/player_hide_pillar.png`,
+  stunned: `${IMAGE_ROOT}/boss/boss_stunned.png`
+};
+
 export const ENEMY_VISUALS = {
   fast: {
     image: `${IMAGE_ROOT}/enemies/enemy_fast.png`,
@@ -65,6 +71,10 @@ export const ENEMY_VISUALS = {
   charger: {
     image: `${IMAGE_ROOT}/enemies/enemy_charger.png`,
     impactClass: "impact-charge"
+  },
+  nemesisT: {
+    image: `${IMAGE_ROOT}/enemies/enemy_nemesis_t.png`,
+    impactClass: "impact-boss"
   }
 };
 
@@ -93,6 +103,14 @@ export const LEVEL_VISUALS = {
     backdrop: `${IMAGE_ROOT}/backdrops/bg_agile_route.png`,
     theme: "agile"
   },
+  "7": {
+    backdrop: `${IMAGE_ROOT}/backdrops/bg_biohazard_lab.png`,
+    theme: "biohazard"
+  },
+  "8": {
+    backdrop: `${IMAGE_ROOT}/backdrops/bg_biohazard_lab.png`,
+    theme: "biohazard"
+  },
   "4B": {
     backdrop: `${IMAGE_ROOT}/backdrops/bg_balanced_route.png`,
     theme: "balanced"
@@ -114,6 +132,14 @@ export const LEVEL_VISUALS = {
     theme: "courage"
   },
   "6C": {
+    backdrop: `${IMAGE_ROOT}/backdrops/bg_courage_route.png`,
+    theme: "courage"
+  },
+  "5D": {
+    backdrop: `${IMAGE_ROOT}/backdrops/bg_courage_route.png`,
+    theme: "courage"
+  },
+  "6D": {
     backdrop: `${IMAGE_ROOT}/backdrops/bg_courage_route.png`,
     theme: "courage"
   }
@@ -146,6 +172,10 @@ export function getLevelVisual(levelId) {
 
   if (String(levelId).endsWith("C")) {
     return LEVEL_VISUALS["4C"];
+  }
+
+  if (String(levelId).endsWith("D")) {
+    return LEVEL_VISUALS["5D"];
   }
 
   return LEVEL_VISUALS["1"];

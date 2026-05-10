@@ -11,7 +11,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/global.css') }}">
 </head>
-<body class="achievements-page profile-page public-profile-page" data-user-id="{{ current_user.id }}">
+<body class="achievements-page profile-page public-profile-page video-bg-page" data-user-id="{{ current_user.id }}">
+  {% include "_background_video.html" %}
+
   <div class="menu-container">
     <a href="{{ url_for('main.main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 

@@ -468,12 +468,14 @@ Its high-level order is:
 
 1. bail out if combat is inactive or the enemy is already dead
 2. increment `enemy.turnsAlive`
-3. resolve stun if present
-4. resolve screamer reinforcement timing
-5. resolve charger special flow if the enemy is a charger
-6. otherwise attempt a normal enemy attack
-7. apply spitter debuffs on hit when relevant
-8. apply poison and corrosion ticks
+3. consume a Nemesis cover turn if the player is hidden
+4. resolve stun if present
+5. resolve Nemesis boss flow if the enemy is `nemesisT`
+6. resolve screamer reinforcement timing
+7. resolve charger special flow if the enemy is a charger
+8. otherwise attempt a normal enemy attack
+9. apply spitter debuffs on hit when relevant
+10. apply poison and corrosion ticks
 
 ### 9.1 Fast Zombie
 
@@ -526,6 +528,18 @@ Special flow:
 5. after two successful prepared dodges, the charger is stunned for `1-2` turns
 6. a failed dodge or no dodge resets the streak and applies fixed impact damage
 
+### 9.8 Nemesis-T Type
+
+Special flow:
+
+- Level `8` spawns `nemesisT` as a single 1000 HP boss.
+- Rifle is the best matchup; pistol and grenade are good; knife is a poor matchup with extra resistance.
+- Crossing `150` HP and `50` HP triggers a one-turn stun once per threshold.
+- The boss cycles through normal pressure, a telegraphed rush, then rush resolution.
+- A successful prepared dodge against the rush sets `combat.coverTurns = 1`.
+- While hidden, only heal, pistol reload, rifle reload, or `holdCover` can spend the safe turn.
+- Failed rush defense can create a combat QTE in `combat.qte`, first to escape a grab and then to land a quick counterattack.
+
 ## 10. Kill Resolution and Level Completion
 
 ### 10.1 `handleEnemyDefeat(events)`
@@ -534,7 +548,7 @@ When an enemy dies, this helper:
 
 1. increments `currentEncounterIndex`
 2. increments `analytics.enemiesKilled`
-3. awards a random coin roll from the enemy template
+3. awards a random coin roll from the enemy template when the roll is above zero
 4. checks exploder backlash using `pendingDefeatContext`
 5. ends the game if backlash kills the player
 6. clears live combat state
@@ -556,6 +570,8 @@ After the final enemy in a level:
   - at least two levels have passed since the previous shop
   - the run can still continue through a next level or route choice
 - the run is marked won if the branch ends and there is no next level
+
+`autoComplete` levels with no encounters call the same completion path immediately after their intro text. Level `7` uses this with `manualContinueAfterClear` so the supply reward is visible before Level `8` starts.
 
 ## 11. Route Choice, Shop, and Emergency Systems
 
@@ -617,11 +633,14 @@ Public emergency APIs:
 - `getEmergency()`
 - `resolveEmergency(success, progress = 0)`
 
+These APIs now cover both level-start emergencies in `progression.emergency` and combat QTEs in `combat.qte`, so the UI can reuse the same mash-key panel.
+
 `resolveEmergency()`:
 
 - resolves the current step
 - for a single-step emergency, behaves as before
 - for an emergency sequence, either advances to the next step or resolves the whole sequence
+- for a combat QTE, resolves the active boss grab phase without clearing the live enemy
 - records success or failure analytics only when the whole emergency is cleared or failed
 - applies failure chip damage with `ignoreShield: true`
 - ends the run if that damage kills the player
