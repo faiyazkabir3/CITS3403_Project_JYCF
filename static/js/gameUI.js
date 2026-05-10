@@ -9,6 +9,13 @@ import {
 } from "./visuals.js";
 import { createTutorialGuide } from "./tutorialGuide.js";
 
+import { t } from "./translation.js";
+
+function getTranslatedField(object, field) {
+  const key = object?.[`${field}Key`];
+  return key ? t(key) : object?.[field] || "";
+}
+
 const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
 const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
@@ -744,7 +751,7 @@ function getBattleTags(engine, currentLevel) {
   const tags = [];
 
   if (currentLevel?.title) {
-    tags.push(currentLevel.title.toUpperCase());
+    tags.push(getTranslatedField(currentLevel, "title").toUpperCase());
   }
 
   tags.push(`LEVEL ${state.progression.currentLevelId}`);
@@ -1020,7 +1027,7 @@ function renderStats(engine) {
 
   const topLeft = $(".top-left");
   if (topLeft && currentLevel) {
-    topLeft.textContent = `LEVEL ${currentLevel.id} - ${currentLevel.title}`;
+    topLeft.textContent = `LEVEL ${currentLevel.id} - ${getTranslatedField(currentLevel, "title")}`;
   }
 
   const statusText = [
@@ -1206,8 +1213,8 @@ function renderChoiceBox(engine, onChoose, locked) {
     button.className = "choice-btn";
     button.disabled = locked;
     button.innerHTML = `
-      <span class="choice-title">${choice.label}</span>
-      <span class="choice-desc">${choice.description}</span>
+      <span class="choice-title">${getTranslatedField(choice, "label")}</span>
+      <span class="choice-desc">${getTranslatedField(choice, "description")}</span>
     `;
     button.addEventListener("click", () => onChoose(choice.id));
     choiceButtons.appendChild(button);
@@ -1524,6 +1531,41 @@ export function bootGameUI({
     }
   }
 
+  function translateEventForDisplay(eventText) {
+  if (typeof eventText !== "string") {
+    return eventText;
+  }
+
+  const currentLevel = engine.getCurrentLevel();
+
+  if (!currentLevel) {
+    return eventText;
+  }
+
+  const translatedTitle = getTranslatedField(currentLevel, "title");
+
+  if (eventText === `LEVEL ${currentLevel.id}: ${currentLevel.title}`) {
+    return `LEVEL ${currentLevel.id}: ${translatedTitle}`;
+  }
+
+  const levelFields = ["description", "introText", "completeText"];
+
+  for (const field of levelFields) {
+    if (eventText === currentLevel[field]) {
+      return getTranslatedField(currentLevel, field);
+    }
+  }
+
+  const rewards = currentLevel.rewards || [];
+  for (const reward of rewards) {
+    if (eventText === reward.text) {
+      return getTranslatedField(reward, "text");
+    }
+  }
+
+  return eventText;
+}
+
   function updateMissionSkipControls() {
     [storySkipBtn, shopStorySkipBtn].forEach((button) => {
       if (!button) return;
@@ -1702,9 +1744,12 @@ export function bootGameUI({
     isAnimatingEvents = true;
     textPlaybackController.start();
     renderAll();
+
+    const displayEvents = events.map(translateEventForDisplay);
+    
     await playEventSequence(
       [storyText, shopStoryText],
-      events,
+      displayEvents,
       24,
       460,
       () => renderId !== storyRenderId,
