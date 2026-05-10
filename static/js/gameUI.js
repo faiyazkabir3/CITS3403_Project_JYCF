@@ -798,8 +798,8 @@ function getEnemyTags(enemy) {
     tags.push("RAGING");
   }
 
-  if (enemy.stunnedTurns > 0) {
-    tags.push(`STUNNED ${enemy.stunnedTurns}`);
+  if (enemy.stunnedTurns > 0 || enemy.stunSceneTurns > 0) {
+    tags.push(`STUNNED ${Math.max(enemy.stunnedTurns, enemy.stunSceneTurns || 0)}`);
   }
 
   if (enemy.chargeReady) {
@@ -901,7 +901,7 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
       ? "boss-grab"
       : enemy?.type === "nemesisT" && state.combat.coverTurns > 0
         ? "boss-hide"
-        : enemy?.type === "nemesisT" && enemy.stunnedTurns > 0
+        : enemy?.type === "nemesisT" && (enemy.stunnedTurns > 0 || enemy.stunSceneTurns > 0)
           ? "boss-stunned"
           : "default";
   const bossSceneBackdrop =
@@ -1036,8 +1036,8 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
     if (enemy) {
       const enemyStatus = enemy.rageActive
         ? "RAGING"
-        : enemy.stunnedTurns > 0
-          ? `STUNNED ${enemy.stunnedTurns}`
+          : enemy.stunnedTurns > 0 || enemy.stunSceneTurns > 0
+            ? `STUNNED ${Math.max(enemy.stunnedTurns, enemy.stunSceneTurns || 0)}`
           : enemy.chargeReady
             ? "CHARGING"
             : enemy.type === "nemesisT" && enemy.bossActionStep === 2

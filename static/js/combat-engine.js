@@ -757,6 +757,7 @@ function normalizeStateShape(state) {
     state.combat.enemy.triggeredStunThresholds ??= [];
     state.combat.enemy.bossStunTurns ??= 1;
     state.combat.enemy.bossGrabChance ??= RULES.nemesisGrabChance;
+    state.combat.enemy.stunSceneTurns ??= 0;
   }
 
   if (state.combat.qte?.active) {
@@ -891,6 +892,7 @@ function buildEnemy(typeKey) {
     triggeredStunThresholds: [],
     bossStunTurns: type.bossStunTurns || 0,
     bossGrabChance: type.bossGrabChance || 0,
+    stunSceneTurns: 0,
     turnsAlive: 0,
     rageActive: false,
     summonedReinforcement: false,
@@ -1075,6 +1077,7 @@ function maybeTriggerThresholdStun(enemy, events) {
     if (enemy.hp <= threshold && !enemy.triggeredStunThresholds.includes(threshold)) {
       enemy.triggeredStunThresholds.push(threshold);
       enemy.stunnedTurns = Math.max(enemy.stunnedTurns || 0, enemy.bossStunTurns || 1);
+      enemy.stunSceneTurns = Math.max(enemy.stunSceneTurns || 0, 1);
       enemy.bossActionStep = 0;
       events.push(`${enemy.name} buckles at ${threshold} HP and is stunned for one turn.`);
     }
@@ -1819,6 +1822,7 @@ function enemyTurn(state, rng, events) {
 
   if (enemy.stunnedTurns > 0) {
     enemy.stunnedTurns -= 1;
+    enemy.stunSceneTurns = Math.max(enemy.stunSceneTurns || 0, 1);
     enemy.chargeReady = false;
     events.push(`The ${enemy.name} is stunned and cannot act this turn.`);
     applyStatusTick(state, events);
@@ -2526,6 +2530,10 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
       }
 
       if (validMove) {
+        if (state.combat.enemy?.stunSceneTurns > 0) {
+          state.combat.enemy.stunSceneTurns -= 1;
+        }
+
         enemyTurn(state, rng, events);
 
         if (state.combat.enemy && state.combat.enemy.hp <= 0) {
