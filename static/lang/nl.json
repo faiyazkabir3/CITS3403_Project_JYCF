@@ -347,5 +347,10 @@
   "worldChat.emptyMessage": "Het bericht mag niet leeg zijn.",
   "worldChat.sending": "Verzenden...",
   "worldChat.sendError": "Bericht kon niet worden verzonden.",
-  "worldChat.sent": "Bericht verzonden."
+  "worldChat.sent": "Bericht verzonden.",
+  "friends.validation.enterUsername": "Voer een gebruikersnaam in.",
+  "friends.validation.minLength": "De gebruikersnaam moet minimaal __PLAATSHOUDER_0__ tekens lang zijn.",
+  "friends.validation.maxLength": "De gebruikersnaam mag maximaal __PLAATSHOUDER_0__ tekens lang zijn.",
+  "friends.validation.allowedCharacters": "Gebruikersnamen mogen alleen kleine letters, cijfers en underscores bevatten.",
+  "friends.sending": "VERZENDEN..."
 }

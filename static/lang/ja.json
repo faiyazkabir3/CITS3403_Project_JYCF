@@ -347,5 +347,10 @@
   "worldChat.emptyMessage": "メッセージは空にすることはできません。",
   "worldChat.sending": "送信中...",
   "worldChat.sendError": "メッセージを送信できませんでした。",
-  "worldChat.sent": "メッセージを送信しました。"
+  "worldChat.sent": "メッセージを送信しました。",
+  "friends.validation.enterUsername": "ユーザー名を入力してください。",
+  "friends.validation.minLength": "ユーザー名は少なくとも{amount}文字以上である必要があります。",
+  "friends.validation.maxLength": "ユーザー名は{amount}文字以下でなければなりません。",
+  "friends.validation.allowedCharacters": "ユーザー名には、小文字の英字、数字、アンダースコアのみを使用できます。",
+  "friends.sending": "送信中..."
 }

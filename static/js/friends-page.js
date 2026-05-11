@@ -1,3 +1,7 @@
+import { t, initLanguage } from "./translation.js";
+
+await initLanguage();
+
 const friendForm = document.querySelector("[data-friend-form]");
 const friendUsernameInput = document.querySelector("[data-friend-username]");
 const flashMessages = document.querySelectorAll("[data-flash-message]");
@@ -42,27 +46,28 @@ function validateFriendUsername() {
   const cleanedUsername = normalizeFriendUsername();
 
   if (!cleanedUsername) {
-    return showFieldError(friendUsernameInput, "Please enter a username.");
+    return showFieldError(friendUsernameInput, t("friends.validation.enterUsername"));
   }
 
   if (cleanedUsername.length < MIN_USERNAME_LENGTH) {
     return showFieldError(
       friendUsernameInput,
-      `Username must be at least ${MIN_USERNAME_LENGTH} characters.`
+      t("friends.validation.minLength", { amount: MIN_USERNAME_LENGTH })
+
     );
   }
 
   if (cleanedUsername.length > MAX_USERNAME_LENGTH) {
     return showFieldError(
       friendUsernameInput,
-      `Username must be ${MAX_USERNAME_LENGTH} characters or fewer.`
+      t("friends.validation.maxLength", { amount: MAX_USERNAME_LENGTH })
     );
   }
 
   if (!USERNAME_PATTERN.test(cleanedUsername)) {
     return showFieldError(
       friendUsernameInput,
-      "Username can only use lowercase letters, numbers, and underscores."
+      t("friends.validation.allowedCharacters")
     );
   }
 
@@ -92,7 +97,7 @@ if (friendForm && friendUsernameInput) {
 
     if (submitButton) {
       submitButton.disabled = true;
-      submitButton.textContent = "SENDING...";
+      submitButton.textContent = t("friends.sending");
     }
   });
 }
