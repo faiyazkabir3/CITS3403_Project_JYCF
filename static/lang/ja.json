@@ -338,5 +338,14 @@
   "levels.8.title.nemesisTType": "ネメシスT型",
   "levels.8.description.aBiohazardousResearchLabStretchesBeyond": "検疫ゲートの向こう側には、警告灯が点灯し、ひび割れた封じ込めガラスが並ぶ、生物学的危険物を扱う研究室が広がっている。",
   "levels.8.introText": "オペレーターが隔離ゲートを無理やり開け、生物研究施設へと入る。サイレンが鳴り響き、ガラス製の封じ込めタンクが割れ、暗闇の中から巨大な何かが姿を現す。",
-  "levels.8.completeText": "ネメシスT型は、実験室のストロボライトの下で崩壊する。施設は静まり返り、任務はついに終了した。"
+  "levels.8.completeText": "ネメシスT型は、実験室のストロボライトの下で崩壊する。施設は静まり返り、任務はついに終了した。",
+  "worldChat.unknownAgent": "正体不明のエージェント",
+  "worldChat.oneLineOnly": "ワールドチャットは一度に1行しか表示できません。",
+  "worldChat.noMessages": "まだメッセージはありません。",
+  "worldChat.loadError": "ワールドチャットを読み込むことができませんでした。",
+  "worldChat.live": "世界規模のチャットが開始されました。",
+  "worldChat.emptyMessage": "メッセージは空にすることはできません。",
+  "worldChat.sending": "送信中...",
+  "worldChat.sendError": "メッセージを送信できませんでした。",
+  "worldChat.sent": "メッセージを送信しました。"
 }

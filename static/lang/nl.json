@@ -338,5 +338,14 @@
   "levels.8.title.nemesisTType": "Nemesis-T-type",
   "levels.8.description.aBiohazardousResearchLabStretchesBeyond": "Een biologisch gevaarlijk onderzoekslaboratorium strekt zich uit voorbij de quarantainepoort, met overal waarschuwingslampjes en gebarsten glas van de afgesloten ruimte.",
   "levels.8.introText": "De operator forceert de quarantainepoort van een bio-onderzoeksfaciliteit open. Sirenes galmen door het lab, glazen opslagtanks barsten open en iets enorms verschijnt vanuit het donker.",
-  "levels.8.completeText": "De Nemesis-T Type stort in onder het flitslicht van het laboratorium. De faciliteit wordt stil en de missie is eindelijk voorbij."
+  "levels.8.completeText": "De Nemesis-T Type stort in onder het flitslicht van het laboratorium. De faciliteit wordt stil en de missie is eindelijk voorbij.",
+  "worldChat.unknownAgent": "Onbekende agent",
+  "worldChat.oneLineOnly": "In de wereldchat kan slechts één regel tegelijk worden gecommuniceerd.",
+  "worldChat.noMessages": "Nog geen berichten.",
+  "worldChat.loadError": "De wereldchat kan niet worden geladen.",
+  "worldChat.live": "De wereldwijde chat is live.",
+  "worldChat.emptyMessage": "Het bericht mag niet leeg zijn.",
+  "worldChat.sending": "Verzenden...",
+  "worldChat.sendError": "Bericht kon niet worden verzonden.",
+  "worldChat.sent": "Bericht verzonden."
 }

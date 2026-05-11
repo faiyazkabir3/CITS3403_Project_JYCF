@@ -233,7 +233,7 @@
 
   <script src="{{ url_for('static', filename='js/friends-menu.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/world-chat.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/world-chat.js') }}"></script>
 
   <div id="settings-modal" class="settings-modal" hidden aria-hidden="true">
     <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
