@@ -8,7 +8,60 @@ from google.cloud import translate_v2 as translate
 LANG_DIR = Path("static/lang")
 SOURCE_LANG = "en"
 
-PLACEHOLDER_PATTERN = re.compile(r"\{[a-zA-Z0-9_]+\}")
+PLACEHOLDER_PATTERN = re.compile(r"\{[A-Za-z0-9_]+\}")
+
+def protect_placeholders(text: str) -> tuple[str, list[str]]:
+    """
+    Protects placeholders like {character}, {enemy}, {damage}
+    before sending text to Google Translate.
+
+    Example:
+      "{character} killed {enemy}."
+    becomes:
+      "ZXQ0QXZ killed ZXQ1QXZ."
+    """
+    placeholders = PLACEHOLDER_PATTERN.findall(text)
+    protected_text = text
+
+    for index, placeholder in enumerate(placeholders):
+        protected_text = protected_text.replace(placeholder, f"ZXQ{index}QXZ", 1)
+
+    return protected_text, placeholders
+
+
+def restore_placeholders(text: str, placeholders: list[str]) -> str:
+    """
+    Restores protected placeholders after translation.
+    Also repairs older Google-translated placeholder forms like
+    __PLAATSHOUDER_0__ and __PLAATSVERVANGER_0__.
+    """
+    restored = text
+
+    for index, placeholder in enumerate(placeholders):
+        restore_candidates = [
+            f"ZXQ{index}QXZ",
+            f"ZXQ {index} QXZ",
+            f"ZXQ{index} QXZ",
+            f"ZXQ {index}QXZ",
+            f"__PLACEHOLDER_{index}__",
+            f"__PLAATSHOUDER_{index}__",
+            f"__PLAATSVERVANGER_{index}__",
+            f"__プレースホルダー_{index}__",
+        ]
+
+        for token in restore_candidates:
+            restored = restored.replace(token, placeholder)
+
+    # Safety net: handles any translated placeholder-like token with the same index.
+    def replace_translated_placeholder(match: re.Match) -> str:
+        index = int(match.group(1))
+        if 0 <= index < len(placeholders):
+            return placeholders[index]
+        return match.group(0)
+
+    restored = re.sub(r"__[A-ZÀ-ÖØ-ÞA-Za-z_\-]+_(\d+)__", replace_translated_placeholder, restored)
+
+    return restored
 
 def load_json(path):
     if not path.exists():
@@ -20,23 +73,6 @@ def save_json(path, data):
         json.dumps(data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8"
     )
-
-def protect_placeholders(text):
-    placeholders = PLACEHOLDER_PATTERN.findall(text)
-    protected = text
-
-    for index, placeholder in enumerate(placeholders):
-        protected = protected.replace(placeholder, f"__PLACEHOLDER_{index}__")
-
-    return protected, placeholders
-
-def restore_placeholders(text, placeholders):
-    restored = text
-
-    for index, placeholder in enumerate(placeholders):
-        restored = restored.replace(f"__PLACEHOLDER_{index}__", placeholder)
-
-    return restored
 
 def translate_text(client, text, target_lang):
     protected_text, placeholders = protect_placeholders(text)
