@@ -789,35 +789,44 @@ function getBattleTags(engine, currentLevel) {
     tags.push(getTranslatedField(currentLevel, "title").toUpperCase());
   }
 
-  tags.push(`LEVEL ${state.progression.currentLevelId}`);
-  tags.push(`DIFF ${state.difficulty}`);
+  tags.push(t("battle.tag.level", {
+    level: state.progression.currentLevelId
+  }));
+
+  tags.push(t("battle.tag.difficulty", {
+    difficulty: state.difficulty
+  }));
 
   if (engine.hasEmergency()) {
-    tags.push(state.combat.qte?.active ? "QTE" : "EMERGENCY");
+    tags.push(state.combat.qte?.active ? t("battle.tag.qte") : t("battle.tag.emergency"));
   }
 
   if (state.combat.coverTurns > 0) {
-    tags.push("HIDDEN");
+    tags.push(t("battle.tag.hidden"));
   }
 
   if (engine.isShopOpen()) {
-    tags.push("SHOP ONLINE");
+    tags.push(t("battle.tag.shopOnline"));
   }
 
   if (engine.hasChoices()) {
-    tags.push("ROUTE SELECT");
+    tags.push(t("battle.tag.routeSelect"));
   }
 
   if (state.progression.levelComplete && !state.combat.inCombat) {
-    tags.push("AREA SECURED");
+    tags.push(t("battle.tag.areaSecured"));
   }
 
   if (state.status.poisonTurns > 0) {
-    tags.push(`POISON ${state.status.poisonTurns}`);
+    tags.push(t("battle.tag.poison", {
+      turns: state.status.poisonTurns
+    }));
   }
 
   if (state.status.corrosionTurns > 0) {
-    tags.push(`CORROSION ${state.status.corrosionTurns}`);
+    tags.push(t("battle.tag.corrosion", {
+      turns: state.status.corrosionTurns
+    }));
   }
 
   return tags;
@@ -825,43 +834,49 @@ function getBattleTags(engine, currentLevel) {
 
 function getEnemyTags(enemy) {
   if (!enemy) {
-    return ["NO TARGET"];
+    return [t("battle.tag.noTarget")];
   }
 
   const tags = [enemy.type.toUpperCase()];
 
   if (enemy.rageActive) {
-    tags.push("RAGING");
+    tags.push(t("battle.tag.raging"));
   }
 
   if (enemy.stunnedTurns > 0) {
-    tags.push(`STUNNED ${enemy.stunnedTurns}`);
+    tags.push(t("battle.tag.stunned", {
+      turns: enemy.stunnedTurns
+    }));
   }
 
   if (enemy.chargeReady) {
-    tags.push("CHARGING");
+    tags.push(t("battle.tag.charging"));
   }
 
   if (enemy.type === "nemesisT") {
-    tags.push("BOSS");
+    tags.push(t("battle.tag.boss"));
 
     if (enemy.bossActionStep === 2) {
-      tags.push("RUSH READY");
+      tags.push(t("battle.tag.rushReady"));
     } else if (enemy.bossActionStep === 1) {
-      tags.push("PRESSURE");
+      tags.push(t("battle.tag.pressure"));
     }
   }
 
   if (enemy.poisonTurns > 0) {
-    tags.push(`ACID ${enemy.poisonTurns}`);
+    tags.push(t("battle.tag.acid", {
+      turns: enemy.poisonTurns
+    }));
   }
 
   if (enemy.corrosionTurns > 0) {
-    tags.push(`CORROSIVE ${enemy.corrosionTurns}`);
+    tags.push(t("battle.tag.corrosive", {
+      turns: enemy.corrosionTurns
+    }));
   }
 
   if (enemy.summonAfterTurns && !enemy.summonedReinforcement) {
-    tags.push("CALLING");
+    tags.push(t("battle.tag.calling"));
   }
 
   return tags;
@@ -1011,14 +1026,19 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
     state.player.characterName
   );
 
+  const translatedEnemyName = enemy ? translateEnemyName(enemy.name) : "";
+
   setBattleAsset(
     enemyImage,
     enemyFallback,
     enemyVisual?.image || "",
-    enemy ? `${enemy.name} portrait` : "No threat",
-    enemy ? enemy.name.toUpperCase() : "NO CONTACT"
+    enemy
+      ? t("battle.enemyPortrait", { enemy: translatedEnemyName })
+      : t("battle.noThreat"),
+    enemy
+      ? translatedEnemyName.toUpperCase()
+      : t("battle.noContact")
   );
-
   renderBattleFxImage(actionFxImage, battleSceneState.actionFxSrc || "");
   renderBattleFxImage(impactFxImage, battleSceneState.impactFxSrc || "");
 
@@ -1065,25 +1085,28 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
   );
 
   if (enemyName) {
-    enemyName.textContent = enemy ? enemy.name.toUpperCase() : "NO CONTACT";
+    enemyName.textContent = enemy
+      ? translateEnemyName(enemy.name).toUpperCase()
+      : t("battle.noContact");
   }
 
   if (enemyMeta) {
     if (enemy) {
       const enemyStatus = enemy.rageActive
-        ? "RAGING"
+        ? t("battle.status.raging")
         : enemy.stunnedTurns > 0
-          ? `STUNNED ${enemy.stunnedTurns}`
+          ? t("battle.status.stunned", { turns: enemy.stunnedTurns })
           : enemy.chargeReady
-            ? "CHARGING"
+            ? t("battle.status.charging")
             : enemy.type === "nemesisT" && enemy.bossActionStep === 2
-              ? "RUSHING"
+              ? t("battle.status.rushing")
               : enemy.type === "nemesisT" && enemy.bossActionStep === 1
-                ? "PRESSURING"
-                : "HOSTILE";
+                ? t("battle.status.pressuring")
+                : t("battle.status.hostile");
+
       enemyMeta.textContent = `HP ${Math.max(enemy.hp, 0)}/${enemy.baseHp} | ${enemyStatus}`;
     } else {
-      enemyMeta.textContent = "SCAN ONLINE";
+      enemyMeta.textContent = t("battle.scanOnline");
     }
   }
 
@@ -1989,8 +2012,8 @@ export function bootGameUI({
     if (match) return t("combat.unequippedShield", { character: match[1] });
 
     if (eventText === "Acid splashes across your gear. Poison and corrosion start ticking.") {
-  return t("combat.acidDebuff");
-}
+      return t("combat.acidDebuff");
+    }
 
     match = eventText.match(/^(.+) suffers (\d+) poison damage\.$/);
     if (match) {
@@ -2087,7 +2110,7 @@ export function bootGameUI({
       return t("combat.needsCoins", {
         character: match[1],
         item: translateShopItemName(match[2]),
-        item: match[3]
+        cost: match[3]
       });
     }
 
@@ -2113,6 +2136,20 @@ export function bootGameUI({
 
     if (eventText === "You can shop before committing to the next route.") {
       return t("combat.canShopBeforeRoute");
+    }
+
+    match = eventText.match(/^Perk: (.+)$/);
+    if (match) {
+      return t("combat.perk", {
+        perk: match[1]
+      });
+    }
+
+    match = eventText.match(/^(.+) entered the mission\.$/);
+    if (match) {
+      return t("combat.enteredMission", {
+        character: match[1]
+      });
     }
 
     return eventText;
