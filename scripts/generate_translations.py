@@ -1,3 +1,5 @@
+# python scripts/generate_translations.py nl ja
+
 import argparse
 import json
 import re

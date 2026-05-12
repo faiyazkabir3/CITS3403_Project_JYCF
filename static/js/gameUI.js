@@ -46,6 +46,58 @@ function translateShopItemName(itemName) {
   return itemMap[itemName] ? t(itemMap[itemName]) : itemName;
 }
 
+function getShopText(item, field, fallback = "") {
+  const key = `shop.item.${item.id}.${field}`;
+  const translated = t(key);
+
+  return translated === key ? fallback : translated;
+}
+
+function getShopResourceText(item, state) {
+  if (!item) {
+    return "";
+  }
+
+  if (item.id === "medkit") {
+    return t("shop.resource.medkit", {
+      amount: state.inventory.medKits,
+      item: state.inventory.medKits === 1
+        ? t("shop.resource.medkitSingular")
+        : t("shop.resource.medkitPlural")
+    });
+  }
+
+  if (item.id === "pistolAmmo") {
+    return t("shop.resource.pistolAmmo", {
+      total: state.pistol.ammoInGun + state.pistol.ammoInBag,
+      loaded: state.pistol.ammoInGun,
+      capacity: state.pistol.magCapacity,
+      reserve: state.pistol.ammoInBag
+    });
+  }
+
+  if (item.id === "rifle") {
+    return state.rifle.owned
+      ? t("shop.resource.rifleOwned", {
+          total: state.rifle.ammoInGun + state.rifle.ammoInBag
+        })
+      : t("shop.resource.noRifleOwned");
+  }
+
+  if (item.id === "rifleAmmo") {
+    return state.rifle.owned
+      ? t("shop.resource.rifleAmmo", {
+          total: state.rifle.ammoInGun + state.rifle.ammoInBag,
+          loaded: state.rifle.ammoInGun,
+          capacity: state.rifle.magCapacity,
+          reserve: state.rifle.ammoInBag
+        })
+      : t("shop.resource.buyRifleFirst");
+  }
+
+  return item.resourceLine || "";
+}
+
 const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
 const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
@@ -1348,10 +1400,12 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
 
   if (inventorySummary) {
     inventorySummary.innerHTML = `
-      <span>Total pistol ammo with you: ${pistolTotalAmmo}</span>
-      <span>Total rifle ammo with you: ${rifle.owned ? rifleTotalAmmo : "no rifle"}</span>
-      <span>Grenades with you: ${inventory.grenades}</span>
-      <span>Medkits with you: ${inventory.medKits}</span>
+      <span>${t("shop.summary.pistolAmmo", { amount: pistolTotalAmmo })}</span>
+      <span>${t("shop.summary.rifleAmmo", {
+        amount: rifle.owned ? rifleTotalAmmo : t("shop.summary.noRifle")
+      })}</span>
+      <span>${t("shop.summary.grenades", { amount: inventory.grenades })}</span>
+      <span>${t("shop.summary.medkits", { amount: inventory.medKits })}</span>
     `;
   }
 
@@ -1360,10 +1414,13 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
     button.type = "button";
     button.className = "choice-btn";
     button.disabled = locked || item.disabled || coins < item.cost;
+
+    const resourceText = getShopResourceText(item, engine.state);
+
     button.innerHTML = `
-      <span class="choice-title">${item.label} - ${item.cost}C</span>
-      <span class="choice-desc">${item.description}</span>
-      ${item.resourceLine ? `<span class="choice-desc shop-resource-line">${item.resourceLine}</span>` : ""}
+      <span class="choice-title">${getShopText(item, "label", item.label)} - ${item.cost}C</span>
+      <span class="choice-desc">${getShopText(item, "description", item.description)}</span>
+      ${resourceText ? `<span class="choice-desc shop-resource-line">${resourceText}</span>` : ""}
     `;
     button.addEventListener("click", () => onBuy(item.id));
     buyButtons.appendChild(button);
@@ -1382,8 +1439,8 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
       button.className = "choice-btn";
       button.disabled = locked;
       button.innerHTML = `
-        <span class="choice-title">${item.label} - +${item.value}C</span>
-        <span class="choice-desc">${item.description}</span>
+        <span class="choice-title">${getShopText(item, "label", item.label)} - +${item.value}C</span>
+        <span class="choice-desc">${getShopText(item, "description", item.description)}</span>
       `;
       button.addEventListener("click", () => onSell(item.id));
       sellButtons.appendChild(button);
