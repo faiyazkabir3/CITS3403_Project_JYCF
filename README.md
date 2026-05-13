@@ -11,6 +11,7 @@ Created by JYCF.
 | 24773532 | Faiyaz Kabir  | faiyazkabir3     |
 | 24112617 | Looi Yong Lun | looiyonglun-cmyk |
 | 24220597 | Joshua Evans  | Joshua-Evans05 & 24220597   |
+| 24509218 | Chris Pranoto | 1udex            |
 
 ## Documentation
 
