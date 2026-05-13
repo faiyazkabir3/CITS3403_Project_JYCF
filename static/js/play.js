@@ -1,3 +1,4 @@
+import { loadLanguage } from "./translation.js";
 import { initLanguage } from "./translation.js";
 await initLanguage();
 
@@ -15,6 +16,15 @@ const uiButtonAudio = new Audio(UI_BUTTON_SOUND);
 const errorBeepAudio = new Audio(ERROR_BEEP_SOUND);
 uiButtonAudio.preload = "auto";
 errorBeepAudio.preload = "auto";
+
+const openLanguageButton = document.getElementById("open-language-btn");
+const languageModal = document.getElementById("language-modal");
+const closeLanguageButton = document.getElementById("close-language-btn");
+const confirmLanguageButton = document.getElementById("confirm-language-btn");
+const currentLanguageLabel = document.getElementById("current-language-label");
+const languageOptions = document.querySelectorAll("[data-lang-option]");
+
+let selectedLanguage = localStorage.getItem("lang") || "en";
 
 function loadAudioSettings() {
   const defaultSettings = {
@@ -59,6 +69,54 @@ function playErrorBeep() {
   errorBeepAudio.volume = Math.max(0, Math.min(1, settings.sfxVolume / 100));
   errorBeepAudio.play().catch(() => {});
 }
+
+function updateCurrentLanguageLabel() {
+  if (currentLanguageLabel) {
+    currentLanguageLabel.textContent = selectedLanguage.toUpperCase();
+  }
+
+  languageOptions.forEach((button) => {
+    const isSelected = button.dataset.langOption === selectedLanguage;
+    button.classList.toggle("is-selected", isSelected);
+  });
+}
+
+function setLanguageModalOpen(isOpen) {
+  if (!languageModal) {
+    return;
+  }
+
+  languageModal.hidden = !isOpen;
+  languageModal.setAttribute("aria-hidden", String(!isOpen));
+}
+
+openLanguageButton?.addEventListener("click", () => {
+  selectedLanguage = localStorage.getItem("lang") || selectedLanguage || "en";
+  updateCurrentLanguageLabel();
+  setLanguageModalOpen(true);
+});
+
+closeLanguageButton?.addEventListener("click", () => {
+  setLanguageModalOpen(false);
+});
+
+languageOptions.forEach((button) => {
+  button.addEventListener("click", () => {
+    selectedLanguage = button.dataset.langOption || "en";
+    updateCurrentLanguageLabel();
+  });
+});
+
+confirmLanguageButton?.addEventListener("click", async () => {
+  await loadLanguage(selectedLanguage);
+  updateCurrentLanguageLabel();
+  setLanguageModalOpen(false);
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  selectedLanguage = localStorage.getItem("lang") || "en";
+  updateCurrentLanguageLabel();
+});
 
 const startScreen = document.getElementById("start-screen");
 const characterScreen = document.getElementById("character-screen");

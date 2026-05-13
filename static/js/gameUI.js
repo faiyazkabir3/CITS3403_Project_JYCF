@@ -2279,7 +2279,7 @@ export function bootGameUI({
 
     const defendButton = document.getElementById("defend-btn");
     if (defendButton) {
-      defendButton.textContent = coverActive ? "HOLD COVER" : "DEFEND";
+      defendButton.textContent = coverActive ? t("play.holdCover") : t("play.defend");
     }
 
     if (dead) {

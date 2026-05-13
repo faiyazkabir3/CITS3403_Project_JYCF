@@ -171,7 +171,36 @@
               </label>
               <span id="game-mute-status" data-i18n="settings.off">OFF</span>
             </div>
+
+            <div class="settings-row">
+              <span data-i18n="settings.language">LANGUAGE</span>
+              <button type="button" id="open-language-btn" class="settings-language-btn">
+                <span data-i18n="settings.changeLanguage">CHANGE LANGUAGE</span>
+              </button>
+              <span id="current-language-label">EN</span>
+            </div>
           </div>
+        </div>
+      </div>
+
+      <div id="language-modal" class="settings-modal" hidden aria-hidden="true">
+        <div class="settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="language-title">
+          <div class="settings-modal-header">
+            <h2 id="language-title" data-i18n="language.title">CHANGE LANGUAGE</h2>
+            <button type="button" id="close-language-btn" class="settings-close-btn" aria-label="Close language menu">X</button>
+          </div>
+
+          <div class="language-list">
+            <button type="button" class="language-option" data-lang-option="en">English</button>
+            <button type="button" class="language-option" data-lang-option="nl">Dutch</button>
+            <button type="button" class="language-option" data-lang-option="bn">Bengali</button>
+            <button type="button" class="language-option" data-lang-option="zh-cn">Chinese</button>
+            <button type="button" class="language-option" data-lang-option="ja">Japanese</button>
+          </div>
+
+          <button type="button" id="confirm-language-btn" class="primary-btn language-confirm-btn" data-i18n="language.confirm">
+            CONFIRM
+          </button>
         </div>
       </div>
 
@@ -404,6 +433,8 @@
   <script type="module" src="{{ url_for('static', filename='js/play.js') }}"></script>
 
   <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
+
+  <script type="module" src="{{ url_for('static', filename='js/language-menu.js') }}"></script>
   
 </body>
 </html>

@@ -3,10 +3,15 @@
 # --------------------------------------------
 #
 # General pattern:
-# python scripts/extract_i18n_from_js.py <js_file> <prefix> --mode <mode> [--write] [--entries-only]
+# python scripts/extract_i18n_from_js.py <source_file> <prefix> --mode <mode> [--write] [--entries-only]
 #
+# Supported modes:
+# - default       Generic JS object extraction. Rewrites safe text fields to t("key") when --write is used.
+# - levels        levels.js extraction. Adds fieldKey entries such as titleKey/descriptionKey.
+# - shop          Shop item extraction from combat-engine.js. Usually use --entries-only.
+# - achievements  AchievementDefinition extraction from app.py. Only updates en.json.
 #
-# 1. Preview tutorialGuide.js entries only
+# 1. Preview tutorialGuide.js entries
 #    Does not change any files.
 # python scripts/extract_i18n_from_js.py static/js/tutorialGuide.js tutorial --mode default
 #
@@ -24,11 +29,11 @@
 # python scripts/extract_i18n_from_js.py static/js/levels.js levels --mode levels --write
 #
 #
-# 5. Preview shop entries from combat-engine.js
+# 5. Preview shop item entries from combat-engine.js
 #    Does not change any files.
 # python scripts/extract_i18n_from_js.py static/js/combat-engine.js shop --mode shop
 #
-# 6. Extract shop entries into en.json only
+# 6. Extract shop item entries into en.json only
 #    Safe option for combat-engine.js. Does NOT rewrite combat-engine.js.
 # python scripts/extract_i18n_from_js.py static/js/combat-engine.js shop --mode shop --write --entries-only
 #
@@ -37,19 +42,29 @@
 # python scripts/extract_i18n_from_js.py static/js/combat-engine.js shop --mode shop --write
 #
 #
-# 8. Preview any other JS file using default mode
+# 8. Preview achievement entries from app.py
+#    Extracts AchievementDefinition id/name/description.
+#    Does not change any files.
+# python scripts/extract_i18n_from_js.py app.py achievements --mode achievements
+#
+# 9. Extract achievement entries into en.json
+#    Updates en.json only. Does NOT rewrite app.py.
+# python scripts/extract_i18n_from_js.py app.py achievements --mode achievements --write
+#
+#
+# 10. Preview any other JS file using default mode
 # python scripts/extract_i18n_from_js.py static/js/<file-name>.js <prefix> --mode default
 #
-# 9. Write any other JS file using default mode
-#    Updates en.json and rewrites safe fields to t("key").
+# 11. Write any other JS file using default mode
+#     Updates en.json and rewrites safe fields to t("key").
 # python scripts/extract_i18n_from_js.py static/js/<file-name>.js <prefix> --mode default --write
 #
 #
 # Recommended workflow:
-# 1. Run preview command first.
+# 1. Run the preview command first.
 # 2. Check that generated keys look correct.
 # 3. Use --write only after preview looks safe.
-# 4. Use --entries-only for fragile files like combat-engine.js.
+# 4. Use --entries-only for fragile JS files like combat-engine.js.
 # 5. Run git diff after writing.
 #
 # Useful checks:
@@ -57,19 +72,22 @@
 # git diff static/js/tutorialGuide.js
 # git diff static/js/levels.js
 # git diff static/js/combat-engine.js
+# git diff app.py
 #
 # JSON validity check:
 # python -m json.tool static/lang/en.json > /dev/null
 #
 # After adding new en.json entries, regenerate other languages:
-# python scripts/generate_translations.py nl ja
+# python scripts/generate_translations.py bn ja nl zh-cn
 #
 # If you intentionally want to overwrite existing generated translations:
-# python scripts/generate_translations.py nl ja --overwrite
-# 
-# For tutorialGuide.js → default mode with --write is okay.
-# For levels.js → levels mode with --write is okay.
-# For combat-engine.js shop entries → shop mode with --write --entries-only is safest.
+# python scripts/generate_translations.py bn ja nl zh-cn --overwrite
+#
+# Recommended mode usage:
+# - tutorialGuide.js              → default mode with --write is okay.
+# - levels.js                     → levels mode with --write is okay.
+# - combat-engine.js shop entries → shop mode with --write --entries-only is safest.
+# - app.py achievements           → achievements mode with --write is okay; it only updates en.json.
 # --------------------------------------------
 
 import argparse
@@ -96,6 +114,15 @@ SAFE_TEXT_FIELDS = [
 
 FIELD_PATTERN = re.compile(
     r'(?P<field>' + "|".join(SAFE_TEXT_FIELDS) + r')\s*:\s*"(?P<text>[^"\n]+)"'
+)
+
+ACHIEVEMENT_BLOCK_PATTERN = re.compile(
+    r"AchievementDefinition\((?P<body>[\s\S]*?)\)",
+    re.MULTILINE,
+)
+
+PY_STRING_ARG_PATTERN = re.compile(
+    r'(?P<field>id|name|description)\s*=\s*"(?P<text>[^"\n]+)"'
 )
 
 
@@ -250,6 +277,75 @@ def build_key(prefix: str, field: str, text: str, nearby_id: str | None, mode: s
 
     return build_default_key(prefix, field, text, nearby_id)
 
+def build_achievement_key(prefix: str, achievement_id: str, field: str) -> str:
+    safe_achievement_id = sanitise_key_part(achievement_id)
+    return f"{prefix}.badge.{safe_achievement_id}.{field}"
+
+def extract_achievements(py_path: Path, prefix: str, write: bool) -> None:
+    source = py_path.read_text(encoding="utf-8")
+    en_data = load_json(EN_JSON_PATH)
+
+    entries = []
+    added = 0
+
+    for block_match in ACHIEVEMENT_BLOCK_PATTERN.finditer(source):
+        body = block_match.group("body")
+
+        values = {
+            match.group("field"): match.group("text")
+            for match in PY_STRING_ARG_PATTERN.finditer(body)
+        }
+
+        achievement_id = values.get("id")
+        name = values.get("name")
+        description = values.get("description")
+
+        if not achievement_id:
+            continue
+
+        if name:
+            key = build_achievement_key(prefix, achievement_id, "name")
+            entries.append((key, name))
+
+        if description:
+            key = build_achievement_key(prefix, achievement_id, "description")
+            entries.append((key, description))
+
+    print(f"\nScanning: {py_path}")
+    print(f"Prefix: {prefix}")
+    print("Mode: achievements")
+
+    if not entries:
+        print("No achievement definitions found.")
+        return
+
+    print("\nFound entries:")
+    for key, text in entries:
+        print(f'  "{key}": "{text}"')
+
+    if not write:
+        print("\nPreview only. Add --write to update en.json.")
+        return
+
+    for key, text in entries:
+        if key not in en_data:
+            en_data[key] = text
+            added += 1
+        elif en_data[key] != text:
+            print(
+                f"\nWARNING: Existing en.json value differs:\n"
+                f"  Key:      {key}\n"
+                f"  en.json:  {en_data[key]}\n"
+                f"  Source:   {text}\n"
+                f"  Keeping existing en.json value."
+            )
+
+    save_json(EN_JSON_PATH, en_data)
+
+    print(f"\nUpdated {EN_JSON_PATH}")
+    print("Achievements mode only updates en.json. Source file was not rewritten.")
+    print(f"Added {added} new en.json entries.")
+
 
 def ensure_import(js_source: str) -> str:
     import_line = 'import { t } from "./translation.js";'
@@ -382,25 +478,29 @@ def extract_and_rewrite(js_path: Path, prefix: str, write: bool, mode: str, entr
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("js_file", help="Path to JS file, e.g. static/js/tutorialGuide.js")
+    parser.add_argument("source_file", help="Path to source file, e.g. static/js/tutorialGuide.js or app.py")
     parser.add_argument("prefix", help="Translation key prefix, e.g. tutorial or levels")
     parser.add_argument(
         "--mode",
-        choices=["default", "levels", "shop"],
+        choices=["default", "levels", "shop", "achievements"],
         default="default",
         help="Extraction mode. Use --mode levels for static/js/levels.js",
     )
     parser.add_argument("--write", action="store_true", help="Actually update en.json and rewrite JS")
-    parser.add_argument(
-        "--entries-only",
-        action="store_true",
-        help="Only update en.json. Do not rewrite the JS file."
-    )
+    parser.add_argument("--entries-only", action="store_true", help="Only update en.json. Do not rewrite the JS file.")
 
     args = parser.parse_args()
 
+    if args.mode == "achievements":
+        extract_achievements(
+            py_path=Path(args.source_file),
+            prefix=args.prefix,
+            write=args.write,
+        )
+        return
+
     extract_and_rewrite(
-        js_path=Path(args.js_file),
+        js_path=Path(args.source_file),
         prefix=args.prefix,
         write=args.write,
         mode=args.mode,

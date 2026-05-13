@@ -53,6 +53,18 @@ export function applyTranslations() {
     }
   });
 
+  // Dynamic template text
+  document.querySelectorAll("[data-i18n-template]").forEach(el => {
+    const key = el.dataset.i18nTemplate;
+    const name = el.dataset.i18nVarName || "";
+
+    if (!key) {
+      return;
+    }
+
+    el.textContent = t(key, { name });
+  });
+
   // Placeholder text
   document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
     const key = el.dataset.i18nPlaceholder;

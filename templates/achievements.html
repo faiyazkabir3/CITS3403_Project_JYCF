@@ -20,7 +20,7 @@
     <a href="{{ url_for('main.main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
     <div class="top-bar">
-      <h1>{{ username }}'s Achievements</h1>
+      <h1 data-i18n-template="achievements.userAchievements" data-i18n-var-name="{{ username }}">{{ username }}'s Achievements</h1>
     </div>
 
     <div class="menu-content achievement-dashboard">
@@ -41,12 +41,12 @@
               </span>
               <span class="achievement-copy">
                 <span class="achievement-title-row">
-                  <span class="achievement-title">{{ achievement.name }}</span>
+                  <span class="achievement-title" data-i18n="achievements.badge.{{ achievement.id }}.name">{{ achievement.name }}</span>
                   <span class="achievement-tier achievement-tier-{{ achievement.tier_name or 'locked' }}">
                     {{ achievement.tier_label }}
                   </span>
                 </span>
-                <span class="achievement-description">{{ achievement.description }}</span>
+                <span class="achievement-description" data-i18n="achievements.badge.{{ achievement.id }}.description">{{ achievement.description }}</span>
                 <span class="achievement-progress">
                     {% if achievement.unlocked %}
                       <span data-i18n="achievements.unlocked">Unlocked</span>
