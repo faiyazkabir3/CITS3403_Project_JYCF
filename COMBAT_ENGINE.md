@@ -698,7 +698,8 @@ The UI:
 Flask persistence layer:
 
 - `routes.py` owns the `/save-game` and `/load-game` Blueprint routes
-- `app.py` owns shared app setup, database setup, and persistence helpers
+- `app.py` owns shared app setup and database/security wiring
+- `save_helpers.py` owns save serialization, encryption, fallback saves, and payload normalization
 - the save route serializes the `run_state` payload to JSON
 - the load route serves it back through `/load-game`
 
@@ -751,7 +752,7 @@ Update these places:
 - `createNewGameState()`
 - `normalizeStateShape()`
 - `gameUI.js` save payload builder if the field also needs flat legacy mirrors
-- Flask persistence code in `routes.py`/`app.py` if a new database column or derived preview field is needed
+- Flask persistence code in `routes.py`, `save_helpers.py`, or `db_helpers.py` if a new database column or derived preview field is needed
 
 ### 14.4 Changing route or shop rules
 

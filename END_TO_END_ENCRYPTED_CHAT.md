@@ -9,6 +9,7 @@ If this document and the code ever disagree, the code is the source of truth. Th
 - `static/js/chat.js`
 - `templates/chat.html`
 - `routes.py`
+- `chat_helpers.py`
 - `app.py`
 - `models.py`
 
@@ -166,7 +167,7 @@ with this shape:
 }
 ```
 
-Flask handles this in `handle_chat_send()` in `routes.py`. The handler is attached to the shared `socketio` instance created in `app.py`.
+Flask handles this in `handle_chat_send()` in `routes.py`. The handler is attached to the shared `socketio` instance initialised by `app.py`.
 
 The server then:
 
@@ -274,7 +275,7 @@ For encrypted messages, `message` is set to `None`. The old `message` column rem
 
 The server cannot decrypt messages, but it still validates the envelope.
 
-`validate_encrypted_chat_payload()` checks that:
+`validate_encrypted_chat_payload()` in `chat_helpers.py` checks that:
 
 - the payload is a dictionary
 - `ciphertext` is present

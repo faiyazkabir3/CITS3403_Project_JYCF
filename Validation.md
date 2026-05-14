@@ -2,7 +2,7 @@
 
 Updated: 8 May 2026
 
-This document summarises the current input validation rules used by the Route Zero Flask app. The source of truth is the code in `routes.py`, shared helpers in `app.py`, and the related templates/JavaScript.
+This document summarises the current input validation rules used by the Route Zero Flask app. The source of truth is the code in `routes.py`, the focused `*_helpers.py` modules, and the related templates/JavaScript.
 
 ## Authentication
 

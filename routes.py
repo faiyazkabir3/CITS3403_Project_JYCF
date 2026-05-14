@@ -1,7 +1,106 @@
 import re
-from flask import Blueprint
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_login import current_user, login_required, login_user, logout_user
+from flask_socketio import join_room, leave_room
+from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from app import *
+from achievement_helpers import (
+    get_agent_showcase_badges,
+    get_user_achievements,
+    unlock_achievements_for_user,
+)
+from app_constants import (
+    BIO_MAX_LENGTH,
+    FAVORITE_CHARACTER_LABELS,
+    FAVORITE_CHARACTER_OPTIONS,
+    PROFILE_BACKGROUND_LABELS,
+    PROFILE_BACKGROUND_OPTIONS,
+    PROFILE_COMMENT_MAX_LENGTH,
+    PROFILE_IMAGE_DEFAULT,
+    PROFILE_IMAGE_OPTIONS,
+    PROFILE_IMAGE_UPLOAD_MAX_BYTES,
+    PROFILE_REACTION_VALUES,
+)
+from extensions import socketio
+from chat_helpers import (
+    build_chat_key_id,
+    build_chat_room_key,
+    parse_friend_id,
+    serialize_chat_message,
+    serialize_chat_public_key,
+    validate_encrypted_chat_payload,
+)
+from db_helpers import rollback_database_session
+from friend_helpers import (
+    accept_pending_friend_request,
+    can_view_friend_stats,
+    create_friend_request,
+    format_message_timestamp,
+    get_accepted_friend,
+    get_friends,
+    get_friend_action,
+    get_pending_friend_request,
+    get_recent_conversations,
+    get_unread_message_count,
+    make_guest_name,
+)
+from leaderboard_helpers import get_leaderboard, get_leaderboard_entry_for_user
+from models import (
+    Friend,
+    FriendRequest,
+    Message,
+    ProfileComment,
+    ProfileReaction,
+    User,
+    WorldMessage,
+    db,
+    utc_now,
+)
+from profile_helpers import (
+    delete_uploaded_profile_image,
+    get_agent_dossier,
+    get_custom_profile_image,
+    get_display_name,
+    get_profile_background,
+    get_profile_badges,
+    get_profile_bio,
+    get_profile_comments,
+    get_profile_image,
+    get_profile_reaction_counts,
+    is_selectable_profile_image_for_user,
+    normalize_profile_comment,
+    normalize_profile_image_path,
+    save_uploaded_profile_image,
+    validate_profile_comment,
+    validate_uploaded_profile_image,
+)
+from save_helpers import (
+    build_save_payload,
+    build_save_payload_from_request,
+    choose_latest_save_payload,
+    coerce_bool,
+    coerce_int,
+    get_empty_stats,
+    get_latest_run_summary,
+    get_user_save,
+    get_user_stats,
+    list_db_save_payloads,
+    list_fallback_save_payloads,
+    read_fallback_save,
+    update_save_data,
+    write_fallback_save,
+)
 
 
 main_bp = Blueprint("main", __name__)
@@ -521,7 +620,7 @@ def profile():
                 rollback_database_session("Profile update")
                 if new_uploaded_profile_image is not None:
                     delete_uploaded_profile_image(new_uploaded_profile_image)
-                app.logger.warning(
+                current_app.logger.warning(
                     "Profile update failed for user %s. %s",
                     user_id,
                     getattr(update_error, "orig", update_error)
@@ -616,7 +715,7 @@ def view_profile(user_id):
             db.session.commit()
         except SQLAlchemyError as error:
             rollback_database_session("Profile action")
-            app.logger.warning(
+            current_app.logger.warning(
                 "Profile friend action failed for user %s and profile %s. %s",
                 current_user_id,
                 user_id,
@@ -659,7 +758,7 @@ def view_profile(user_id):
 
 @main_bp.route("/favicon.ico")
 def favicon():
-    return app.send_static_file("images/icons/game_logo.svg")
+    return current_app.send_static_file("images/icons/game_logo.svg")
 
 
 @main_bp.route("/play")
@@ -726,13 +825,13 @@ def save_game():
         try:
             write_fallback_save(user_id, character_id, fallback_payload)
         except OSError:
-            app.logger.exception("Save failed for user %s.", user_id)
+            current_app.logger.exception("Save failed for user %s.", user_id)
             return jsonify({
                 "ok": False,
                 "message": "Save failed."
             }), 500
 
-        app.logger.warning(
+        current_app.logger.warning(
             "SQLite save failed for user %s; wrote fallback save instead. %s",
             user_id,
             getattr(error, "orig", error)
@@ -745,7 +844,7 @@ def save_game():
     try:
         write_fallback_save(user_id, character_id, build_save_payload(save_data))
     except OSError as error:
-        app.logger.warning(
+        current_app.logger.warning(
             "Backup save write failed for user %s after database save succeeded. %s",
             user_id,
             error
@@ -773,7 +872,7 @@ def load_game():
         db_payloads = list_db_save_payloads(user_id, character_id=character_id)
     except SQLAlchemyError as error:
         rollback_database_session("Load game")
-        app.logger.warning(
+        current_app.logger.warning(
             "Database load failed for user %s; falling back to JSON save. %s",
             user_id,
             getattr(error, "orig", error)
@@ -822,7 +921,7 @@ def add_friend(user_id):
         flash(message)
     except SQLAlchemyError as error:
         rollback_database_session("Friend request")
-        app.logger.warning(
+        current_app.logger.warning(
             "Friend request failed for user %s and target %s. %s",
             current_user_id,
             user_id,
@@ -860,7 +959,7 @@ def show_friends():
                 flash(message)
             except SQLAlchemyError as error:
                 rollback_database_session("Friend request")
-                app.logger.warning(
+                current_app.logger.warning(
                     "Friend request failed for user %s and target %s. %s",
                     from_user_id,
                     friend.id,
@@ -945,7 +1044,7 @@ def unfriend(friend_id):
         flash(f"Removed {get_display_name(friend)} from your friends.")
     except SQLAlchemyError as error:
         rollback_database_session("Unfriend")
-        app.logger.warning(
+        current_app.logger.warning(
             "Unfriend failed for user %s and friend %s. %s",
             current_user_id,
             friend_id,
@@ -1001,7 +1100,7 @@ def register_chat_key():
         db.session.commit()
     except SQLAlchemyError as error:
         rollback_database_session("Chat key registration")
-        app.logger.warning(
+        current_app.logger.warning(
             "Chat key registration failed for user %s. %s",
             user.id,
             getattr(error, "orig", error)
