@@ -2,19 +2,25 @@ from datetime import datetime
 
 import pytest
 
-from app import (
-    AchievementDefinition,
+from achievement_helpers import (
     achievement_is_unlocked,
-    build_chat_room_key,
-    build_chat_key_id,
-    choose_latest_save_payload,
     get_achievement_badge_image,
     get_achievement_definitions,
-    normalize_save_payload,
+)
+from chat_helpers import (
+    build_chat_key_id,
+    build_chat_room_key,
     parse_friend_id,
+    validate_encrypted_chat_payload,
+)
+from domain_types import AchievementDefinition
+from save_helpers import (
+    choose_latest_save_payload,
+    normalize_save_payload,
     parse_level_number,
     parse_save_payload_key_ring,
 )
+
 from routes import (
     normalize_chat_message,
     normalize_auth_username,
@@ -24,7 +30,6 @@ from routes import (
     validate_chat_message,
     validate_friend_username,
 )
-from app import validate_encrypted_chat_payload
 
 
 def test_username_normalization_and_validation():
