@@ -274,12 +274,14 @@ function getEnemyCue(state, progress) {
 }
 
 export function createTutorialGuide({ active = false } = {}) {
+  const startsActive = Boolean(active);
   const progress = {
     chargerDodgeAttempted: false,
     healLessonSeen: false,
-    finalCueVisible: false
+    finalCueVisible: false,
+    guideDismissed: !startsActive
   };
-  let activeRun = Boolean(active);
+  let activeRun = startsActive;
 
   function markCompleteForStorage() {
     completeQuiteTutorial();
@@ -296,6 +298,7 @@ export function createTutorialGuide({ active = false } = {}) {
       stopQuiteTutorial();
       activeRun = false;
       progress.finalCueVisible = false;
+      progress.guideDismissed = true;
     },
 
     recordAction(actionKey, engine) {
@@ -325,6 +328,11 @@ export function createTutorialGuide({ active = false } = {}) {
 
       const clearCue = getLevelClearCue(state, progress);
       if (clearCue?.complete) {
+        if (progress.guideDismissed) {
+          progress.finalCueVisible = false;
+          return null;
+        }
+
         markCompleteForStorage();
         return clearCue;
       }
