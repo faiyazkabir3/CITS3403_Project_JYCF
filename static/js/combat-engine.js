@@ -2376,9 +2376,9 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
     resumeFromSave() {
       const events = [];
       const hero = state.player.characterName;
-      const level = getCurrentLevelData(state);
 
       normalizeStateShape(state);
+      const level = getCurrentLevelData(state);
 
       if (state.progression.gameOver || state.inventory.health <= 0) {
         endGame(state);
@@ -2431,8 +2431,27 @@ export function createCombatEngine({ difficulty = "EASY", seed, character = "leo
         return events;
       }
 
+      if (
+        level.autoComplete &&
+        !state.progression.levelComplete &&
+        !state.combat.enemy &&
+        !state.progression.emergency?.active &&
+        !state.progression.shopOpen &&
+        !state.progression.awaitingChoice &&
+        createEncounterOrder(level, rng).length === 0
+      ) {
+        events.push(`${hero} resumed the saved game.`);
+        return startCurrentLevel(events);
+      }
+
       if (state.progression.levelComplete) {
-        state.progression.levelComplete = false;
+        if (level.manualContinueAfterClear && level.next) {
+          events.push(`${hero} resumed the saved game.`);
+          events.push(`LEVEL ${level.id}: ${level.title}`);
+          events.push(`Level ${level.id} is clear. Continue when ready.`);
+          return events;
+        }
+
         return engine.advanceToNextLevel();
       }
 
