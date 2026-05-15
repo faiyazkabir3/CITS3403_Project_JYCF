@@ -1,6 +1,6 @@
 import hashlib
 
-from save_helpers import coerce_int
+from .save_helpers import coerce_int
 
 
 def build_chat_room_key(user_a_id, user_b_id):

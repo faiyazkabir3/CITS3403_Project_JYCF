@@ -5,7 +5,7 @@ from flask_wtf.csrf import generate_csrf
 from werkzeug.security import generate_password_hash
 
 from app import app
-from models import User, WorldMessage, db, utc_now
+from app.models import User, WorldMessage, db, utc_now
 
 
 @pytest.fixture(autouse=True)

@@ -5,10 +5,10 @@ Default order:
 2. Selenium browser tests
 
 Examples:
-    python sanity_check.py
-    python sanity_check.py --quick
-    python sanity_check.py --keep-going
-    python sanity_check.py --include-js
+    python scripts/sanity_check.py
+    python scripts/sanity_check.py --quick
+    python scripts/sanity_check.py --keep-going
+    python scripts/sanity_check.py --include-js
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 
 @dataclass(frozen=True)

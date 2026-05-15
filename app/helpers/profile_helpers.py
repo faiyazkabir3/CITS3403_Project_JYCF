@@ -7,8 +7,7 @@ from flask import current_app
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
-from achievement_helpers import get_user_achievements
-from app_constants import (
+from ..constants import (
     AGENT_BLOOD_GROUPS,
     AGENT_LICENSE_NUMBER,
     PROFILE_BACKGROUND_LABELS,
@@ -19,8 +18,9 @@ from app_constants import (
     PROFILE_IMAGE_UPLOAD_PREFIX,
     PROFILE_REACTION_OPTIONS,
 )
-from models import Friend, ProfileComment, ProfileReaction, db
-from save_helpers import coerce_int
+from ..models import Friend, ProfileComment, ProfileReaction, db
+from .achievement_helpers import get_user_achievements
+from .save_helpers import coerce_int
 
 
 def get_display_name(user):

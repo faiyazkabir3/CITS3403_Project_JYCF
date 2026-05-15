@@ -4,10 +4,10 @@ from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from db_helpers import rollback_database_session
-from domain_types import LeaderboardEntry, LeaderboardStats
-from models import Friend, SaveData, User, db
-from save_helpers import coerce_int
+from ..domain.domain_types import LeaderboardEntry, LeaderboardStats
+from ..models import Friend, SaveData, User, db
+from .db_helpers import rollback_database_session
+from .save_helpers import coerce_int
 
 
 def calculate_leaderboard_score(stats):

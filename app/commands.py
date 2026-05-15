@@ -1,7 +1,7 @@
 import click
 from werkzeug.security import generate_password_hash
 
-from models import SaveData, User, db, utc_now
+from .models import SaveData, User, db, utc_now
 
 
 def register_cli_commands(app):

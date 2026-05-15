@@ -6,8 +6,8 @@ from flask import current_app, has_app_context
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app_constants import PROFILE_IMAGE_DEFAULT
-from models import db
+from ..constants import PROFILE_IMAGE_DEFAULT
+from ..models import db
 
 try:
     import sqlcipher3

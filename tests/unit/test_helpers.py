@@ -2,26 +2,26 @@ from datetime import datetime
 
 import pytest
 
-from achievement_helpers import (
+from app.domain.domain_types import AchievementDefinition
+from app.helpers.achievement_helpers import (
     achievement_is_unlocked,
     get_achievement_badge_image,
     get_achievement_definitions,
 )
-from chat_helpers import (
+from app.helpers.chat_helpers import (
     build_chat_key_id,
     build_chat_room_key,
     parse_friend_id,
     validate_encrypted_chat_payload,
 )
-from domain_types import AchievementDefinition
-from save_helpers import (
+from app.helpers.save_helpers import (
     choose_latest_save_payload,
     normalize_save_payload,
     parse_level_number,
     parse_save_payload_key_ring,
 )
 
-from routes import (
+from app.routes import (
     normalize_chat_message,
     normalize_auth_username,
     sanitize_save_request_payload,

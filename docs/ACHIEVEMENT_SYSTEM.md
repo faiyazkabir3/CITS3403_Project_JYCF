@@ -59,7 +59,7 @@ Nemesis Hunter is derived from the `nemesisKills` run-state analytics counter an
 Badge image assets live in:
 
 ```text
-static/images/badges/
+app/static/images/badges/
 ```
 
 The naming convention is:
@@ -85,13 +85,13 @@ Examples:
 Single-art achievements can set a custom badge path instead of using the tier suffix convention. Nemesis Hunter uses:
 
 ```text
-static/images/badges/nemesis_hunter.jpeg
+app/static/images/badges/nemesis_hunter.jpeg
 ```
 
 The current badge art is fictional Route Zero artwork inspired by military badge shapes, not official insignia. The source sheet is kept as:
 
 ```text
-static/images/badges/route_zero_badge_sheet.png
+app/static/images/badges/route_zero_badge_sheet.png
 ```
 
 ## UI Rules

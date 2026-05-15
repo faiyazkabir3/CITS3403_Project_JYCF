@@ -16,7 +16,7 @@
       "type": "msedge",
       "request": "launch",
       "url": "http://127.0.0.1:5000/play",
-      "webRoot": "${workspaceFolder}"
+      "webRoot": "${workspaceFolder}/app/static"
     }
   ],
   "compounds": [

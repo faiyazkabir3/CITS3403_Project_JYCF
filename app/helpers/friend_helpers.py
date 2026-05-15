@@ -5,11 +5,11 @@ from datetime import datetime
 from flask import current_app, request, session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app_constants import ONLINE_WINDOW, PRESENCE_REFRESH_INTERVAL
-from db_helpers import rollback_database_session
-from domain_types import FriendAction
-from models import Friend, FriendRequest, Message, User, db, utc_now
-from profile_helpers import get_display_name
+from ..constants import ONLINE_WINDOW, PRESENCE_REFRESH_INTERVAL
+from ..domain.domain_types import FriendAction
+from ..models import Friend, FriendRequest, Message, User, db, utc_now
+from .db_helpers import rollback_database_session
+from .profile_helpers import get_display_name
 
 
 def friend_action_to_dict(friend_action):

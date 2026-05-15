@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "check:js": "node scripts/check-js-sanity.mjs",
-    "lint:js": "eslint static/js",
-    "lint:js:fix": "eslint static/js --fix",
+    "lint:js": "eslint app/static/js",
+    "lint:js:fix": "eslint app/static/js --fix",
     "sanity:js": "npm run lint:js && npm run check:js"
   },
   "devDependencies": {
