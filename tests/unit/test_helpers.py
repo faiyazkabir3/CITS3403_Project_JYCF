@@ -219,3 +219,17 @@ def test_nemesis_hunter_definition_uses_custom_jpeg_badge():
     assert nemesis.metric == "nemesis_kills"
     assert nemesis.tier_thresholds == (1, 1, 1)
     assert get_achievement_badge_image(nemesis, "gold") == "images/badges/nemesis_hunter.jpeg"
+
+
+def test_tiered_achievement_badges_prefer_v2_assets_when_available():
+    definitions = {definition.id: definition for definition in get_achievement_definitions()}
+
+    assert get_achievement_badge_image(definitions["sharpshooter"], "gold") == (
+        "images/badges/sharpshooter_gold_v2.png"
+    )
+    assert get_achievement_badge_image(definitions["sharpshooter"], "silver") == (
+        "images/badges/sharpshooter_silver.png"
+    )
+    assert get_achievement_badge_image(definitions["first_blood"], "gold") == (
+        "images/badges/first_blood_gold.png"
+    )

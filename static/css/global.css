@@ -521,7 +521,7 @@ a.agent-photo-frame:focus-visible {
 }
 
 .agent-showcase-badge img {
-  width: min(74px, 100%);
+  width: min(84px, 100%);
   aspect-ratio: 1;
   object-fit: contain;
   filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.28));
@@ -869,8 +869,8 @@ a.agent-photo-frame:focus-visible {
 .achievements-page .achievement-badge {
   width: 100%;
   justify-content: flex-start;
-  gap: 10px;
-  min-height: 70px;
+  gap: 14px;
+  min-height: 92px;
   color: var(--text-primary);
   text-align: left;
   box-shadow: none;
@@ -892,8 +892,9 @@ a.agent-photo-frame:focus-visible {
 
 .achievements-page .achievement-icon {
   display: grid;
-  min-width: 38px;
-  height: 38px;
+  min-width: 58px;
+  width: 58px;
+  height: 58px;
   place-items: center;
   border: 2px solid currentColor;
   color: var(--accent-gold);
@@ -902,8 +903,8 @@ a.agent-photo-frame:focus-visible {
 }
 
 .achievements-page .achievement-icon img {
-  width: 34px;
-  height: 34px;
+  width: 52px;
+  height: 52px;
   object-fit: contain;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
 }
@@ -3789,7 +3790,7 @@ a.agent-photo-frame:focus-visible {
 
 .profile-badge {
   display: grid;
-  grid-template-columns: 46px 1fr;
+  grid-template-columns: 58px 1fr;
   gap: 10px;
   align-items: center;
   padding: 11px;
@@ -3799,8 +3800,8 @@ a.agent-photo-frame:focus-visible {
 
 .profile-badge-icon {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 54px;
+  height: 54px;
   place-items: center;
   border: 2px solid currentColor;
   color: var(--accent-gold);
@@ -3808,8 +3809,8 @@ a.agent-photo-frame:focus-visible {
 }
 
 .profile-badge-icon img {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.38));
 }
