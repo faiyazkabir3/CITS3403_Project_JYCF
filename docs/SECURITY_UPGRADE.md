@@ -63,8 +63,8 @@ This project does not claim to solve every security problem. HTTPS certificates,
 | Browser tests | `tests/selenium/test_browser_flows.py` |
 | Test Flask server secrets | `scripts/run_selenium_server.py` |
 | Setup instructions | `README.md` |
-| Database overview | `DATABASE_GUIDE.md` |
-| Chat encryption details | `END_TO_END_ENCRYPTED_CHAT.md` |
+| Database overview | [Database Guide](DATABASE_GUIDE.md) |
+| Chat encryption details | [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md) |
 
 ## Required Environment Variables
 

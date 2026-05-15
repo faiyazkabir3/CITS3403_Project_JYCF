@@ -15,15 +15,16 @@ Created by JYCF.
 
 ## Documentation
 
-- [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
-- [Combat Engine](COMBAT_ENGINE.md)
-- [Database Guide](DATABASE_GUIDE.md)
-- [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
-- [Level Design](LEVEL_DESIGN.md)
-- [Realtime Chat](REALTIME_CHAT.md)
-- [Sanity Checks Guide](SANITY_CHECKS.md)
-- [Security Upgrade](SECURITY_UPGRADE.md)
-- [Validation Rules](Validation.md)
+- [Achievement System And Agent Clipboard](docs/ACHIEVEMENT_SYSTEM.md)
+- [Combat Engine](docs/COMBAT_ENGINE.md)
+- [Database Guide](docs/DATABASE_GUIDE.md)
+- [End-To-End Encrypted Chat](docs/END_TO_END_ENCRYPTED_CHAT.md)
+- [Helper Functions](docs/HELPER_FUNCTIONS.md)
+- [Level Design](docs/LEVEL_DESIGN.md)
+- [Realtime Chat](docs/REALTIME_CHAT.md)
+- [Sanity Checks Guide](docs/SANITY_CHECKS.md)
+- [Security Upgrade](docs/SECURITY_UPGRADE.md)
+- [Validation Rules](docs/Validation.md)
 
 ## Security Lecture Compliance
 
@@ -334,12 +335,13 @@ For frontend debugging, set breakpoints in the browser-loaded JS modules. Node i
 
 ## Documentation
 
-- [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
-- [Level Design](LEVEL_DESIGN.md)
-- [Combat Engine](COMBAT_ENGINE.md)
-- [Database Guide](DATABASE_GUIDE.md)
-- [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
-- [Realtime Chat](REALTIME_CHAT.md)
-- [Security Upgrade](SECURITY_UPGRADE.md)
-- [Sanity Checks Guide](SANITY_CHECKS.md)
-- [Validation Rules](Validation.md)
+- [Achievement System And Agent Clipboard](docs/ACHIEVEMENT_SYSTEM.md)
+- [Level Design](docs/LEVEL_DESIGN.md)
+- [Combat Engine](docs/COMBAT_ENGINE.md)
+- [Database Guide](docs/DATABASE_GUIDE.md)
+- [End-To-End Encrypted Chat](docs/END_TO_END_ENCRYPTED_CHAT.md)
+- [Helper Functions](docs/HELPER_FUNCTIONS.md)
+- [Realtime Chat](docs/REALTIME_CHAT.md)
+- [Security Upgrade](docs/SECURITY_UPGRADE.md)
+- [Sanity Checks Guide](docs/SANITY_CHECKS.md)
+- [Validation Rules](docs/Validation.md)

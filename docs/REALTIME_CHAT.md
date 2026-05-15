@@ -95,7 +95,7 @@ encryption_version
 
 The `Message.message` column remains nullable for compatibility with older rows, but current encrypted direct-chat sends store `message=None` and use the encrypted fields.
 
-For the detailed cryptography notes, see `END_TO_END_ENCRYPTED_CHAT.md`.
+For the detailed cryptography notes, see [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md).
 
 ## HTTP Fallback
 
