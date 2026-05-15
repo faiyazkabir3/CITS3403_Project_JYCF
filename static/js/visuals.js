@@ -5,7 +5,7 @@ export const PLAYER_VISUALS = {
     image: `${IMAGE_ROOT}/players/leon_right_idle.png`,
     actions: {
       pistol: `${IMAGE_ROOT}/players/leon_right_gun.png`,
-      rifle: `${IMAGE_ROOT}/players/leon_right_gun.png`,
+      rifle: `${IMAGE_ROOT}/players/leon_right_rifle.png`,
       reloadPistol: `${IMAGE_ROOT}/players/leon_right_reload.png`,
       reloadRifle: `${IMAGE_ROOT}/players/leon_right_reload.png`,
       knife: `${IMAGE_ROOT}/players/leon_right_axe.png`,
@@ -19,7 +19,7 @@ export const PLAYER_VISUALS = {
     image: `${IMAGE_ROOT}/players/quite_right_idle.png`,
     actions: {
       pistol: `${IMAGE_ROOT}/players/quite_right_gun.png`,
-      rifle: `${IMAGE_ROOT}/players/quite_right_gun.png`,
+      rifle: `${IMAGE_ROOT}/players/quite_right_rifle.png`,
       reloadPistol: `${IMAGE_ROOT}/players/quite_right_reload.png`,
       reloadRifle: `${IMAGE_ROOT}/players/quite_right_reload.png`,
       knife: `${IMAGE_ROOT}/players/quite_right_knife.png`,
@@ -40,7 +40,7 @@ export const SPECIAL_VISUALS = {
 export const BOSS_SCENE_VISUALS = {
   grab: `${IMAGE_ROOT}/boss/boss_grab.png`,
   hide: `${IMAGE_ROOT}/boss/player_hide_pillar.png`,
-  stunned: `${IMAGE_ROOT}/boss/boss_stunned.png`
+  stunned: `${IMAGE_ROOT}/boss/boss_stunned_trapped.png`
 };
 
 export const ENEMY_VISUALS = {

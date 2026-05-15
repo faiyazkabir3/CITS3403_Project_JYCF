@@ -175,6 +175,89 @@ async function checkGameContentRules() {
   assertGameRule(cacheEngine.state.inventory.medKits === 4, "Level 7 should grant 3 extra medkits");
   assertGameRule(cacheEngine.state.analytics.nemesisKills === 0, "Nemesis kill analytics should initialize");
 
+  const completedCacheSave = structuredClone(cacheEngine.state);
+  const completedCacheResume = createCombatEngine({ savedState: completedCacheSave });
+  const completedCacheResumeEvents = completedCacheResume.resumeFromSave();
+  assertGameRule(
+    completedCacheResume.state.progression.currentLevelId === "7",
+    "Resuming completed Level 7 should stay on the cache level"
+  );
+  assertGameRule(
+    completedCacheResume.state.progression.levelComplete,
+    "Resuming completed Level 7 should keep the manual continue gate available"
+  );
+  assertGameRule(
+    !completedCacheResume.state.combat.enemy,
+    "Resuming completed Level 7 should not spawn a phantom enemy"
+  );
+  assertGameRule(
+    completedCacheResumeEvents.some((event) => event.includes("Continue when ready")),
+    "Resuming completed Level 7 should tell the player to continue"
+  );
+  assertGameRule(
+    completedCacheResume.state.rifle.ammoInGun + completedCacheResume.state.rifle.ammoInBag === 10,
+    "Resuming completed Level 7 should not duplicate cache rifle ammo"
+  );
+  completedCacheResume.advanceToNextLevel();
+  assertGameRule(
+    completedCacheResume.state.progression.currentLevelId === "8",
+    "Manual continue after resumed Level 7 should start Level 8"
+  );
+  assertGameRule(
+    completedCacheResume.state.combat.enemy?.type === "nemesisT",
+    "Manual continue after resumed Level 7 should spawn Nemesis"
+  );
+
+  const strandedCacheEngine = createCombatEngine({ seed: 1002, character: "leon" });
+  const strandedCacheSave = structuredClone(strandedCacheEngine.state);
+  strandedCacheSave.progression.currentLevelId = "7";
+  strandedCacheSave.progression.encounterOrder = [];
+  strandedCacheSave.progression.currentEncounterIndex = 0;
+  strandedCacheSave.progression.enemiesRemaining = 0;
+  strandedCacheSave.progression.levelComplete = false;
+  strandedCacheSave.progression.awaitingChoice = false;
+  strandedCacheSave.progression.shopOpen = false;
+  strandedCacheSave.progression.emergency = null;
+  strandedCacheSave.combat.inCombat = false;
+  strandedCacheSave.combat.enemy = null;
+  strandedCacheSave.rifle.owned = false;
+  strandedCacheSave.rifle.ammoInGun = 0;
+  strandedCacheSave.rifle.ammoInBag = 0;
+  strandedCacheSave.inventory.medKits = 1;
+
+  const strandedCacheResume = createCombatEngine({ savedState: strandedCacheSave });
+  strandedCacheResume.resumeFromSave();
+  assertGameRule(
+    strandedCacheResume.state.progression.currentLevelId === "7",
+    "Resuming an incomplete no-enemy Level 7 save should remain on Level 7"
+  );
+  assertGameRule(
+    strandedCacheResume.state.progression.levelComplete,
+    "Resuming an incomplete no-enemy Level 7 save should repair the manual continue gate"
+  );
+  assertGameRule(
+    !strandedCacheResume.state.combat.enemy && !strandedCacheResume.state.combat.inCombat,
+    "Resuming an incomplete no-enemy Level 7 save should stay out of combat"
+  );
+  assertGameRule(
+    strandedCacheResume.state.rifle.owned &&
+      strandedCacheResume.state.rifle.ammoInGun + strandedCacheResume.state.rifle.ammoInBag === 10,
+    "Repaired Level 7 resume should grant the cache rifle supplies"
+  );
+  assertGameRule(
+    strandedCacheResume.state.inventory.medKits === 4,
+    "Repaired Level 7 resume should grant the cache medkits"
+  );
+  strandedCacheResume.advanceToNextLevel();
+  assertGameRule(
+    strandedCacheResume.state.progression.currentLevelId === "8",
+    "Manual continue after repaired Level 7 should start Level 8"
+  );
+  assertGameRule(
+    strandedCacheResume.state.combat.enemy?.type === "nemesisT",
+    "Manual continue after repaired Level 7 should spawn Nemesis"
+  );
+
   cacheEngine.advanceToNextLevel();
   assertGameRule(cacheEngine.state.progression.currentLevelId === "8", "Continuing from Level 7 should start Level 8");
   assertGameRule(cacheEngine.state.combat.enemy?.type === "nemesisT", "Level 8 should create the Nemesis enemy");

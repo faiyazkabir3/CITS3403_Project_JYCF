@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -19,6 +20,9 @@ from save_helpers import (
     list_fallback_save_payloads,
     parse_level_number,
 )
+
+
+STATIC_ASSET_ROOT = Path(__file__).resolve().parent / "static"
 
 
 def get_achievement_definitions():
@@ -184,6 +188,10 @@ def get_achievement_badge_image(definition, tier_name=None):
         return definition.badge_image
 
     badge_tier = tier_name or ACHIEVEMENT_TIER_ORDER[0]
+    v2_badge = f"images/badges/{definition.badge_family}_{badge_tier}_v2.png"
+    if (STATIC_ASSET_ROOT / v2_badge).is_file():
+        return v2_badge
+
     return f"images/badges/{definition.badge_family}_{badge_tier}.png"
 
 

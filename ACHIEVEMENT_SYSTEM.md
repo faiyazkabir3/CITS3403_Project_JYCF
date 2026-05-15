@@ -68,6 +68,14 @@ The naming convention is:
 <achievement_family>_<tier>.png
 ```
 
+Reviewed replacement assets can be added non-destructively with a v2 suffix:
+
+```text
+<achievement_family>_<tier>_v2.png
+```
+
+When a v2 file exists, the app uses it first. If not, it falls back to the original PNG.
+
 Examples:
 
 - `medic_bronze.png`
