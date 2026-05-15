@@ -3686,10 +3686,15 @@ a.agent-photo-frame:focus-visible {
   gap: 12px;
 }
 
-.profile-cancel-btn {
+.profile-page .menu-content .profile-cancel-btn {
   display: flex;
+  width: 100%;
+  padding: 12px 16px;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  line-height: 1;
+  text-decoration: none;
   min-height: 45px;
   border: var(--panel-border);
   background: rgba(0, 0, 0, 0.45);
@@ -3835,13 +3840,15 @@ a.agent-photo-frame:focus-visible {
 }
 
 .public-profile-action-btn,
-.public-profile-action-link {
+.profile-page .menu-content .public-profile-action-link {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 48px;
+  padding: 12px 16px;
   text-align: center;
+  line-height: 1;
   text-decoration: none;
 }
 
@@ -4056,12 +4063,17 @@ a.agent-photo-frame:focus-visible {
 }
 
 .friends-page .primary-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px 18px;
   background: #ffffff;
   color: #000000;
   border: var(--panel-border);
   font-family: var(--font-display);
   font-size: 0.75rem;
+  line-height: 1;
+  text-align: center;
   cursor: pointer;
   text-decoration: none;
   transition: 0.15s ease;
@@ -4078,12 +4090,17 @@ a.agent-photo-frame:focus-visible {
 }
 
 .friends-page .danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px 18px;
   border: var(--panel-border);
   background: #f05d5e;
   color: #000000;
   font-family: var(--font-display);
   font-size: 0.75rem;
+  line-height: 1;
+  text-align: center;
   cursor: pointer;
   transition: 0.15s ease;
 }
