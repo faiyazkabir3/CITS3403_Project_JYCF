@@ -223,13 +223,25 @@ def test_nemesis_hunter_definition_uses_custom_jpeg_badge():
 
 def test_tiered_achievement_badges_prefer_v2_assets_when_available():
     definitions = {definition.id: definition for definition in get_achievement_definitions()}
+    fallback_definition = AchievementDefinition(
+        id="fallback_badge",
+        name="Fallback Badge",
+        description="Uses the original badge path when no v2 asset exists.",
+        target=1,
+        metric="kills",
+        icon="F",
+        badge_family="fallback_badge",
+    )
 
     assert get_achievement_badge_image(definitions["sharpshooter"], "gold") == (
         "images/badges/sharpshooter_gold_v2.png"
     )
     assert get_achievement_badge_image(definitions["sharpshooter"], "silver") == (
-        "images/badges/sharpshooter_silver.png"
+        "images/badges/sharpshooter_silver_v2.png"
     )
     assert get_achievement_badge_image(definitions["first_blood"], "gold") == (
-        "images/badges/first_blood_gold.png"
+        "images/badges/first_blood_gold_v2.png"
+    )
+    assert get_achievement_badge_image(fallback_definition, "gold") == (
+        "images/badges/fallback_badge_gold.png"
     )
