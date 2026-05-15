@@ -14,8 +14,7 @@ node_modules/
 .vscode/settings.json
 .vscode/*.code-workspace
 .vscode
-static/uploads/profile_pics/*
-!static/uploads/profile_pics/.gitkeep
+app/static/uploads/profile_pics/*
+!app/static/uploads/profile_pics/.gitkeep
 test-results/
 playwright-report/
-

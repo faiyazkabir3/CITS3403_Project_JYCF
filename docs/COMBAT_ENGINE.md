@@ -2,7 +2,7 @@
 
 Updated: 8 May 2026
 
-This document describes the implementation in `static/js/combat-engine.js` and the surrounding save/UI integration. If this file and the code ever disagree, the code is the source of truth.
+This document describes the implementation in `app/static/js/combat-engine.js` and the surrounding save/UI integration. If this file and the code ever disagree, the code is the source of truth.
 
 ## 1. Purpose and Responsibilities
 
@@ -15,13 +15,13 @@ The combat engine is the gameplay state machine for the playable run. It is resp
 - handling level completion, route choice, shop access, and emergency events
 - returning narrative event strings for the UI to animate and log
 
-The engine does not touch the DOM directly and does not perform network requests. `gameUI.js` handles rendering, while the Flask persistence routes now live in the `main` Blueprint in `routes.py` and use shared setup/helpers from `app.py`.
+The engine does not touch the DOM directly and does not perform network requests. `gameUI.js` handles rendering, while the Flask persistence routes now live in the `main` Blueprint in `app/routes.py` and use shared setup/helpers from `app/__init__.py`.
 
 ## 2. File Structure
 
-`static/js/combat-engine.js` is organized in this order:
+`app/static/js/combat-engine.js` is organized in this order:
 
-1. `LEVELS` import from `static/js/levels.js`
+1. `LEVELS` import from `app/static/js/levels.js`
 2. RNG helpers: `mulberry32()` and `createRng()`
 3. Static configuration tables:
    `RULES`, `EFFECTIVENESS`, `CHARACTER_DEFS`, `ENEMY_TYPES`, `SHOP_ITEMS`
@@ -697,9 +697,9 @@ The UI:
 
 Flask persistence layer:
 
-- `routes.py` owns the `/save-game` and `/load-game` Blueprint routes
-- `app.py` owns shared app setup and database/security wiring
-- `save_helpers.py` owns save serialization, encryption, fallback saves, and payload normalization
+- `app/routes.py` owns the `/save-game` and `/load-game` Blueprint routes
+- `app/__init__.py` owns shared app setup and database/security wiring
+- `app/helpers/save_helpers.py` owns save serialization, encryption, fallback saves, and payload normalization
 - the save route serializes the `run_state` payload to JSON
 - the load route serves it back through `/load-game`
 
@@ -742,7 +742,7 @@ Update these places:
 
 - `ACTIONS`
 - `gameUI.js` button wiring and availability logic
-- `templates/play.html` if the action needs a new control
+- `app/templates/play.html` if the action needs a new control
 - stats rendering if the action introduces new tracked resources
 
 ### 14.3 Adding a new persistent state field
@@ -752,7 +752,7 @@ Update these places:
 - `createNewGameState()`
 - `normalizeStateShape()`
 - `gameUI.js` save payload builder if the field also needs flat legacy mirrors
-- Flask persistence code in `routes.py`, `save_helpers.py`, or `db_helpers.py` if a new database column or derived preview field is needed
+- Flask persistence code in `app/routes.py`, `app/helpers/save_helpers.py`, or `app/helpers/db_helpers.py` if a new database column or derived preview field is needed
 
 ### 14.4 Changing route or shop rules
 

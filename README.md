@@ -15,15 +15,16 @@ Created by JYCF.
 
 ## Documentation
 
-- [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
-- [Combat Engine](COMBAT_ENGINE.md)
-- [Database Guide](DATABASE_GUIDE.md)
-- [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
-- [Level Design](LEVEL_DESIGN.md)
-- [Realtime Chat](REALTIME_CHAT.md)
-- [Sanity Checks Guide](SANITY_CHECKS.md)
-- [Security Upgrade](SECURITY_UPGRADE.md)
-- [Validation Rules](Validation.md)
+- [Achievement System And Agent Clipboard](docs/ACHIEVEMENT_SYSTEM.md)
+- [Combat Engine](docs/COMBAT_ENGINE.md)
+- [Database Guide](docs/DATABASE_GUIDE.md)
+- [End-To-End Encrypted Chat](docs/END_TO_END_ENCRYPTED_CHAT.md)
+- [Helper Functions](docs/HELPER_FUNCTIONS.md)
+- [Level Design](docs/LEVEL_DESIGN.md)
+- [Realtime Chat](docs/REALTIME_CHAT.md)
+- [Sanity Checks Guide](docs/SANITY_CHECKS.md)
+- [Security Upgrade](docs/SECURITY_UPGRADE.md)
+- [Validation Rules](docs/Validation.md)
 
 ## Security Lecture Compliance
 
@@ -68,7 +69,7 @@ If you see an import error like `ModuleNotFoundError: No module named 'flask_soc
 
 ### Environment Variables
 
-Create a local `.env` file in the project root. This file is loaded by `app.py` when the server starts.
+Create a local `.env` file in the project root. This file is loaded by the `app` package when the server starts.
 
 The app needs these values:
 
@@ -153,14 +154,14 @@ python -c "import base64, secrets; print('SECRET_KEY=' + secrets.token_urlsafe(3
 macOS/Linux:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 flask db upgrade
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:FLASK_APP = "app.py"
+$env:FLASK_APP = "app:app"
 flask db upgrade
 ```
 
@@ -195,18 +196,18 @@ If you see `RuntimeError: SQLCIPHER_DATABASE_KEY is missing`, your `.env` file i
 
 ### Database Migrations
 
-This project uses Flask-Migrate/Alembic for database migrations. Run migration commands from the project root so `app.py` can load `.env` before connecting to SQLCipher.
+This project uses Flask-Migrate/Alembic for database migrations. Run migration commands from the project root so the `app` package can load `.env` before connecting to SQLCipher.
 
 Set the Flask app module first:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 ```
 
 On Windows PowerShell, use:
 
 ```powershell
-$env:FLASK_APP = "app.py"
+$env:FLASK_APP = "app:app"
 ```
 
 The repo already includes the `migrations/` folder. Do not run `flask db init` during normal setup.
@@ -240,7 +241,7 @@ flask db current
 For a fresh encrypted database, the usual setup flow is:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 flask db upgrade
 flask seed-demo
 ```
@@ -325,21 +326,22 @@ The optional JavaScript sanity check is useful while developing, but it is separ
 This repo includes VS Code tasks and launch configs in `.vscode/`.
 
 - `Run Flask app`: starts the Python app in the integrated terminal.
-- `Lint JS`: runs ESLint against `static/js`.
+- `Lint JS`: runs ESLint against `app/static/js`.
 - `Python: app.py`: launches the Flask app under the Python debugger.
 - `Edge: /play`: opens `http://127.0.0.1:5000/play` with browser debugging.
-- `Flask + Edge /play`: starts both so you can hit breakpoints in browser JS files like `static/js/play.js`, `static/js/gameUI.js`, and `static/js/combat-engine.js`.
+- `Flask + Edge /play`: starts both so you can hit breakpoints in browser JS files like `app/static/js/play.js`, `app/static/js/gameUI.js`, and `app/static/js/combat-engine.js`.
 
 For frontend debugging, set breakpoints in the browser-loaded JS modules. Node is used here for tooling and linting, not to run the game itself.
 
 ## Documentation
 
-- [Achievement System And Agent Clipboard](ACHIEVEMENT_SYSTEM.md)
-- [Level Design](LEVEL_DESIGN.md)
-- [Combat Engine](COMBAT_ENGINE.md)
-- [Database Guide](DATABASE_GUIDE.md)
-- [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md)
-- [Realtime Chat](REALTIME_CHAT.md)
-- [Security Upgrade](SECURITY_UPGRADE.md)
-- [Sanity Checks Guide](SANITY_CHECKS.md)
-- [Validation Rules](Validation.md)
+- [Achievement System And Agent Clipboard](docs/ACHIEVEMENT_SYSTEM.md)
+- [Level Design](docs/LEVEL_DESIGN.md)
+- [Combat Engine](docs/COMBAT_ENGINE.md)
+- [Database Guide](docs/DATABASE_GUIDE.md)
+- [End-To-End Encrypted Chat](docs/END_TO_END_ENCRYPTED_CHAT.md)
+- [Helper Functions](docs/HELPER_FUNCTIONS.md)
+- [Realtime Chat](docs/REALTIME_CHAT.md)
+- [Security Upgrade](docs/SECURITY_UPGRADE.md)
+- [Sanity Checks Guide](docs/SANITY_CHECKS.md)
+- [Validation Rules](docs/Validation.md)

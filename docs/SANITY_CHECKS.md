@@ -98,19 +98,19 @@ Run one Selenium test:
 Run the marking-focused helper:
 
 ```bash
-.venv/bin/python sanity_check.py
+.venv/bin/python scripts/sanity_check.py
 ```
 
 List what the helper will run:
 
 ```bash
-.venv/bin/python sanity_check.py --list
+.venv/bin/python scripts/sanity_check.py --list
 ```
 
 Run only the fast unit layer through the helper:
 
 ```bash
-.venv/bin/python sanity_check.py --quick
+.venv/bin/python scripts/sanity_check.py --quick
 ```
 
 ## Optional JavaScript Sanity
@@ -132,7 +132,7 @@ npm run sanity:js
 You can also include it in the helper:
 
 ```bash
-.venv/bin/python sanity_check.py --include-js
+.venv/bin/python scripts/sanity_check.py --include-js
 ```
 
 ## How The Tests Stay Isolated

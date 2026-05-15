@@ -54,17 +54,17 @@ This project does not claim to solve every security problem. HTTPS certificates,
 
 | Area | Files |
 | --- | --- |
-| Flask app security wiring | `app.py`, `routes.py` |
-| SQLAlchemy models | `models.py` |
+| Flask app security wiring | `app/__init__.py`, `app/routes.py` |
+| SQLAlchemy models | `app/models.py` |
 | Python dependencies | `requirements.txt` |
-| Login/register/profile/friend/chat forms | `templates/*.html` |
-| Chat E2EE client | `static/js/chat.js` |
-| Save-game CSRF fetch | `static/js/gameUI.js` |
+| Login/register/profile/friend/chat forms | `app/templates/*.html` |
+| Chat E2EE client | `app/static/js/chat.js` |
+| Save-game CSRF fetch | `app/static/js/gameUI.js` |
 | Browser tests | `tests/selenium/test_browser_flows.py` |
 | Test Flask server secrets | `scripts/run_selenium_server.py` |
 | Setup instructions | `README.md` |
-| Database overview | `DATABASE_GUIDE.md` |
-| Chat encryption details | `END_TO_END_ENCRYPTED_CHAT.md` |
+| Database overview | [Database Guide](DATABASE_GUIDE.md) |
+| Chat encryption details | [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md) |
 
 ## Required Environment Variables
 
@@ -139,7 +139,7 @@ New fallback saves use the first key. Old fallback saves can still be read if th
 
 ## Startup Safety
 
-The startup flow in `app.py` is deliberately strict:
+The startup flow in `app/__init__.py` is deliberately strict:
 
 1. Load `.env`.
 2. Validate `SECRET_KEY`.
@@ -188,7 +188,7 @@ Registered users authenticate through Flask-Login.
 Core pieces:
 
 - `User` inherits `UserMixin`.
-- `LoginManager(app)` is initialized in `app.py`.
+- `LoginManager(app)` is initialized in `app/__init__.py`.
 - The custom unauthorized handler redirects unauthenticated users to the Blueprint login route.
 - `@login_manager.user_loader` reloads a `User` by ID from the signed session.
 - Successful login calls `login_user(user)`.
@@ -241,7 +241,7 @@ Because Socket.IO and some app behavior need explicit control, the app sets:
 WTF_CSRF_CHECK_DEFAULT = False
 ```
 
-Then `app.py` manually calls `csrf.protect()` in `before_request` for mutating HTTP methods:
+Then `app/__init__.py` manually calls `csrf.protect()` in `before_request` for mutating HTTP methods:
 
 - `POST`
 - `PUT`
@@ -312,7 +312,7 @@ Normal local configuration:
 DATABASE_URL=sqlite:///project.db
 ```
 
-At startup, `app.py` converts this into a SQLCipher URL using `SQLCIPHER_DATABASE_KEY`. The conversion keeps the project configuration simple while preventing accidental normal SQLite usage.
+At startup, `app/__init__.py` converts this into a SQLCipher URL using `SQLCIPHER_DATABASE_KEY`. The conversion keeps the project configuration simple while preventing accidental normal SQLite usage.
 
 The app verifies SQLCipher with:
 
@@ -344,7 +344,7 @@ migrate = Migrate(app, db)
 Documented migration commands:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 flask db upgrade
 flask db migrate -m "describe schema change"
 flask db downgrade
@@ -411,7 +411,7 @@ Plaintext fallback saves are rejected by default. The only exception is the loca
 
 Direct chat encryption happens in the browser. Flask stores and forwards encrypted payloads, but does not store browser private keys and should not receive plaintext chat content.
 
-Browser cryptography in `static/js/chat.js`:
+Browser cryptography in `app/static/js/chat.js`:
 
 | Purpose | Algorithm |
 | --- | --- |
@@ -554,7 +554,7 @@ Current checks:
 - Only `.jpg` and `.jpeg` extensions are accepted.
 - The first bytes must match the JPEG header.
 - Upload size is limited to 5 MB.
-- Uploaded files are stored under `static/uploads/profile_pics/`.
+- Uploaded files are stored under `app/static/uploads/profile_pics/`.
 - Stored filenames are generated with the user ID and a UUID.
 - Path resolution checks keep selected uploaded images inside the profile upload directory.
 
@@ -597,13 +597,13 @@ pip install -r requirements.txt
 Compile Python:
 
 ```bash
-python -m py_compile app.py routes.py models.py
+python -m py_compile app.py app/__init__.py app/routes.py app/models.py
 ```
 
 Confirm Flask-Migrate CLI is available:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 flask db --help
 ```
 

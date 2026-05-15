@@ -92,14 +92,14 @@ Use the values generated in step 4. Do not commit `.env`.
 After `.env` is ready, apply the committed migrations:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 flask db upgrade
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:FLASK_APP = "app.py"
+$env:FLASK_APP = "app:app"
 flask db upgrade
 ```
 
@@ -156,13 +156,13 @@ This project uses Flask-Migrate/Alembic for schema migrations.
 Set the Flask app target first:
 
 ```bash
-export FLASK_APP=app.py
+export FLASK_APP=app:app
 ```
 
 On Windows PowerShell:
 
 ```powershell
-$env:FLASK_APP = "app.py"
+$env:FLASK_APP = "app:app"
 ```
 
 This repo already has a committed `migrations/` folder. Do not run `flask db init` again during normal setup.
@@ -173,7 +173,7 @@ Apply existing migrations to your local encrypted DB:
 flask db upgrade
 ```
 
-After changing `models.py`, generate a new migration:
+After changing `app/models.py`, generate a new migration:
 
 ```bash
 flask db migrate -m "describe schema change"
@@ -235,7 +235,7 @@ By default, `.env` points the app to:
 DATABASE_URL=sqlite:///project.db
 ```
 
-At startup, `app.py` converts that SQLite URL into a SQLCipher-backed SQLAlchemy URL using `SQLCIPHER_DATABASE_KEY` from `.env`.
+At startup, `app/__init__.py` converts that SQLite URL into a SQLCipher-backed SQLAlchemy URL using `SQLCIPHER_DATABASE_KEY` from `.env`.
 
 This keeps the app code using SQLAlchemy normally while the database file is encrypted at rest. Do not open, migrate, or copy the database without understanding that it depends on the local SQLCipher key.
 
@@ -251,9 +251,9 @@ Based on the course structure, the database belongs to the **model** side of the
 
 In this project:
 
-- **model** = the SQLAlchemy models in `models.py`
+- **model** = the SQLAlchemy models in `app/models.py`
 - **view** = the HTML pages built from Jinja templates
-- **controller** = the Flask request handlers in the `main` Blueprint in `routes.py` that read and update the models
+- **controller** = the Flask request handlers in the `main` Blueprint in `app/routes.py` that read and update the models
 
 This separation is useful because it keeps storage, page rendering, and request handling as different concerns.
 

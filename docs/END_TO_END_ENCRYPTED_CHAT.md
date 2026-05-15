@@ -6,12 +6,12 @@ This document explains how the direct chat end-to-end encryption system works in
 
 If this document and the code ever disagree, the code is the source of truth. The main files are:
 
-- `static/js/chat.js`
-- `templates/chat.html`
-- `routes.py`
-- `chat_helpers.py`
-- `app.py`
-- `models.py`
+- `app/static/js/chat.js`
+- `app/templates/chat.html`
+- `app/routes.py`
+- `app/helpers/chat_helpers.py`
+- `app/__init__.py`
+- `app/models.py`
 
 ## 1. What End-To-End Encryption Means Here
 
@@ -29,7 +29,7 @@ The server still controls authentication, friendship checks, message storage, an
 
 ## 2. Cryptography Used
 
-The browser code uses the Web Crypto API in `static/js/chat.js`.
+The browser code uses the Web Crypto API in `app/static/js/chat.js`.
 
 | Purpose | Algorithm | Where |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ This is expected for this implementation. Because Flask does not have the privat
 
 ## 4. Public Key Registration
 
-When a user opens `/chat/<friend_id>`, `bootEncryptedChat()` runs in `static/js/chat.js`.
+When a user opens `/chat/<friend_id>`, `bootEncryptedChat()` runs in `app/static/js/chat.js`.
 
 The startup flow is:
 
@@ -167,7 +167,7 @@ with this shape:
 }
 ```
 
-Flask handles this in `handle_chat_send()` in `routes.py`. The handler is attached to the shared `socketio` instance initialised by `app.py`.
+Flask handles this in `handle_chat_send()` in `app/routes.py`. The handler is attached to the shared `socketio` instance initialised by `app/__init__.py`.
 
 The server then:
 
@@ -193,7 +193,7 @@ chat:4:9
 
 ## 7. Form Fallback Send Path
 
-If realtime chat is unavailable, the same encrypted payload is copied into hidden form fields in `templates/chat.html`.
+If realtime chat is unavailable, the same encrypted payload is copied into hidden form fields in `app/templates/chat.html`.
 
 The hidden fields are:
 
@@ -275,7 +275,7 @@ For encrypted messages, `message` is set to `None`. The old `message` column rem
 
 The server cannot decrypt messages, but it still validates the envelope.
 
-`validate_encrypted_chat_payload()` in `chat_helpers.py` checks that:
+`validate_encrypted_chat_payload()` in `app/helpers/chat_helpers.py` checks that:
 
 - the payload is a dictionary
 - `ciphertext` is present

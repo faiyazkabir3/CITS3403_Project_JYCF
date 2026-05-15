@@ -11,10 +11,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from flask import current_app, session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app_constants import FAVORITE_CHARACTER_LABELS
-from db_helpers import rollback_database_session
-from domain_types import PlayerStats
-from models import SaveData, db, utc_now
+from ..constants import FAVORITE_CHARACTER_LABELS
+from ..domain.domain_types import PlayerStats
+from ..models import SaveData, db, utc_now
+from .db_helpers import rollback_database_session
 
 
 COUNTER_ANALYTICS_FIELDS = {

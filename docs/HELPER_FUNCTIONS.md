@@ -2,30 +2,30 @@
 
 This guide explains the helper modules created during the `app.py` refactor. The goal of the split is to make the backend easier to read:
 
-- `app.py` starts and configures Flask.
-- `models.py` defines database tables.
-- `routes.py` owns page/API endpoints.
+- `app.py` launches the app, while `app/__init__.py` configures Flask.
+- `app/models.py` defines database tables.
+- `app/routes.py` owns page/API endpoints.
 - `*_helpers.py` modules hold reusable logic for saves, profiles, friends, chat, achievements, leaderboards, and startup checks.
 
 ## Module Overview
 
 | File | Responsibility |
 | --- | --- |
-| `app_constants.py` | Shared constants and option lists used by routes/templates/helpers. |
-| `domain_types.py` | Small dataclasses used to structure helper return values. |
-| `db_helpers.py` | Secret validation, SQLCipher setup, migration/startup checks, and database rollback handling. |
-| `save_helpers.py` | Save payload normalization, encrypted fallback saves, DB save updates, and player stats. |
-| `achievement_helpers.py` | Achievement definitions, progress calculation, badge image lookup, and unlock logic. |
-| `profile_helpers.py` | Profile display data, profile images, dossier data, reactions, comments, and profile badges. |
-| `friend_helpers.py` | Friend lookup, requests, presence, recent conversations, and privacy checks. |
-| `chat_helpers.py` | Direct chat room IDs, public key IDs, encrypted message validation, and serialization. |
-| `leaderboard_helpers.py` | Score calculation and global/friend leaderboard ranking. |
+| `app/constants.py` | Shared constants and option lists used by routes, templates, and helpers. |
+| `app/domain/domain_types.py` | Small dataclasses used to structure helper return values. |
+| `app/helpers/db_helpers.py` | Secret validation, SQLCipher setup, migration/startup checks, and database rollback handling. |
+| `app/helpers/save_helpers.py` | Save payload normalization, encrypted fallback saves, DB save updates, and player stats. |
+| `app/helpers/achievement_helpers.py` | Achievement definitions, progress calculation, badge image lookup, and unlock logic. |
+| `app/helpers/profile_helpers.py` | Profile display data, profile images, dossier data, reactions, comments, and profile badges. |
+| `app/helpers/friend_helpers.py` | Friend lookup, requests, presence, recent conversations, and privacy checks. |
+| `app/helpers/chat_helpers.py` | Direct chat room IDs, public key IDs, encrypted message validation, and serialization. |
+| `app/helpers/leaderboard_helpers.py` | Score calculation and global/friend leaderboard ranking. |
 | `commands.py` | CLI command registration, currently `flask seed-demo`. |
 | `extensions.py` | Shared extension instances, currently `socketio`, to avoid circular imports. |
 
 ## Shared Constants
 
-`app_constants.py` keeps shared values in one place so they are not repeated across routes and helpers.
+`app/constants.py` keeps shared values in one place so they are not repeated across routes and helpers.
 
 | Constant group | How it helps |
 | --- | --- |
@@ -38,7 +38,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Shared Data Types
 
-`domain_types.py` contains dataclasses that make helper return values easier to understand.
+`app/domain/domain_types.py` contains dataclasses that make helper return values easier to understand.
 
 | Type | How it helps |
 | --- | --- |
@@ -51,7 +51,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Database And Startup Helpers
 
-`db_helpers.py` keeps startup and database safety logic out of `app.py`.
+`app/helpers/db_helpers.py` keeps startup and database safety logic out of `app.py`.
 
 | Function | How it helps |
 | --- | --- |
@@ -69,7 +69,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Save Helpers
 
-`save_helpers.py` owns all save/load persistence logic outside the route handlers.
+`app/helpers/save_helpers.py` owns all save/load persistence logic outside the route handlers.
 
 | Function | How it helps |
 | --- | --- |
@@ -99,7 +99,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Achievement Helpers
 
-`achievement_helpers.py` keeps achievement rules separate from routes.
+`app/helpers/achievement_helpers.py` keeps achievement rules separate from routes.
 
 | Function | How it helps |
 | --- | --- |
@@ -117,7 +117,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Profile Helpers
 
-`profile_helpers.py` owns reusable profile presentation and profile customisation logic.
+`app/helpers/profile_helpers.py` owns reusable profile presentation and profile customisation logic.
 
 | Function | How it helps |
 | --- | --- |
@@ -150,7 +150,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Friend Helpers
 
-`friend_helpers.py` owns friend relationships, presence, conversation summaries, and friend-related permissions.
+`app/helpers/friend_helpers.py` owns friend relationships, presence, conversation summaries, and friend-related permissions.
 
 | Function | How it helps |
 | --- | --- |
@@ -176,7 +176,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Chat Helpers
 
-`chat_helpers.py` owns reusable direct-chat logic.
+`app/helpers/chat_helpers.py` owns reusable direct-chat logic.
 
 | Function | How it helps |
 | --- | --- |
@@ -189,7 +189,7 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 ## Leaderboard Helpers
 
-`leaderboard_helpers.py` owns leaderboard ranking and scoring.
+`app/helpers/leaderboard_helpers.py` owns leaderboard ranking and scoring.
 
 | Function | How it helps |
 | --- | --- |
@@ -214,11 +214,11 @@ This guide explains the helper modules created during the `app.py` refactor. The
 
 | Name | How it helps |
 | --- | --- |
-| `socketio` | Lets `app.py` initialize Socket.IO and `routes.py` register socket handlers without creating a circular import. |
+| `socketio` | Lets `app/__init__.py` initialize Socket.IO and `app/routes.py` register socket handlers without creating a circular import. |
 
 ## Route-Local Validation Helpers
 
-Some small helpers remain in `routes.py` because they are tightly tied to request validation for route handlers.
+Some small helpers remain in `app/routes.py` because they are tightly tied to request validation for route handlers.
 
 | Function | How it helps |
 | --- | --- |
@@ -238,8 +238,8 @@ Some small helpers remain in `routes.py` because they are tightly tied to reques
 
 The split makes the project easier to mark and maintain because each file now has one main job:
 
-- App setup is visible in one short `app.py`.
-- Route handlers in `routes.py` are easier to scan because domain logic lives in helpers.
-- Security-sensitive logic is easier to find in `db_helpers.py`, `save_helpers.py`, and `chat_helpers.py`.
+- App setup is visible in `app/__init__.py`, with `app.py` kept as a short launcher.
+- Route handlers in `app/routes.py` are easier to scan because domain logic lives in helpers.
+- Security-sensitive logic is easier to find in `app/helpers/db_helpers.py`, `app/helpers/save_helpers.py`, and `app/helpers/chat_helpers.py`.
 - Profile, friend, achievement, and leaderboard features can be changed independently.
 - Tests can import helper functions directly from their real module instead of importing the whole Flask app.

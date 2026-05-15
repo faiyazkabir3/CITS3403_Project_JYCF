@@ -16,10 +16,10 @@ os.environ["SQLCIPHER_DATABASE_KEY"] = "selenium-sqlcipher-key-for-local-tests"
 os.environ["SAVE_PAYLOAD_KEYS"] = "v1:c2VsZW5pdW0tc2F2ZS1rZXktMzItYnl0ZS12YWwhISE"
 os.environ["DATABASE_URL"] = f"sqlite:///{SELENIUM_DB_PATH.as_posix()}"
 os.environ["ALLOW_PLAINTEXT_TEST_DATABASES"] = "1"
-os.environ.setdefault("FLASK_APP", "app.py")
+os.environ.setdefault("FLASK_APP", "app:app")
 
 subprocess.run(
-    [sys.executable, "-m", "flask", "--app", "app.py", "db", "upgrade"],
+    [sys.executable, "-m", "flask", "--app", "app:app", "db", "upgrade"],
     cwd=ROOT,
     env=os.environ.copy(),
     check=True,

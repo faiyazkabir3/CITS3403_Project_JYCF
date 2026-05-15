@@ -15,7 +15,7 @@ The current flow is:
 1. A logged-in user opens `/chat/<friend_id>`.
 2. Flask confirms the target user is an accepted friend.
 3. The server renders the chat page with existing encrypted message metadata.
-4. `static/js/chat.js` loads or creates the browser's chat key pair.
+4. `app/static/js/chat.js` loads or creates the browser's chat key pair.
 5. The browser registers its public key with Flask and fetches the friend's public key.
 6. The browser opens a Socket.IO connection and joins the private conversation room.
 7. New outgoing messages are encrypted in the browser before they are sent.
@@ -28,16 +28,16 @@ The server stores ciphertext, nonces, public key metadata, timestamps, sender ID
 
 ### Backend
 
-- `app.py`: creates the Flask app, configures SQLCipher, CSRF, Flask-Login, Flask-SocketIO, and registers the `main` Blueprint.
-- `routes.py`: defines the `main` Blueprint routes for chat pages, chat-key exchange, and Socket.IO chat events.
-- `models.py`: defines `User` chat key metadata and encrypted `Message` fields.
+- `app/__init__.py`: creates the Flask app, configures SQLCipher, CSRF, Flask-Login, Flask-SocketIO, and registers the `main` Blueprint.
+- `app/routes.py`: defines the `main` Blueprint routes for chat pages, chat-key exchange, and Socket.IO chat events.
+- `app/models.py`: defines `User` chat key metadata and encrypted `Message` fields.
 - `requirements.txt`: includes Flask-SocketIO and the Python runtime dependencies.
 
 ### Frontend
 
-- `templates/chat.html`: renders the direct-chat page, initial encrypted message data, CSRF token, Socket.IO client script, and fallback form fields.
-- `static/js/chat.js`: handles browser key storage, message encryption/decryption, Socket.IO room joining, realtime sends, and fallback form submission.
-- `static/css/global.css`: styles the chat page and message states.
+- `app/templates/chat.html`: renders the direct-chat page, initial encrypted message data, CSRF token, Socket.IO client script, and fallback form fields.
+- `app/static/js/chat.js`: handles browser key storage, message encryption/decryption, Socket.IO room joining, realtime sends, and fallback form submission.
+- `app/static/css/global.css`: styles the chat page and message states.
 
 ### Tests
 
@@ -78,7 +78,7 @@ The direct-chat implementation uses these events:
 Realtime delivery and end-to-end encryption are separate concerns:
 
 - Socket.IO provides live delivery.
-- Web Crypto in `static/js/chat.js` encrypts and decrypts message content in the browser.
+- Web Crypto in `app/static/js/chat.js` encrypts and decrypts message content in the browser.
 - Flask stores and forwards encrypted payloads without decrypting the message body.
 
 The encrypted payload contains:
@@ -95,7 +95,7 @@ encryption_version
 
 The `Message.message` column remains nullable for compatibility with older rows, but current encrypted direct-chat sends store `message=None` and use the encrypted fields.
 
-For the detailed cryptography notes, see `END_TO_END_ENCRYPTED_CHAT.md`.
+For the detailed cryptography notes, see [End-To-End Encrypted Chat](END_TO_END_ENCRYPTED_CHAT.md).
 
 ## HTTP Fallback
 
@@ -141,7 +141,7 @@ The app starts through:
 socketio.run(app, debug=True)
 ```
 
-This is already configured in `app.py`.
+This is already configured in `app/__init__.py`.
 
 ## Testing
 

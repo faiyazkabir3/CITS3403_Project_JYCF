@@ -15,12 +15,7 @@ from flask_socketio import join_room, leave_room
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from achievement_helpers import (
-    get_agent_showcase_badges,
-    get_user_achievements,
-    unlock_achievements_for_user,
-)
-from app_constants import (
+from .constants import (
     BIO_MAX_LENGTH,
     FAVORITE_CHARACTER_LABELS,
     FAVORITE_CHARACTER_OPTIONS,
@@ -32,8 +27,13 @@ from app_constants import (
     PROFILE_IMAGE_UPLOAD_MAX_BYTES,
     PROFILE_REACTION_VALUES,
 )
-from extensions import socketio
-from chat_helpers import (
+from .extensions import socketio
+from .helpers.achievement_helpers import (
+    get_agent_showcase_badges,
+    get_user_achievements,
+    unlock_achievements_for_user,
+)
+from .helpers.chat_helpers import (
     build_chat_key_id,
     build_chat_room_key,
     parse_friend_id,
@@ -41,8 +41,8 @@ from chat_helpers import (
     serialize_chat_public_key,
     validate_encrypted_chat_payload,
 )
-from db_helpers import rollback_database_session
-from friend_helpers import (
+from .helpers.db_helpers import rollback_database_session
+from .helpers.friend_helpers import (
     accept_pending_friend_request,
     can_view_friend_stats,
     create_friend_request,
@@ -55,19 +55,8 @@ from friend_helpers import (
     get_unread_message_count,
     make_guest_name,
 )
-from leaderboard_helpers import get_leaderboard, get_leaderboard_entry_for_user
-from models import (
-    Friend,
-    FriendRequest,
-    Message,
-    ProfileComment,
-    ProfileReaction,
-    User,
-    WorldMessage,
-    db,
-    utc_now,
-)
-from profile_helpers import (
+from .helpers.leaderboard_helpers import get_leaderboard, get_leaderboard_entry_for_user
+from .helpers.profile_helpers import (
     delete_uploaded_profile_image,
     get_agent_dossier,
     get_custom_profile_image,
@@ -85,7 +74,7 @@ from profile_helpers import (
     validate_profile_comment,
     validate_uploaded_profile_image,
 )
-from save_helpers import (
+from .helpers.save_helpers import (
     build_save_payload,
     build_save_payload_from_request,
     choose_latest_save_payload,
@@ -100,6 +89,17 @@ from save_helpers import (
     read_fallback_save,
     update_save_data,
     write_fallback_save,
+)
+from .models import (
+    Friend,
+    FriendRequest,
+    Message,
+    ProfileComment,
+    ProfileReaction,
+    User,
+    WorldMessage,
+    db,
+    utc_now,
 )
 
 

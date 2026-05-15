@@ -3,15 +3,15 @@ from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from app_constants import (
+from ..constants import (
     ACHIEVEMENT_TIER_LABELS,
     ACHIEVEMENT_TIER_ORDER,
     ACHIEVEMENT_TIER_RANKS,
 )
-from db_helpers import rollback_database_session
-from domain_types import AchievementDefinition
-from models import UserAchievement, db, utc_now
-from save_helpers import (
+from ..domain.domain_types import AchievementDefinition
+from ..models import UserAchievement, db, utc_now
+from .db_helpers import rollback_database_session
+from .save_helpers import (
     coerce_bool,
     coerce_int,
     get_latest_save_payload,
@@ -22,7 +22,7 @@ from save_helpers import (
 )
 
 
-STATIC_ASSET_ROOT = Path(__file__).resolve().parent / "static"
+STATIC_ASSET_ROOT = Path(__file__).resolve().parents[1] / "static"
 
 
 def get_achievement_definitions():

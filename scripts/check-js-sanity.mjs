@@ -4,6 +4,8 @@ import vm from "node:vm";
 import { pathToFileURL } from "node:url";
 
 const root = process.cwd();
+const staticRoot = path.join(root, "app", "static");
+const templateRoot = path.join(root, "app", "templates");
 const issues = [];
 
 function walk(dir, predicate = () => true) {
@@ -69,7 +71,7 @@ function checkJsImportsAndAssets(filePath) {
 
   const staticMatches = [...source.matchAll(/["']\/static\/([^"']+)["']/g)];
   for (const match of staticMatches) {
-    const assetPath = path.join(root, "static", ...match[1].split("/"));
+    const assetPath = path.join(staticRoot, ...match[1].split("/"));
     if (!fs.existsSync(assetPath)) {
       issues.push(`Missing static asset in JS: ${relative(filePath)} -> /static/${match[1]}`);
     }
@@ -81,7 +83,7 @@ function checkTemplateAssets(filePath) {
   const filenameMatches = [...source.matchAll(/filename\s*=\s*["']([^"']+)["']/g)];
 
   for (const match of filenameMatches) {
-    const assetPath = path.join(root, "static", ...match[1].split("/"));
+    const assetPath = path.join(staticRoot, ...match[1].split("/"));
     if (!fs.existsSync(assetPath)) {
       issues.push(`Missing static asset in template: ${relative(filePath)} -> ${match[1]}`);
     }
@@ -122,7 +124,7 @@ function checkImportedStaticAssets(moduleName, value) {
   const assetPaths = collectStaticAssetPaths(value);
 
   assetPaths.forEach((assetPath) => {
-    const localPath = path.join(root, ...assetPath.replace(/^\/+/, "").split("/"));
+    const localPath = path.join(staticRoot, ...assetPath.replace(/^\/static\/?/, "").split("/"));
     if (!fs.existsSync(localPath)) {
       recordIssue(`Missing imported static asset in ${moduleName}: ${assetPath}`);
     }
@@ -130,9 +132,9 @@ function checkImportedStaticAssets(moduleName, value) {
 }
 
 async function checkGameContentRules() {
-  const levelsModule = await import(pathToFileURL(path.join(root, "static", "js", "levels.js")));
-  const visualsModule = await import(pathToFileURL(path.join(root, "static", "js", "visuals.js")));
-  const combatModule = await import(pathToFileURL(path.join(root, "static", "js", "combat-engine.js")));
+  const levelsModule = await import(pathToFileURL(path.join(staticRoot, "js", "levels.js")));
+  const visualsModule = await import(pathToFileURL(path.join(staticRoot, "js", "visuals.js")));
+  const combatModule = await import(pathToFileURL(path.join(staticRoot, "js", "combat-engine.js")));
   const { LEVELS } = levelsModule;
   const { createCombatEngine } = combatModule;
 
@@ -145,7 +147,7 @@ async function checkGameContentRules() {
   assertGameRule(LEVELS["7"]?.next === "8", "Level 7 should advance to Level 8");
   assertGameRule(LEVELS["8"]?.enemySequence?.[0] === "nemesisT", "Level 8 should spawn Nemesis-T Type");
   assertGameRule(
-    fs.existsSync(path.join(root, "static", "images", "badges", "nemesis_hunter.jpeg")),
+    fs.existsSync(path.join(staticRoot, "images", "badges", "nemesis_hunter.jpeg")),
     "Nemesis Hunter badge JPEG should exist"
   );
 
@@ -264,8 +266,8 @@ async function checkGameContentRules() {
   assertGameRule(cacheEngine.state.combat.enemy?.baseHp === 1000, "Nemesis should have 1000 HP");
 }
 
-const jsFiles = walk(path.join(root, "static", "js"), (filePath) => filePath.endsWith(".js"));
-const templateFiles = walk(path.join(root, "templates"), (filePath) => filePath.endsWith(".html"));
+const jsFiles = walk(path.join(staticRoot, "js"), (filePath) => filePath.endsWith(".js"));
+const templateFiles = walk(templateRoot, (filePath) => filePath.endsWith(".html"));
 
 for (const filePath of jsFiles) {
   checkSyntax(filePath);
