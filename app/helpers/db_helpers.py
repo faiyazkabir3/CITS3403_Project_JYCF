@@ -6,7 +6,7 @@ from flask import current_app, has_app_context
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..constants import PROFILE_IMAGE_DEFAULT
+from ..constants import DEFAULT_LANGUAGE, PROFILE_IMAGE_DEFAULT
 from ..models import db
 
 try:
@@ -43,6 +43,87 @@ MIGRATION_REQUIRED_TABLES = {
     "user_achievement",
     "profile_reaction",
     "profile_comment",
+}
+
+MIGRATION_REQUIRED_COLUMNS = {
+    "user": {
+        "id",
+        "username",
+        "display_name",
+        "profile_image",
+        "profile_background",
+        "bio",
+        "favorite_character",
+        "show_stats_to_friends",
+        "allow_friend_messages",
+        "hide_from_leaderboard",
+        "preferred_language",
+        "last_seen",
+        "created_at",
+        "password_hash",
+        "chat_public_key",
+        "chat_key_id",
+        "chat_key_created_at",
+    },
+    "save_data": {
+        "id",
+        "user_id",
+        "difficulty",
+        "character_id",
+        "health",
+        "medkits",
+        "grenades",
+        "kills",
+        "damage_dealt",
+        "damage_taken",
+        "pistol_shots",
+        "grenades_used",
+        "medkits_used",
+        "reloads",
+        "knife_uses",
+        "ammo_in_gun",
+        "ammo_in_bag",
+        "mag_capacity",
+        "laser_upgrade",
+        "shield_owned",
+        "shield_on",
+        "current_level_id",
+        "enemies_remaining",
+        "level_complete",
+        "awaiting_choice",
+        "game_won",
+        "has_started_game",
+        "run_state_json",
+        "updated_at",
+    },
+    "friend": {"id", "user_id", "friend_id", "status"},
+    "friend_request": {"id", "from_user_id", "to_user_id", "status"},
+    "message": {
+        "id",
+        "sender_id",
+        "receiver_id",
+        "message",
+        "ciphertext",
+        "nonce",
+        "sender_key_id",
+        "sender_public_key",
+        "recipient_key_id",
+        "recipient_public_key",
+        "encryption_version",
+        "timestamp",
+        "read_at",
+    },
+    "world_message": {"id", "user_id", "message", "created_at"},
+    "user_achievement": {"id", "user_id", "achievement_id", "unlocked_at"},
+    "profile_reaction": {
+        "id",
+        "profile_user_id",
+        "reactor_user_id",
+        "reaction_type",
+        "created_at",
+        "updated_at",
+    },
+    "profile_comment": {"id", "profile_user_id", "author_user_id", "comment", "created_at"},
 }
 
 
@@ -158,6 +239,10 @@ def ensure_user_schema():
         "show_stats_to_friends": 'ALTER TABLE "user" ADD COLUMN show_stats_to_friends BOOLEAN NOT NULL DEFAULT 1',
         "allow_friend_messages": 'ALTER TABLE "user" ADD COLUMN allow_friend_messages BOOLEAN NOT NULL DEFAULT 1',
         "hide_from_leaderboard": 'ALTER TABLE "user" ADD COLUMN hide_from_leaderboard BOOLEAN NOT NULL DEFAULT 0',
+        "preferred_language": (
+            'ALTER TABLE "user" ADD COLUMN preferred_language VARCHAR(10) '
+            f"NOT NULL DEFAULT '{DEFAULT_LANGUAGE}'"
+        ),
         "last_seen": 'ALTER TABLE "user" ADD COLUMN last_seen DATETIME',
         "created_at": 'ALTER TABLE "user" ADD COLUMN created_at DATETIME',
         "chat_public_key": 'ALTER TABLE "user" ADD COLUMN chat_public_key TEXT',
@@ -235,11 +320,27 @@ def get_database_table_names():
     return {row[0] for row in rows}
 
 
+def get_missing_migration_columns(table_names):
+    inspector = inspect(db.engine)
+    missing_columns = []
+
+    for table_name, required_columns in MIGRATION_REQUIRED_COLUMNS.items():
+        if table_name not in table_names:
+            continue
+
+        existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+        for column_name in sorted(required_columns - existing_columns):
+            missing_columns.append(f"{table_name}.{column_name}")
+
+    return missing_columns
+
+
 def require_migrated_database(app):
     with app.app_context():
         try:
             verify_sqlcipher_database(app.config.get("SQLALCHEMY_DATABASE_URI"))
             table_names = get_database_table_names()
+            missing_columns = get_missing_migration_columns(table_names)
         except SQLAlchemyError as error:
             rollback_database_session("Database initialization")
             raise RuntimeError(
@@ -253,4 +354,11 @@ def require_migrated_database(app):
                 "Database is not migrated. Run `flask db upgrade` from the "
                 "project root before starting the app. Missing tables: "
                 + ", ".join(missing_tables)
+            )
+
+        if missing_columns:
+            raise RuntimeError(
+                "Database is not migrated. Run `flask db upgrade` from the "
+                "project root before starting the app. Missing columns: "
+                + ", ".join(missing_columns)
             )

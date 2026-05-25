@@ -1,3 +1,7 @@
+import { initLanguage, t } from "./translation.js";
+
+await initLanguage();
+
 const worldChatToggle = document.querySelector("[data-world-chat-toggle]");
 const worldChatModal = document.querySelector("[data-world-chat-modal]");
 const worldChatPanel = document.querySelector("[data-world-chat-panel]");
@@ -46,7 +50,7 @@ function formatWorldChatTime(timestamp) {
 }
 
 function buildWorldChatAuthorMarkup(message) {
-  const safeName = escapeHtml(message.display_name || "Unknown Agent");
+  const safeName = escapeHtml(message.display_name || t("worldChat.unknownAgent"));
   const authorUserId = Number(message.user_id);
 
   if (canViewProfiles && Number.isInteger(authorUserId) && authorUserId > 0) {
@@ -66,7 +70,7 @@ function countWorldChatLines(message) {
 
 function validateWorldChatDraft(message) {
   if (countWorldChatLines(message) > WORLD_CHAT_MAX_LINES) {
-    return "World chat only supports one line at a time.";
+    return t("worldChat.oneLineOnly");
   }
 
   return null;
@@ -78,7 +82,7 @@ function renderWorldChatMessages(messages) {
   }
 
   if (!messages.length) {
-    worldChatMessages.innerHTML = '<p class="world-chat-empty">No messages yet.</p>';
+    worldChatMessages.innerHTML = `<p class="world-chat-empty">${escapeHtml(t("worldChat.noMessages"))}</p>`;
     return;
   }
 
@@ -128,7 +132,7 @@ async function loadWorldChatMessages() {
   }
 
   try {
-    setWorldChatStatus("Loading messages...", "idle");
+    setWorldChatStatus(t("worldChat.loading"), "idle");
 
     const response = await fetch("/world-chat/messages", {
       method: "GET",
@@ -138,12 +142,12 @@ async function loadWorldChatMessages() {
       credentials: "same-origin",
     });
 
-    const payload = await parseWorldChatResponse(response, "Unable to load world chat.");
+    const payload = await parseWorldChatResponse(response, t("worldChat.loadError"));
 
     renderWorldChatMessages(payload.messages || []);
-    setWorldChatStatus("World chat is live.", "online");
+    setWorldChatStatus(t("worldChat.live"), "online");
   } catch (error) {
-    setWorldChatStatus(error.message || "Unable to load world chat.", "error");
+    setWorldChatStatus(error.message || t("worldChat.loadError"), "error");
   }
 }
 
@@ -206,13 +210,13 @@ async function handleWorldChatSubmit(event) {
   const message = rawMessage.trim();
 
   if (!message) {
-    setWorldChatStatus("Message cannot be empty.", "error");
+    setWorldChatStatus(t("worldChat.emptyMessage"), "error");
     worldChatInput.focus();
     return;
   }
 
   worldChatSubmit.disabled = true;
-  worldChatSubmit.textContent = "Sending...";
+  worldChatSubmit.textContent = t("worldChat.sending");
 
   try {
     const response = await fetch("/world-chat/messages", {
@@ -226,17 +230,17 @@ async function handleWorldChatSubmit(event) {
       body: JSON.stringify({ message }),
     });
 
-    await parseWorldChatResponse(response, "Unable to send message.");
+    await parseWorldChatResponse(response, t("worldChat.sendError"));
 
     worldChatInput.value = "";
-    setWorldChatStatus("Message sent.", "online");
+    setWorldChatStatus(t("worldChat.sent"), "online");
     await loadWorldChatMessages();
     worldChatInput.focus();
   } catch (error) {
-    setWorldChatStatus(error.message || "Unable to send message.", "error");
+    setWorldChatStatus(error.message || t("worldChat.sendError"), "error");
   } finally {
     worldChatSubmit.disabled = false;
-    worldChatSubmit.textContent = "Send";
+    worldChatSubmit.textContent = t("worldChat.send");
   }
 }
 
@@ -277,3 +281,9 @@ if (worldChatToggle && worldChatModal && worldChatPanel) {
     setWorldChatStatus(draftError, "error");
   });
 }
+
+document.addEventListener("languagechange", () => {
+  if (worldChatIsOpen) {
+    loadWorldChatMessages();
+  }
+});

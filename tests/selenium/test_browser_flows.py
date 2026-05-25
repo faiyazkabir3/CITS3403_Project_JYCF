@@ -121,6 +121,40 @@ def test_guest_login_settings_modal(driver, base_url):
     )
 
 
+def test_registered_user_language_preference_persists(driver, base_url):
+    credentials = register_and_login(driver, base_url, "languageuser")
+
+    wait_for_clickable(driver, By.ID, "open-settings-btn").click()
+    WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, "settings-modal")))
+    wait_for_clickable(driver, By.CSS_SELECTOR, "[data-open-language]").click()
+    WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, "language-modal")))
+    wait_for_clickable(driver, By.CSS_SELECTOR, "[data-lang-option='ja']").click()
+    WebDriverWait(driver, 15).until(
+        lambda browser: browser.find_element(By.CSS_SELECTOR, "[data-lang-option='ja']").get_attribute("aria-pressed") == "true"
+    )
+    WebDriverWait(driver, 15).until(
+        lambda browser: browser.find_element(By.CSS_SELECTOR, "[data-current-language-label]").text == "JA"
+    )
+    wait_for_clickable(driver, By.CSS_SELECTOR, "[data-confirm-language]")
+    driver.execute_script("document.querySelector('[data-confirm-language]').click();")
+    WebDriverWait(driver, 15).until(
+        lambda browser: browser.execute_script("return document.documentElement.lang;") == "ja"
+    )
+    assert driver.find_element(By.CSS_SELECTOR, "[data-current-language-label]").text == "JA", (
+        "Language selector should show the newly selected language."
+    )
+
+    wait_for_clickable(driver, By.ID, "close-settings-btn").click()
+    WebDriverWait(driver, 15).until(EC.invisibility_of_element_located((By.ID, "settings-modal")))
+    driver.find_element(By.CSS_SELECTOR, ".logout-form button").click()
+    wait_for_url_contains(driver, "/login")
+    login_user(driver, base_url, credentials)
+
+    WebDriverWait(driver, 15).until(
+        lambda browser: browser.execute_script("return document.documentElement.lang;") == "ja"
+    )
+
+
 def test_guest_friends_button_is_disabled(driver, base_url):
     driver.get(f"{base_url}/login")
     wait_for_clickable(driver, By.CSS_SELECTOR, ".guest-btn").click()

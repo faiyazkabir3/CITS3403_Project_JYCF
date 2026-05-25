@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ preferred_language }}" data-preferred-language="{{ preferred_language }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Customize Profile</title>
+  <title data-i18n="profile.pageTitle">Customize Profile</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +18,7 @@
     <a href="{{ url_for('main.main_menu') }}" class="back-arrow" aria-label="Back to main menu"></a>
 
     <div class="top-bar">
-      <h1>Profile Customisation</h1>
+      <h1 data-i18n="profile.heading">Profile Customisation</h1>
     </div>
 
     <div class="menu-content">
@@ -35,7 +35,7 @@
 
         <div class="profile-editor-layout">
           <aside class="profile-preview-card">
-            <span class="profile-preview-label">Current Profile</span>
+            <span class="profile-preview-label" data-i18n="profile.currentProfile">Current Profile</span>
             <div class="profile-preview-avatar">
               <img src="{{ url_for('static', filename=profile_image) }}" alt="{{ display_name or login_username }}">
             </div>
@@ -50,9 +50,9 @@
 
           <div class="profile-editor-fields">
             <section class="profile-section">
-              <h2>Identity</h2>
+              <h2 data-i18n="profile.identity">Identity</h2>
 
-              <label for="display-name">Display Name</label>
+              <label for="display-name" data-i18n="profile.displayName">Display Name</label>
               <input
                 type="text"
                 id="display-name"
@@ -63,13 +63,16 @@
                 autocomplete="nickname"
               >
 
-              <p class="profile-meta">Login username: {{ login_username }}</p>
+              <p class="profile-meta">
+                <span data-i18n="profile.loginUsername">Login username:</span>
+                {{ login_username }}
+              </p>
             </section>
 
             <section class="profile-section">
-              <h2>Showcase</h2>
+              <h2 data-i18n="profile.showcase">Showcase</h2>
 
-              <label for="favorite-character">Favorite Character</label>
+              <label for="favorite-character" data-i18n="profile.favoriteCharacter">Favorite Character</label>
               <select id="favorite-character" name="favorite_character">
                 {% for option in favorite_characters %}
                   <option value="{{ option.value }}" {% if option.value == favorite_character %}selected{% endif %}>
@@ -78,7 +81,7 @@
                 {% endfor %}
               </select>
 
-              <label for="profile-background">Profile Background</label>
+              <label for="profile-background" data-i18n="profile.profileBackground">Profile Background</label>
               <select id="profile-background" name="profile_background">
                 {% for option in profile_backgrounds %}
                   <option value="{{ option.value }}" {% if option.value == profile_background %}selected{% endif %}>
@@ -89,25 +92,30 @@
             </section>
 
             <section class="profile-section">
-              <h2>Bio</h2>
+              <h2 data-i18n="profile.bio">Bio</h2>
 
-              <label for="bio">About You</label>
+              <label for="bio" data-i18n="profile.aboutYou">About You</label>
               <textarea
                 id="bio"
                 name="bio"
                 maxlength="{{ bio_max_length }}"
                 rows="5"
                 placeholder="Write a short profile bio."
+                data-i18n-placeholder="profile.bioPlaceholder"
               >{{ bio }}</textarea>
 
-              <p class="profile-meta">Maximum {{ bio_max_length }} characters.</p>
+              <p class="profile-meta">
+                <span data-i18n="profile.maxCharactersPrefix">Maximum</span>
+                {{ bio_max_length }}
+                <span data-i18n="profile.maxCharactersSuffix">characters.</span>
+              </p>
             </section>
           </div>
         </div>
 
         <section class="profile-section">
-          <h2>Profile Picture</h2>
-          <p class="profile-meta profile-current-upload-note">Choose a preset, or upload your own JPEG photo.</p>
+          <h2 data-i18n="profile.profilePicture">Profile Picture</h2>
+          <p class="profile-meta profile-current-upload-note" data-i18n="profile.pictureNote">Choose a preset, or upload your own JPEG photo.</p>
 
           <div class="profile-avatar-grid">
             {% if custom_profile_image %}
@@ -121,7 +129,7 @@
                 <span class="profile-avatar-frame">
                   <img src="{{ url_for('static', filename=custom_profile_image) }}" alt="Uploaded profile photo">
                 </span>
-                <span class="profile-avatar-label">Uploaded Photo</span>
+                <span class="profile-avatar-label" data-i18n="profile.uploadedPhoto">Uploaded Photo</span>
               </label>
             {% endif %}
 
@@ -142,42 +150,42 @@
           </div>
 
           <div class="profile-upload-panel">
-            <label for="custom-profile-image">Upload Your Own JPEG</label>
+            <label for="custom-profile-image" data-i18n="profile.uploadOwnJpeg">Upload Your Own JPEG</label>
             <input
               type="file"
               id="custom-profile-image"
               name="custom_profile_image"
               accept=".jpg,.jpeg,image/jpeg"
             >
-            <p class="profile-meta">
+            <p class="profile-meta" data-i18n="profile.uploadHelp">
               JPG and JPEG only, up to 5MB. Uploading a new photo will replace your current custom picture.
             </p>
           </div>
         </section>
 
         <section class="profile-section">
-          <h2>Privacy</h2>
+          <h2 data-i18n="profile.privacy">Privacy</h2>
 
           <label class="profile-checkbox">
             <input type="checkbox" name="show_stats_to_friends" {% if show_stats_to_friends %}checked{% endif %}>
-            <span>Allow friends to view my stats</span>
+            <span data-i18n="profile.allowStats">Allow friends to view my stats</span>
           </label>
 
           <label class="profile-checkbox">
             <input type="checkbox" name="allow_friend_messages" {% if allow_friend_messages %}checked{% endif %}>
-            <span>Allow friends to message me</span>
+            <span data-i18n="profile.allowMessages">Allow friends to message me</span>
           </label>
 
           <label class="profile-checkbox">
             <input type="checkbox" name="hide_from_leaderboard" {% if hide_from_leaderboard %}checked{% endif %}>
-            <span>Hide me from leaderboards</span>
+            <span data-i18n="profile.hideLeaderboard">Hide me from leaderboards</span>
           </label>
         </section>
 
         <section class="profile-section">
-          <h2>Password</h2>
+          <h2 data-i18n="profile.password">Password</h2>
 
-          <label for="current-password">Current Password</label>
+          <label for="current-password" data-i18n="profile.currentPassword">Current Password</label>
           <input
             type="password"
             id="current-password"
@@ -185,7 +193,7 @@
             autocomplete="current-password"
           >
 
-          <label for="new-password">New Password</label>
+          <label for="new-password" data-i18n="profile.newPassword">New Password</label>
           <input
             type="password"
             id="new-password"
@@ -193,7 +201,7 @@
             autocomplete="new-password"
           >
 
-          <label for="confirm-password">Confirm New Password</label>
+          <label for="confirm-password" data-i18n="profile.confirmPassword">Confirm New Password</label>
           <input
             type="password"
             id="confirm-password"
@@ -203,12 +211,13 @@
         </section>
 
         <div class="profile-actions">
-          <button type="submit">SAVE PROFILE</button>
-          <a href="{{ url_for('main.main_menu') }}" class="profile-cancel-btn">CANCEL</a>
+          <button type="submit" data-i18n="profile.save">SAVE PROFILE</button>
+          <a href="{{ url_for('main.main_menu') }}" class="profile-cancel-btn" data-i18n="profile.cancel">CANCEL</a>
         </div>
       </form>
     </div>
   </div>
   <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>
 </html>

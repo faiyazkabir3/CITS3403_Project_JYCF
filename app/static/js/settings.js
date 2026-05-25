@@ -63,6 +63,10 @@ function playUiButtonSound() {
   uiButtonAudio.play().catch(() => {});
 }
 
+document.addEventListener("settings:button-sound", () => {
+  playUiButtonSound();
+});
+
 function syncMenuAudio() {
   if (!menuThemeAudio) return;
 

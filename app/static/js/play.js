@@ -1,9 +1,12 @@
 import { bootGameUI } from "./gameUI.js";
+import { initLanguage } from "./translation.js";
 import {
   isQuiteTutorialActive,
   setQuiteTutorialActive,
   stopQuiteTutorial
 } from "./tutorialGuide.js";
+
+await initLanguage();
 
 const STORAGE_KEY = "shadows_audio_settings";
 const UI_BUTTON_SOUND = "/static/audio/sfx/ui/button_click.mp3";

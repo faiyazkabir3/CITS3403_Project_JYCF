@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ preferred_language }}" data-preferred-language="{{ preferred_language }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,7 +31,7 @@
       {% endwith %}
 
       <section class="selected-character-box">
-        <h2>Friend Requests</h2>
+        <h2 data-i18n="friends.friendRequests">Friend Requests</h2>
         <ul>
           {% for req in incoming_requests %}
             <li>
@@ -41,22 +41,22 @@
               <div class="friend-actions">
                 <form method="POST" action="{{ url_for('main.accept_friend', request_id=req.id) }}" class="inline-action-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="primary-btn">Accept</button>
+                  <button type="submit" class="primary-btn" data-i18n="friends.accept">Accept</button>
                 </form>
                 <form method="POST" action="{{ url_for('main.reject_friend', request_id=req.id) }}" class="inline-action-form">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="danger-btn">Reject</button>
+                  <button type="submit" class="danger-btn" data-i18n="friends.reject">Reject</button>
                 </form>
               </div>
             </li>
           {% else %}
-            <li>No pending requests</li>
+            <li data-i18n="friends.noPendingRequests">No pending requests</li>
           {% endfor %}
         </ul>
       </section>
 
       <section class="selected-character-box">
-        <h2>Your Friends</h2>
+        <h2 data-i18n="friends.yourFriends">Your Friends</h2>
         <ul>
           {% for f in friends %}
             {% set presence = get_friend_presence(f) %}
@@ -68,8 +68,8 @@
                 </a>
                 <span class="presence-label">{{ presence.label }}</span>
               </div>
-              <a class="primary-btn" href="{{ url_for('main.chat', friend_id=f.id) }}">Chat</a>
-              <a class="primary-btn" href="{{ url_for('main.friend_stats', friend_id=f.id) }}">View Stats</a>
+              <a class="primary-btn" href="{{ url_for('main.chat', friend_id=f.id) }}" data-i18n="friends.chat">Chat</a>
+              <a class="primary-btn" href="{{ url_for('main.friend_stats', friend_id=f.id) }}" data-i18n="friends.viewStats">View Stats</a>
               <form
                 method="POST"
                 action="{{ url_for('main.unfriend', friend_id=f.id) }}"
@@ -77,17 +77,17 @@
                 onsubmit="return confirm('Remove {{ (f.display_name or f.username)|e }} from your friends?');"
               >
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="danger-btn">Unfriend</button>
+                <button type="submit" class="danger-btn" data-i18n="friends.unfriend">Unfriend</button>
               </form>
             </li>
           {% else %}
-            <li>No friends yet</li>
+            <li data-i18n="friends.noFriendsYet">No friends yet</li>
           {% endfor %}
         </ul>
       </section>
 
       <section class="selected-character-box">
-        <h2>Recent Chats</h2>
+        <h2 data-i18n="friends.recentChats">Recent Chats</h2>
         <ul>
           {% for conversation in recent_conversations %}
             {% set presence = get_friend_presence(conversation.friend) %}
@@ -105,13 +105,13 @@
               </span>
             </li>
           {% else %}
-            <li>No conversations yet</li>
+            <li data-i18n="friends.noConversationsYet">No conversations yet</li>
           {% endfor %}
         </ul>
       </section>
 
       <section class="selected-character-box">
-        <h2>Add a Friend</h2>
+        <h2 data-i18n="friends.addFriend">Add a Friend</h2>
         <form method="POST" class="button-stack" data-friend-form>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input
@@ -127,15 +127,18 @@
             spellcheck="false"
             class="input-text"
             data-friend-username
+            data-i18n-placeholder="friends.usernamePlaceholder"
+            data-i18n-title="friends.inputTitle"
           >
 
-          <button type="submit" class="primary-btn">Send Request</button>
+          <button type="submit" class="primary-btn" data-i18n="friends.sendRequest">Send Request</button>
         </form>
       </section>
     </section>
   </div>
 
   <script src="{{ url_for('static', filename='js/chat-identity.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/friends-page.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/friends-page.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>
 </html>

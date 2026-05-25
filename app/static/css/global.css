@@ -4541,6 +4541,33 @@ a.agent-photo-frame:focus-visible {
   border-color: #d65a5a;
 }
 
+.language-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 18px;
+}
+
+.language-option {
+  width: 100%;
+  text-align: left;
+}
+
+.language-option.is-selected {
+  background: #6d9a79;
+  color: #1f1600;
+}
+
+.language-confirm-btn {
+  width: 100%;
+}
+
+.settings-language-btn {
+  width: 100%;
+}
+
 
 /* play settings button */
 .play-page .difficulty-label {

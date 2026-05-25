@@ -22,6 +22,7 @@ class User(UserMixin, db.Model):
     show_stats_to_friends = db.Column(db.Boolean, nullable=False, default=True)
     allow_friend_messages = db.Column(db.Boolean, nullable=False, default=True)
     hide_from_leaderboard = db.Column(db.Boolean, nullable=False, default=False)
+    preferred_language = db.Column(db.String(10), nullable=False, default="en")
     last_seen = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=utc_now)
     password_hash = db.Column(db.String(255), nullable=False)

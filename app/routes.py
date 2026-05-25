@@ -17,6 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from .constants import (
     BIO_MAX_LENGTH,
+    DEFAULT_LANGUAGE,
     FAVORITE_CHARACTER_LABELS,
     FAVORITE_CHARACTER_OPTIONS,
     PROFILE_BACKGROUND_LABELS,
@@ -26,6 +27,8 @@ from .constants import (
     PROFILE_IMAGE_OPTIONS,
     PROFILE_IMAGE_UPLOAD_MAX_BYTES,
     PROFILE_REACTION_VALUES,
+    SUPPORTED_LANGUAGE_OPTIONS,
+    SUPPORTED_LANGUAGE_VALUES,
 )
 from .extensions import socketio
 from .helpers.achievement_helpers import (
@@ -111,6 +114,21 @@ MIN_PASSWORD_LENGTH = 6
 MAX_PASSWORD_LENGTH = 255
 MAX_CHAT_MESSAGE_LENGTH = 1000
 USERNAME_PATTERN = re.compile(r"^[a-z0-9_]+$")
+
+
+def normalize_language_code(language, *, default=DEFAULT_LANGUAGE):
+    language_code = str(language or "").strip().lower()
+    if language_code in SUPPORTED_LANGUAGE_VALUES:
+        return language_code
+
+    return default
+
+
+def get_active_language():
+    if current_user.is_authenticated and not session.get("is_guest"):
+        return normalize_language_code(getattr(current_user, "preferred_language", None))
+
+    return normalize_language_code(session.get("preferred_language"))
 
 
 def normalize_auth_username(username):
@@ -293,6 +311,7 @@ def show_login():
         session["username"] = user.username
         session["display_name"] = get_display_name(user)
         session["is_guest"] = False
+        session["preferred_language"] = normalize_language_code(user.preferred_language)
 
         return redirect(url_for("main.main_menu"))
 
@@ -349,6 +368,7 @@ def guest_login():
     session.clear()
     session["username"] = name
     session["is_guest"] = True
+    session["preferred_language"] = DEFAULT_LANGUAGE
 
     return redirect(url_for("main.main_menu"))
 
@@ -358,6 +378,51 @@ def logout():
     logout_user()
     session.clear()
     return redirect(url_for("main.show_login"))
+
+
+@main_bp.route("/settings/language", methods=["GET", "POST"])
+def settings_language():
+    if request.method == "GET":
+        language = get_active_language()
+        session["preferred_language"] = language
+        return jsonify({
+            "ok": True,
+            "language": language,
+            "languages": SUPPORTED_LANGUAGE_OPTIONS,
+            "authenticated": current_user.is_authenticated and not session.get("is_guest"),
+        })
+
+    payload = request.get_json(silent=True) or {}
+    requested_language = str(payload.get("language", "")).strip().lower()
+
+    if requested_language not in SUPPORTED_LANGUAGE_VALUES:
+        return jsonify({
+            "ok": False,
+            "message": "Unsupported language.",
+            "languages": SUPPORTED_LANGUAGE_OPTIONS,
+        }), 400
+
+    session["preferred_language"] = requested_language
+
+    if current_user.is_authenticated and not session.get("is_guest"):
+        current_user.preferred_language = requested_language
+        try:
+            db.session.commit()
+        except SQLAlchemyError as error:
+            rollback_database_session("Language preference update")
+            current_app.logger.warning(
+                "Language preference update failed for user %s. %s",
+                current_user.id,
+                getattr(error, "orig", error),
+            )
+            return jsonify({"ok": False, "message": "Language preference could not be saved."}), 500
+
+    return jsonify({
+        "ok": True,
+        "language": requested_language,
+        "languages": SUPPORTED_LANGUAGE_OPTIONS,
+        "authenticated": current_user.is_authenticated and not session.get("is_guest"),
+    })
 
 
 def format_agent_joined_date(user):

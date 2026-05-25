@@ -1,3 +1,5 @@
+import { t } from "./translation.js";
+
 export const TUTORIAL_STORAGE_KEYS = {
   completed: "shadows_quite_tutorial_completed",
   active: "shadows_quite_tutorial_active"
@@ -111,10 +113,10 @@ export function resetQuiteTutorialCompletion() {
 
 function getCharacterTip(state) {
   if (state.player.characterId === "quite") {
-    return "You picked my kit: stronger dodges, medkits heal 15 extra, and at 70 AGI Quick and Swift lets the pistol fire twice.";
+    return t("tutorial.characterTip.quite");
   }
 
-  return "Leon can lean on his shield. My Agile Survivor perks only apply when I am the operator.";
+  return t("tutorial.characterTip.leon");
 }
 
 function buildCue({
@@ -176,14 +178,14 @@ function getLevelClearCue(state, progress) {
   if (levelId === "1") {
     return buildCue({
       id: "level-1-clear",
-      text: "Clean work. Fast zombies hate a close blade because the hit can stun them before they get momentum."
+      text: t("tutorial.level1Clear")
     });
   }
 
   if (levelId === "2") {
     return buildCue({
       id: "level-2-clear",
-      text: "Good clear. Use the shop terminal if it opens, then we run the final tutorial stage."
+      text: t("tutorial.level2Clear")
     });
   }
 
@@ -191,8 +193,8 @@ function getLevelClearCue(state, progress) {
     return buildCue({
       id: "tutorial-complete",
       text: progress.healLessonSeen
-        ? "Tutorial complete. Knife fast targets, grenade heavy armor, pistol ranged or screamers, dodge charger rushes, and heal when HP drops or poison lands. Choose your route."
-        : "Tutorial complete. Knife fast targets, grenade heavy armor, pistol ranged or screamers, dodge charger rushes, and save medkits for low HP or poison. Choose your route.",
+        ? t("tutorial.completeWithHeal")
+      : t("tutorial.completeWithoutHeal"),
       complete: true
     });
   }
@@ -210,14 +212,16 @@ function getEnemyCue(state, progress) {
     if (enemy.hp < enemy.baseHp) {
       return buildCue({
         id: "fast-followup",
-        text: "Good, it is stunned. One more clean cut before it gets its speed back.",
+        text: t("tutorial.fastFollowup"),
         requiredAction: "knife"
       });
     }
 
     return buildCue({
       id: "fast-intro",
-      text: `Here comes the fast zombie. Use the knife; it is efficient and can stun this one. ${getCharacterTip(state)}`,
+      text: t("tutorial.fastIntro", {
+        tip: getCharacterTip(state)
+      }),
       requiredAction: "knife"
     });
   }
@@ -225,7 +229,7 @@ function getEnemyCue(state, progress) {
   if (levelId === "2" && enemy.type === "heavy") {
     return buildCue({
       id: "heavy-grenade",
-      text: "Heavy zombie ahead. Do not waste the knife on armor; crack it open with a grenade.",
+      text: t("tutorial.heavyGrenade"),
       requiredAction: "grenade"
     });
   }
@@ -233,7 +237,7 @@ function getEnemyCue(state, progress) {
   if (levelId === "2" && enemy.type === "spitter") {
     return buildCue({
       id: "spitter-pistol",
-      text: "Spitter in the lane. Keep distance and use the pistol before acid turns the fight messy.",
+      text: t("tutorial.spitterPistol"),
       requiredAction: "pistol"
     });
   }
@@ -242,7 +246,7 @@ function getEnemyCue(state, progress) {
     if (enemy.chargeReady) {
       return buildCue({
         id: "charger-dodge",
-        text: "See that stance? The charger is lined up. Defend now and dodge the rush.",
+        text: t("tutorial.chargerDodge"),
         requiredAction: "dodge"
       });
     }
@@ -250,14 +254,14 @@ function getEnemyCue(state, progress) {
     if (progress.chargerDodgeAttempted) {
       return buildCue({
         id: "charger-finish",
-        text: "Good read. The rush is spent; use the pistol and finish the charger.",
+        text: t("tutorial.chargerFinish"),
         requiredAction: "pistol"
       });
     }
 
     return buildCue({
       id: "charger-bait",
-      text: "Charger lesson. Fire the pistol first; we want it to commit to the rush before you dodge.",
+      text: t("tutorial.chargerBait"),
       requiredAction: "pistol"
     });
   }
@@ -265,7 +269,7 @@ function getEnemyCue(state, progress) {
   if (levelId === "3" && enemy.type === "screamer") {
     return buildCue({
       id: "screamer-pistol",
-      text: "Screamer spotted. Delete it with the pistol before it calls another infected into the level.",
+      text: t("tutorial.screamerPistol"),
       requiredAction: "pistol"
     });
   }
@@ -274,14 +278,12 @@ function getEnemyCue(state, progress) {
 }
 
 export function createTutorialGuide({ active = false } = {}) {
-  const startsActive = Boolean(active);
   const progress = {
     chargerDodgeAttempted: false,
     healLessonSeen: false,
-    finalCueVisible: false,
-    guideDismissed: !startsActive
+    finalCueVisible: false
   };
-  let activeRun = startsActive;
+  let activeRun = Boolean(active);
 
   function markCompleteForStorage() {
     completeQuiteTutorial();
@@ -298,7 +300,6 @@ export function createTutorialGuide({ active = false } = {}) {
       stopQuiteTutorial();
       activeRun = false;
       progress.finalCueVisible = false;
-      progress.guideDismissed = true;
     },
 
     recordAction(actionKey, engine) {
@@ -328,11 +329,6 @@ export function createTutorialGuide({ active = false } = {}) {
 
       const clearCue = getLevelClearCue(state, progress);
       if (clearCue?.complete) {
-        if (progress.guideDismissed) {
-          progress.finalCueVisible = false;
-          return null;
-        }
-
         markCompleteForStorage();
         return clearCue;
       }
@@ -348,7 +344,7 @@ export function createTutorialGuide({ active = false } = {}) {
       if (shouldTeachHeal(state)) {
         return buildCue({
           id: "heal-interrupt",
-          text: "Your HP is low or status is ticking. Open inventory and use a medkit before the next hit gets expensive.",
+          text: t("tutorial.healInterrupt"),
           requiredAction: "heal",
           highlightHealth: true
         });

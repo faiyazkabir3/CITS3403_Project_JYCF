@@ -9,12 +9,17 @@ except ModuleNotFoundError:
         return False
 
 from flask import Flask, jsonify, redirect, request, session, url_for
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 
 from .commands import register_cli_commands
-from .constants import PROFILE_IMAGE_UPLOAD_PREFIX
+from .constants import (
+    DEFAULT_LANGUAGE,
+    PROFILE_IMAGE_UPLOAD_PREFIX,
+    SUPPORTED_LANGUAGE_OPTIONS,
+    SUPPORTED_LANGUAGE_VALUES,
+)
 from .extensions import socketio
 from .helpers.db_helpers import (
     configure_sqlcipher_database_uri,
@@ -100,6 +105,22 @@ def handle_unauthorized_user():
         return redirect(url_for("main.main_menu"))
 
     return redirect(url_for("main.show_login"))
+
+
+@app.context_processor
+def inject_language_settings():
+    preferred_language = session.get("preferred_language", DEFAULT_LANGUAGE)
+
+    if current_user.is_authenticated and not session.get("is_guest"):
+        preferred_language = getattr(current_user, "preferred_language", None) or DEFAULT_LANGUAGE
+
+    if preferred_language not in SUPPORTED_LANGUAGE_VALUES:
+        preferred_language = DEFAULT_LANGUAGE
+
+    return {
+        "preferred_language": preferred_language,
+        "supported_languages": SUPPORTED_LANGUAGE_OPTIONS,
+    }
 
 
 @app.before_request

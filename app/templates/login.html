@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ preferred_language }}" data-preferred-language="{{ preferred_language }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login</title>
+  <title data-i18n="login.pageTitle">Login</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,8 +24,8 @@
       >
       <span class="route-zero-wordmark">ROUTE ZERO</span>
     </div>
-    <h1>Welcome, Survivor</h1>
-    <p class="subtitle">Access the safe zone</p>
+    <h1 data-i18n="login.welcome">Welcome, Survivor</h1>
+    <p class="subtitle" data-i18n="login.subtitle">Access the safe zone</p>
 
     {% if error %}
       <p class="subtitle">{{ error }}</p>
@@ -34,7 +34,7 @@
     <form id="login-form" method="POST" action="/login">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-      <label for="username">Username</label>
+      <label for="username" data-i18n="login.username">Username</label>
       <input
         type="text"
         id="username"
@@ -45,7 +45,7 @@
         autocomplete="username"
       />
 
-      <label for="password">Password</label>
+      <label for="password" data-i18n="login.password">Password</label>
       <input
         type="password"
         id="password"
@@ -56,21 +56,22 @@
         autocomplete="current-password"
       />
 
-      <button type="submit" class="login-btn">Log In</button>
+      <button type="submit" class="login-btn" data-i18n="login.submit">Log In</button>
     </form>
 
     <div class="secondary-buttons">
-      <button type="button" class="signup-btn" onclick="window.location.href='/register'">
+      <button type="button" class="signup-btn" onclick="window.location.href='/register'" data-i18n="login.signup">
         New User Sign Up
       </button>
 
       <form method="POST" action="/guest-login" class="guest-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="guest-btn">Guest Login</button>
+        <button type="submit" class="guest-btn" data-i18n="login.guest">Guest Login</button>
       </form>
     </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/register.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>
 </html>

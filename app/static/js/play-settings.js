@@ -61,6 +61,10 @@ function playUiButtonSound() {
   sound.play().catch(() => {});
 }
 
+document.addEventListener("settings:button-sound", () => {
+  playUiButtonSound();
+});
+
 function isGameScreenActive() {
   if (!gameScreen) return false;
   return gameScreen.classList.contains("active");

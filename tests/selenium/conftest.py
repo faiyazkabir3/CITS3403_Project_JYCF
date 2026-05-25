@@ -4,7 +4,9 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+from collections import deque
 from pathlib import Path
 
 import pytest
@@ -39,11 +41,21 @@ def selenium_server():
         stderr=subprocess.STDOUT,
         text=True,
     )
+    output_lines = deque(maxlen=200)
+
+    def drain_server_output():
+        if process.stdout is None:
+            return
+
+        for line in process.stdout:
+            output_lines.append(line)
+
+    threading.Thread(target=drain_server_output, daemon=True).start()
 
     deadline = time.time() + 120
     while time.time() < deadline:
         if process.poll() is not None:
-            output = process.stdout.read() if process.stdout else ""
+            output = "".join(output_lines)
             raise RuntimeError(f"Selenium Flask server exited early.\n{output}")
 
         if _port_is_open("127.0.0.1", 5001):
@@ -52,7 +64,7 @@ def selenium_server():
         time.sleep(0.5)
     else:
         process.terminate()
-        output = process.stdout.read() if process.stdout else ""
+        output = "".join(output_lines)
         raise RuntimeError(f"Selenium Flask server did not start on port 5001.\n{output}")
 
     yield BASE_URL

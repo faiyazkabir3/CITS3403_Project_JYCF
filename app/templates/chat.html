@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ preferred_language }}" data-preferred-language="{{ preferred_language }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -29,7 +29,7 @@
 
         <div class="chat-heading">
           <h1 class="chat-header">Chat with {{ friend.display_name or friend.username }}</h1>
-          <p class="chat-status" data-chat-status>Connecting live chat...</p>
+          <p class="chat-status" data-chat-status data-i18n="chat.status.connecting">Connecting live chat...</p>
           {% with messages = get_flashed_messages() %}
             {% if messages %}
               <p class="flash-message chat-alert" data-chat-alert>{{ messages[-1] }}</p>
@@ -53,6 +53,7 @@
             required
             class="input-text"
             data-chat-input
+            data-i18n-placeholder="chat.input.placeholder"
           >
           <input type="hidden" name="ciphertext" data-chat-ciphertext>
           <input type="hidden" name="nonce" data-chat-nonce>
@@ -61,7 +62,7 @@
           <input type="hidden" name="recipient_public_key" data-chat-recipient-public-key>
           <input type="hidden" name="recipient_key_id" data-chat-recipient-key-id>
           <input type="hidden" name="encryption_version" value="1">
-          <button type="submit" class="primary-btn" data-chat-submit>Send</button>
+          <button type="submit" class="primary-btn" data-chat-submit data-i18n="chat.send">Send</button>
         </form>
       </div>
     </section>
@@ -73,5 +74,7 @@
     crossorigin="anonymous"
   ></script>
   <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
+
 </body>
 </html>

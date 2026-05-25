@@ -10,6 +10,94 @@ import {
 } from "./visuals.js";
 import { createTutorialGuide } from "./tutorialGuide.js";
 
+import { t } from "./translation.js";
+
+function getTranslatedField(object, field) {
+  const key = object?.[`${field}Key`];
+  return key ? t(key) : object?.[field] || "";
+}
+
+function translateEnemyName(enemyName) {
+  const enemyMap = {
+    "Fast Zombie": "enemy.fastZombie",
+    "Heavy Zombie": "enemy.heavyZombie",
+    "Spitter Zombie": "enemy.spitterZombie",
+    "Charger Zombie": "enemy.chargerZombie",
+    "Screamer Zombie": "enemy.screamerZombie",
+    "Exploder Zombie": "enemy.exploderZombie",
+    "Berserker Zombie": "enemy.berserkerZombie",
+    "Nemesis-T Type": "enemy.nemesisTType"
+  };
+
+  return enemyMap[enemyName] ? t(enemyMap[enemyName]) : enemyName;
+}
+
+function translateShopItemName(itemName) {
+  const itemMap = {
+    "MEDKIT": "shop.item.medkit",
+    "PISTOL MAG": "shop.item.pistolMag",
+    "RIFLE": "shop.item.rifle",
+    "RIFLE MAG": "shop.item.rifleMag",
+    "ARMOUR": "shop.item.armour",
+    "SHIELD REPAIR": "shop.item.shieldRepair",
+    "AXE SHARPEN": "shop.item.axeSharpen"
+  };
+
+  return itemMap[itemName] ? t(itemMap[itemName]) : itemName;
+}
+
+function getShopText(item, field, fallback = "") {
+  const key = `shop.item.${item.id}.${field}`;
+  const translated = t(key);
+
+  return translated === key ? fallback : translated;
+}
+
+function getShopResourceText(item, state) {
+  if (!item) {
+    return "";
+  }
+
+  if (item.id === "medkit") {
+    return t("shop.resource.medkit", {
+      amount: state.inventory.medKits,
+      item: state.inventory.medKits === 1
+        ? t("shop.resource.medkitSingular")
+        : t("shop.resource.medkitPlural")
+    });
+  }
+
+  if (item.id === "pistolAmmo") {
+    return t("shop.resource.pistolAmmo", {
+      total: state.pistol.ammoInGun + state.pistol.ammoInBag,
+      loaded: state.pistol.ammoInGun,
+      capacity: state.pistol.magCapacity,
+      reserve: state.pistol.ammoInBag
+    });
+  }
+
+  if (item.id === "rifle") {
+    return state.rifle.owned
+      ? t("shop.resource.rifleOwned", {
+          total: state.rifle.ammoInGun + state.rifle.ammoInBag
+        })
+      : t("shop.resource.noRifleOwned");
+  }
+
+  if (item.id === "rifleAmmo") {
+    return state.rifle.owned
+      ? t("shop.resource.rifleAmmo", {
+          total: state.rifle.ammoInGun + state.rifle.ammoInBag,
+          loaded: state.rifle.ammoInGun,
+          capacity: state.rifle.magCapacity,
+          reserve: state.rifle.ammoInBag
+        })
+      : t("shop.resource.buyRifleFirst");
+  }
+
+  return item.resourceLine || "";
+}
+
 const STORAGE_KEY = "shadows_audio_settings";
 const SAVE_BEEP_SOUND = "/static/audio/sfx/system/save_beep.mp3";
 const ERROR_BEEP_SOUND = "/static/audio/sfx/system/error_beep.mp3";
@@ -750,38 +838,47 @@ function getBattleTags(engine, currentLevel) {
   const tags = [];
 
   if (currentLevel?.title) {
-    tags.push(currentLevel.title.toUpperCase());
+    tags.push(getTranslatedField(currentLevel, "title").toUpperCase());
   }
 
-  tags.push(`LEVEL ${state.progression.currentLevelId}`);
-  tags.push(`DIFF ${state.difficulty}`);
+  tags.push(t("battle.tag.level", {
+    level: state.progression.currentLevelId
+  }));
+
+  tags.push(t("battle.tag.difficulty", {
+    difficulty: state.difficulty
+  }));
 
   if (engine.hasEmergency()) {
-    tags.push(state.combat.qte?.active ? "QTE" : "EMERGENCY");
+    tags.push(state.combat.qte?.active ? t("battle.tag.qte") : t("battle.tag.emergency"));
   }
 
   if (state.combat.coverTurns > 0) {
-    tags.push("HIDDEN");
+    tags.push(t("battle.tag.hidden"));
   }
 
   if (engine.isShopOpen()) {
-    tags.push("SHOP ONLINE");
+    tags.push(t("battle.tag.shopOnline"));
   }
 
   if (engine.hasChoices()) {
-    tags.push("ROUTE SELECT");
+    tags.push(t("battle.tag.routeSelect"));
   }
 
   if (state.progression.levelComplete && !state.combat.inCombat) {
-    tags.push("AREA SECURED");
+    tags.push(t("battle.tag.areaSecured"));
   }
 
   if (state.status.poisonTurns > 0) {
-    tags.push(`POISON ${state.status.poisonTurns}`);
+    tags.push(t("battle.tag.poison", {
+      turns: state.status.poisonTurns
+    }));
   }
 
   if (state.status.corrosionTurns > 0) {
-    tags.push(`CORROSION ${state.status.corrosionTurns}`);
+    tags.push(t("battle.tag.corrosion", {
+      turns: state.status.corrosionTurns
+    }));
   }
 
   return tags;
@@ -789,43 +886,49 @@ function getBattleTags(engine, currentLevel) {
 
 function getEnemyTags(enemy) {
   if (!enemy) {
-    return ["NO TARGET"];
+    return [t("battle.tag.noTarget")];
   }
 
   const tags = [enemy.type.toUpperCase()];
 
   if (enemy.rageActive) {
-    tags.push("RAGING");
+    tags.push(t("battle.tag.raging"));
   }
 
-  if (enemy.stunnedTurns > 0 || enemy.stunSceneTurns > 0) {
-    tags.push(`STUNNED ${Math.max(enemy.stunnedTurns, enemy.stunSceneTurns || 0)}`);
+  if (enemy.stunnedTurns > 0) {
+    tags.push(t("battle.tag.stunned", {
+      turns: enemy.stunnedTurns
+    }));
   }
 
   if (enemy.chargeReady) {
-    tags.push("CHARGING");
+    tags.push(t("battle.tag.charging"));
   }
 
   if (enemy.type === "nemesisT") {
-    tags.push("BOSS");
+    tags.push(t("battle.tag.boss"));
 
     if (enemy.bossActionStep === 2) {
-      tags.push("RUSH READY");
+      tags.push(t("battle.tag.rushReady"));
     } else if (enemy.bossActionStep === 1) {
-      tags.push("PRESSURE");
+      tags.push(t("battle.tag.pressure"));
     }
   }
 
   if (enemy.poisonTurns > 0) {
-    tags.push(`ACID ${enemy.poisonTurns}`);
+    tags.push(t("battle.tag.acid", {
+      turns: enemy.poisonTurns
+    }));
   }
 
   if (enemy.corrosionTurns > 0) {
-    tags.push(`CORROSIVE ${enemy.corrosionTurns}`);
+    tags.push(t("battle.tag.corrosive", {
+      turns: enemy.corrosionTurns
+    }));
   }
 
   if (enemy.summonAfterTurns && !enemy.summonedReinforcement) {
-    tags.push("CALLING");
+    tags.push(t("battle.tag.calling"));
   }
 
   return tags;
@@ -901,7 +1004,7 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
       ? "boss-grab"
       : enemy?.type === "nemesisT" && state.combat.coverTurns > 0
         ? "boss-hide"
-        : enemy?.type === "nemesisT" && (enemy.stunnedTurns > 0 || enemy.stunSceneTurns > 0)
+        : enemy?.type === "nemesisT" && enemy.stunnedTurns > 0
           ? "boss-stunned"
           : "default";
   const bossSceneBackdrop =
@@ -975,14 +1078,19 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
     state.player.characterName
   );
 
+  const translatedEnemyName = enemy ? translateEnemyName(enemy.name) : "";
+
   setBattleAsset(
     enemyImage,
     enemyFallback,
     enemyVisual?.image || "",
-    enemy ? `${enemy.name} portrait` : "No threat",
-    enemy ? enemy.name.toUpperCase() : "NO CONTACT"
+    enemy
+      ? t("battle.enemyPortrait", { enemy: translatedEnemyName })
+      : t("battle.noThreat"),
+    enemy
+      ? translatedEnemyName.toUpperCase()
+      : t("battle.noContact")
   );
-
   renderBattleFxImage(actionFxImage, battleSceneState.actionFxSrc || "");
   renderBattleFxImage(impactFxImage, battleSceneState.impactFxSrc || "");
 
@@ -1029,25 +1137,28 @@ function renderBattleScene(engine, battleSceneState, tutorialCue = null) {
   );
 
   if (enemyName) {
-    enemyName.textContent = enemy ? enemy.name.toUpperCase() : "NO CONTACT";
+    enemyName.textContent = enemy
+      ? translateEnemyName(enemy.name).toUpperCase()
+      : t("battle.noContact");
   }
 
   if (enemyMeta) {
     if (enemy) {
       const enemyStatus = enemy.rageActive
-        ? "RAGING"
-          : enemy.stunnedTurns > 0 || enemy.stunSceneTurns > 0
-            ? `STUNNED ${Math.max(enemy.stunnedTurns, enemy.stunSceneTurns || 0)}`
+        ? t("battle.status.raging")
+        : enemy.stunnedTurns > 0
+          ? t("battle.status.stunned", { turns: enemy.stunnedTurns })
           : enemy.chargeReady
-            ? "CHARGING"
+            ? t("battle.status.charging")
             : enemy.type === "nemesisT" && enemy.bossActionStep === 2
-              ? "RUSHING"
+              ? t("battle.status.rushing")
               : enemy.type === "nemesisT" && enemy.bossActionStep === 1
-                ? "PRESSURING"
-                : "HOSTILE";
+                ? t("battle.status.pressuring")
+                : t("battle.status.hostile");
+
       enemyMeta.textContent = `HP ${Math.max(enemy.hp, 0)}/${enemy.baseHp} | ${enemyStatus}`;
     } else {
-      enemyMeta.textContent = "SCAN ONLINE";
+      enemyMeta.textContent = t("battle.scanOnline");
     }
   }
 
@@ -1063,7 +1174,7 @@ function renderStats(engine) {
 
   const topLeft = $(".top-left");
   if (topLeft && currentLevel) {
-    topLeft.textContent = `LEVEL ${currentLevel.id} - ${currentLevel.title}`;
+    topLeft.textContent = `LEVEL ${currentLevel.id} - ${getTranslatedField(currentLevel, "title")}`;
   }
 
   const statusText = [
@@ -1249,8 +1360,8 @@ function renderChoiceBox(engine, onChoose, locked) {
     button.className = "choice-btn";
     button.disabled = locked;
     button.innerHTML = `
-      <span class="choice-title">${choice.label}</span>
-      <span class="choice-desc">${choice.description}</span>
+      <span class="choice-title">${getTranslatedField(choice, "label")}</span>
+      <span class="choice-desc">${getTranslatedField(choice, "description")}</span>
     `;
     button.addEventListener("click", () => onChoose(choice.id));
     choiceButtons.appendChild(button);
@@ -1289,10 +1400,12 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
 
   if (inventorySummary) {
     inventorySummary.innerHTML = `
-      <span>Total pistol ammo with you: ${pistolTotalAmmo}</span>
-      <span>Total rifle ammo with you: ${rifle.owned ? rifleTotalAmmo : "no rifle"}</span>
-      <span>Grenades with you: ${inventory.grenades}</span>
-      <span>Medkits with you: ${inventory.medKits}</span>
+      <span>${t("shop.summary.pistolAmmo", { amount: pistolTotalAmmo })}</span>
+      <span>${t("shop.summary.rifleAmmo", {
+        amount: rifle.owned ? rifleTotalAmmo : t("shop.summary.noRifle")
+      })}</span>
+      <span>${t("shop.summary.grenades", { amount: inventory.grenades })}</span>
+      <span>${t("shop.summary.medkits", { amount: inventory.medKits })}</span>
     `;
   }
 
@@ -1301,10 +1414,13 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
     button.type = "button";
     button.className = "choice-btn";
     button.disabled = locked || item.disabled || coins < item.cost;
+
+    const resourceText = getShopResourceText(item, engine.state);
+
     button.innerHTML = `
-      <span class="choice-title">${item.label} - ${item.cost}C</span>
-      <span class="choice-desc">${item.description}</span>
-      ${item.resourceLine ? `<span class="choice-desc shop-resource-line">${item.resourceLine}</span>` : ""}
+      <span class="choice-title">${getShopText(item, "label", item.label)} - ${item.cost}C</span>
+      <span class="choice-desc">${getShopText(item, "description", item.description)}</span>
+      ${resourceText ? `<span class="choice-desc shop-resource-line">${resourceText}</span>` : ""}
     `;
     button.addEventListener("click", () => onBuy(item.id));
     buyButtons.appendChild(button);
@@ -1323,8 +1439,8 @@ function renderShopBox(engine, locked, onBuy, onSell, onContinue) {
       button.className = "choice-btn";
       button.disabled = locked;
       button.innerHTML = `
-        <span class="choice-title">${item.label} - +${item.value}C</span>
-        <span class="choice-desc">${item.description}</span>
+        <span class="choice-title">${getShopText(item, "label", item.label)} - +${item.value}C</span>
+        <span class="choice-desc">${getShopText(item, "description", item.description)}</span>
       `;
       button.addEventListener("click", () => onSell(item.id));
       sellButtons.appendChild(button);
@@ -1568,6 +1684,544 @@ export function bootGameUI({
     }
   }
 
+  function translateEventForDisplay(eventText) {
+    if (typeof eventText !== "string") {
+     return eventText;
+    }
+
+    const currentLevel = engine.getCurrentLevel();
+
+    if (currentLevel) {
+      const translatedTitle = getTranslatedField(currentLevel, "title");
+
+      if (eventText === `LEVEL ${currentLevel.id}: ${currentLevel.title}`) {
+        return `LEVEL ${currentLevel.id}: ${translatedTitle}`;
+      }
+
+      const levelFields = ["description", "introText", "completeText"];
+
+      for (const field of levelFields) {
+        if (eventText === currentLevel[field]) {
+          return getTranslatedField(currentLevel, field);
+        }
+      }
+
+      const rewards = currentLevel.rewards || [];
+      for (const reward of rewards) {
+        if (eventText === reward.text) {
+          return getTranslatedField(reward, "text");
+        }
+      }
+    }
+
+    let match = eventText.match(/^A (.+) appeared\. Enemy HP: (\d+)\.$/);
+    if (match) {
+      return t("combat.enemyAppeared", {
+        enemy: translateEnemyName(match[1]),
+        hp: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) cleared Level (.+)\.$/);
+    if (match) {
+      return t("combat.levelCleared", {
+        character: match[1],
+        level: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) collected (\d+) antique coin\.$/);
+    if (match) {
+      return t("combat.coinCollected", {
+        character: match[1],
+        amount: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) collected (\d+) antique coins\.$/);
+    if (match) {
+      return t("combat.coinsCollected", {
+        character: match[1],
+        amount: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) killed (.+)\.$/);
+    if (match) {
+      return t("combat.enemyKilled", {
+        character: match[1],
+        enemy: translateEnemyName(match[2])
+      });
+    }
+
+    match = eventText.match(/^(.+) attacked with the knife and dealt (\d+) damage\.$/);
+    if (match) {
+      return t("combat.knifeAttack", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) fired the pistol and dealt (\d+) damage\.$/);
+    if (match) {
+      return t("combat.pistolAttack", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) fired the rifle and dealt (\d+) damage\.$/);
+    if (match) {
+      return t("combat.rifleAttack", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) threw a grenade and dealt (\d+) damage\.$/);
+    if (match) {
+      return t("combat.grenadeAttack", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^The (.+) hit (.+) for (\d+) damage\.$/);
+    if (match) {
+      return t("combat.enemyHitPlayer", {
+        enemy: translateEnemyName(match[1]),
+        character: match[2],
+        damage: match[3]
+      });
+    }
+
+    match = eventText.match(/^The (.+) is stunned by the close-range hit\.$/);
+    if (match) {
+      return t("combat.enemyStunnedClose", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    match = eventText.match(/^The (.+) is stunned and cannot act this turn\.$/);
+    if (match) {
+      return t("combat.enemyStunnedCannotAct", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    match = eventText.match(/^The (.+) missed (.+)\.$/);
+    if (match) {
+      return t("combat.enemyMissedPlayer", {
+        enemy: translateEnemyName(match[1]),
+        character: match[2]
+      });
+    }
+
+    if (eventText === "Game saved successfully.") {
+      return t("combat.saveSuccess");
+    }
+
+    if (eventText === "Save failed.") {
+      return t("combat.saveFailed");
+    }
+
+    match = eventText.match(/^Starting stats: AGI (\d+) \| COUR (\d+)\.$/);
+    if (match) {
+      return t("combat.startingStats", {
+        agility: match[1],
+        courage: match[2]
+      });
+    }
+
+    match = eventText.match(/^Current stats: AGI (\d+) \| COUR (\d+)\.$/);
+    if (match) {
+      return t("combat.currentStats", {
+        agility: match[1],
+        courage: match[2]
+      });
+    }
+
+    match = eventText.match(/^(\d+) enemies remain in this level\.$/);
+    if (match) {
+      return t("combat.enemiesRemain", {
+        count: match[1]
+      });
+    }
+
+    match = eventText.match(/^(\d+) enemy remains in this level\.$/);
+    if (match) {
+      return t("combat.enemyRemain", {
+        count: match[1]
+      });
+    }
+
+    match = eventText.match(/^(.+) threw a grenade, but it fails to connect effectively\.$/);
+    if (match) {
+      return t("combat.grenadeMiss", {
+        character: match[1]
+      });
+    }
+
+    match = eventText.match(/^The (.+) plants its feet and lines up a rush\.$/);
+    if (match) {
+      return t("combat.chargerRushReady", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    match = eventText.match(/^The (.+) slips away from the pistol shot\.$/);
+    if (match) {
+      return t("combat.enemyDodgedShot", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    if (eventText === "A shop terminal is available before you move on.") {
+      return t("combat.shopAvailable");
+    }
+
+    if (eventText === "You step away from the shop terminal.") {
+      return t("combat.shopClosed");
+    }
+
+    match = eventText.match(/^(.+) collected antique coins of (\d+)\.$/);
+    if (match) {
+      return t("combat.coinsCollected", {
+        character: match[1],
+        amount: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) bought (.+) for (\d+) coins\.$/);
+    if (match) {
+      return t("combat.boughtItem", {
+        character: match[1],
+        item: translateShopItemName(match[2]),
+        cost: match[3]
+      });
+    }
+
+    match = eventText.match(/^A (.+) is still in front of you\. Enemy HP: (\d+)\.$/);
+    if (match) {
+      return t("combat.enemyStillInFront", {
+        enemy: translateEnemyName(match[1]),
+        hp: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) resumed the saved game\.$/);
+    if (match) {
+      return t("combat.resumedSavedGame", {
+        character: match[1]
+      });
+    }
+
+    match = eventText.match(/^Enemies left in this level: (\d+)\.$/);
+    if (match) {
+      return t("combat.enemiesLeft", {
+        count: match[1]
+      });
+    }
+
+    match = eventText.match(/^Intermission status: SHOP (OPEN|CLOSED)\.$/);
+    if (match) {
+      return t("combat.intermissionStatus", {
+        status: match[1]
+      });
+    }
+
+    match = eventText.match(/^(.+) still needs to choose a route\.$/);
+    if (match) {
+      return t("combat.stillNeedsRoute", {
+        character: match[1]
+      });
+    }
+
+    match = eventText.match(/^(.+) lunges with the knife, but the attack fails to connect well\.$/);
+    if (match) {
+      return t("combat.knifeMiss", {
+        character: match[1]
+      });
+    }
+
+    match = eventText.match(/^(.+) took (\d+) damage in close combat\.$/);
+    if (match) {
+      return t("combat.closeCombatDamage", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) has no pistol ammo in the gun\.$/);
+    if (match) {
+      return t("combat.noPistolAmmoGun", { character: match[1] });
+    }
+
+    match = eventText.match(/^(.+) runs out of pistol ammo before the burst is complete\.$/);
+    if (match) {
+      return t("combat.pistolBurstAmmoEmpty", { character: match[1] });
+    }
+
+    match = eventText.match(/^(.+)'s pistol shot is a poor matchup and fails to land cleanly\.$/);
+    if (match) {
+      return t("combat.pistolPoorMatch", { character: match[1] });
+    }
+
+    if (eventText === "Quick and Swift triggers. Quite fires twice this turn.") {
+      return t("combat.quickAndSwift");
+    }
+
+    match = eventText.match(/^(.+) does not own a rifle yet\.$/);
+    if (match) {
+      return t("combat.noRifleOwned", { character: match[1] });
+    }
+
+    match = eventText.match(/^(.+) has no rifle ammo in the magazine\.$/);
+    if (match) {
+      return t("combat.noRifleAmmoMagazine", { character: match[1] });
+    }
+
+    match = eventText.match(/^The (.+) jukes away from the rifle shot\.$/);
+    if (match) {
+      return t("combat.rifleDodgedShot", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    match = eventText.match(/^(.+)'s rifle shot lands poorly against this target\.$/);
+    if (match) {
+      return t("combat.riflePoorMatch", { character: match[1] });
+    }
+
+    match = eventText.match(/^(.+) fired the rifle for (\d+) damage(?: \(CRIT!\))?\.$/);
+    if (match) {
+      return t("combat.rifleAttackAlt", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^(.+) has no grenades left\.$/);
+    if (match) return t("combat.noGrenades", { character: match[1] });
+
+    match = eventText.match(/^(.+) has no med kits left\.$/);
+    if (match) return t("combat.noMedkits", { character: match[1] });
+
+    match = eventText.match(/^(.+) used a med kit and recovered to (\d+) HP\.$/);
+    if (match) {
+      return t("combat.usedMedkitRecovered", {
+        character: match[1],
+        hp: match[2]
+      });
+    }
+
+    if (eventText === "Poison and corrosion are cleared.") {
+      return t("combat.statusCleared");
+    }
+
+    match = eventText.match(/^(.+)'s pistol is already full\.$/);
+    if (match) return t("combat.pistolAlreadyFull", { character: match[1] });
+
+    match = eventText.match(/^(.+) has no pistol ammo left in the bag\.$/);
+    if (match) return t("combat.noPistolAmmoBag", { character: match[1] });
+
+    match = eventText.match(/^(.+) reloaded the pistol to (\d+)\/(\d+)\.$/);
+    if (match) {
+      return t("combat.reloadedPistol", {
+        character: match[1],
+        loaded: match[2],
+        capacity: match[3]
+      });
+    }
+
+    match = eventText.match(/^(.+)'s rifle is already full\.$/);
+    if (match) return t("combat.rifleAlreadyFull", { character: match[1] });
+
+    match = eventText.match(/^(.+) has no rifle ammo left in reserve\.$/);
+    if (match) return t("combat.noRifleAmmoReserve", { character: match[1] });
+
+    match = eventText.match(/^(.+) reloaded the rifle to (\d+)\/(\d+)\.$/);
+    if (match) {
+      return t("combat.reloadedRifle", {
+        character: match[1],
+        loaded: match[2],
+        capacity: match[3]
+      });
+    }
+
+    match = eventText.match(/^(.+) has no cover to hold right now\.$/);
+    if (match) return t("combat.noCover", { character: match[1] });
+
+    match = eventText.match(/^(.+) stays tucked behind the lab pillar and catches one clean breath\.$/);
+    if (match) return t("combat.holdLabCover", { character: match[1] });
+
+    match = eventText.match(/^(.+) has no shield available\.$/);
+    if (match) return t("combat.noShield", { character: match[1] });
+
+    if (eventText === "The shield is broken and must be repaired in the shop.") {
+      return t("combat.shieldBrokenShop");
+    }
+
+    match = eventText.match(/^(.+) equipped the shield\.$/);
+    if (match) return t("combat.equippedShield", { character: match[1] });
+
+    match = eventText.match(/^(.+) unequipped the shield\.$/);
+    if (match) return t("combat.unequippedShield", { character: match[1] });
+
+    if (eventText === "Acid splashes across your gear. Poison and corrosion start ticking.") {
+      return t("combat.acidDebuff");
+    }
+
+    match = eventText.match(/^(.+) suffers (\d+) poison damage\.$/);
+    if (match) {
+      return t("combat.poisonDamage", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    match = eventText.match(/^Acid corrodes the shield for (\d+) durability\.$/);
+    if (match) {
+      return t("combat.acidCorrodesShield", {
+        amount: match[1]
+      });
+    }
+
+    if (eventText === "The shield frame gives out completely.") {
+      return t("combat.shieldFrameBreaks");
+    }
+
+    match = eventText.match(/^(.+)'s armour sizzles for (\d+) extra damage\.$/);
+    if (match) {
+      return t("combat.armourSizzles", {
+        character: match[1],
+        damage: match[2]
+      });
+    }
+
+    if (eventText === "Leon's shield breaks and needs repairs at the shop.") {
+      return t("combat.leonShieldBreaks");
+    }
+
+    match = eventText.match(/^The (.+) screams for help\. Another zombie rushes into the level\.$/);
+    if (match) {
+      return t("combat.screamerCallsHelp", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    match = eventText.match(/^The (.+) becomes enraged and starts moving even faster\.$/);
+    if (match) {
+      return t("combat.berserkerRage", {
+        enemy: translateEnemyName(match[1])
+      });
+    }
+
+    match = eventText.match(/^The (.+) crashes past you and is stunned for (\d+) turn\.$/);
+    if (match) {
+      return t("combat.chargerStunnedAfterDodge", {
+        enemy: translateEnemyName(match[1]),
+        turns: match[2]
+      });
+    }
+
+    match = eventText.match(/^The (.+) crashes past you and is stunned for (\d+) turns\.$/);
+    if (match) {
+      return t("combat.chargerStunnedAfterDodges", {
+        enemy: translateEnemyName(match[1]),
+        turns: match[2]
+      });
+    }
+
+    if (eventText === "A second clean dodge will leave the charger wide open.") {
+      return t("combat.secondDodgeHint");
+    }
+
+    match = eventText.match(/^The (.+) slams into (.+) for (\d+) damage and sends them skidding back\.$/);
+    if (match) {
+      return t("combat.chargerSlam", {
+        enemy: translateEnemyName(match[1]),
+        character: match[2],
+        damage: match[3]
+      });
+    }
+
+    if (eventText === "The shop is not available right now.") {
+      return t("combat.shopUnavailable");
+    }
+
+    if (eventText === "That item is not in the shop.") {
+      return t("combat.itemNotInShop");
+    }
+
+    match = eventText.match(/^(.+) cannot buy (.+) right now\.$/);
+    if (match) {
+      return t("combat.cannotBuyItem", {
+        character: match[1],
+      item: translateShopItemName(match[2]),
+      });
+    }
+
+    match = eventText.match(/^(.+) needs (\d+) coins for (.+)\.$/);
+    if (match) {
+      return t("combat.needsCoins", {
+        character: match[1],
+        item: translateShopItemName(match[2]),
+        cost: match[3]
+      });
+    }
+
+    match = eventText.match(/^(.+) sold (.+) for (\d+) coins\.$/);
+    if (match) {
+      return t("combat.soldItem", {
+        character: match[1],
+        item: translateShopItemName(match[2]),
+        value: match[3]
+      });
+    }
+
+    match = eventText.match(/^(.+) has nothing valid to sell there\.$/);
+    if (match) {
+      return t("combat.nothingToSell", {
+        character: match[1]
+      });
+    }
+
+    if (eventText === "The shop is already closed.") {
+      return t("combat.shopAlreadyClosed");
+    }
+
+    if (eventText === "You can shop before committing to the next route.") {
+      return t("combat.canShopBeforeRoute");
+    }
+
+    match = eventText.match(/^Perk: (.+)$/);
+    if (match) {
+      return t("combat.perk", {
+        perk: match[1]
+      });
+    }
+
+    match = eventText.match(/^(.+) entered the mission\.$/);
+    if (match) {
+      return t("combat.enteredMission", {
+        character: match[1]
+      });
+    }
+
+    return eventText;
+  }
+
+  function translateEmergencyText(text) {
+    const emergencyTextKeys = {
+      "Seal the Relay Gate": "levels.4A.title.sealTheRelayGate",
+      "A relay gate is stuck half-open. Press X or click before the horde floods the maintenance rail.": "emergency.sealRelayGatePrompt"
+    };
+
+    const key = emergencyTextKeys[text];
+    return key ? t(key) : text;
+  }
+
   function updateMissionSkipControls() {
     [storySkipBtn, shopStorySkipBtn].forEach((button) => {
       if (!button) return;
@@ -1625,7 +2279,7 @@ export function bootGameUI({
 
     const defendButton = document.getElementById("defend-btn");
     if (defendButton) {
-      defendButton.textContent = coverActive ? "HOLD COVER" : "DEFEND";
+      defendButton.textContent = coverActive ? t("play.holdCover") : t("play.defend");
     }
 
     if (dead) {
@@ -1701,25 +2355,39 @@ export function bootGameUI({
       ? Math.max(emergencySession.deadline - Date.now(), 0)
       : emergency.timeLimitMs;
     emergencyBox.style.display = "block";
-    emergencyTitle.textContent =
-      emergency.stepCount > 1 ? emergency.sequenceTitle || emergency.title : emergency.title;
+
+    const emergencyDisplayTitle = translateEmergencyText(
+      emergency.stepCount > 1 ? emergency.sequenceTitle || emergency.title : emergency.title
+    );
+
+    const emergencyDisplayPrompt = translateEmergencyText(emergency.prompt);
+
+    emergencyTitle.textContent = emergencyDisplayTitle;
     emergencyPrompt.textContent =
-      emergency.stepCount > 1 ? `${emergency.title}: ${emergency.prompt}` : emergency.prompt;
+      emergency.stepCount > 1
+        ? `${translateEmergencyText(emergency.title)}: ${emergencyDisplayPrompt}`
+        : emergencyDisplayPrompt;
     emergencyKey.textContent = emergencySession.key;
     emergencyTimer.textContent = `${(remainingMs / 1000).toFixed(1)}s`;
+
     emergencyProgress.textContent =
       emergency.stepCount > 1
-        ? `STEP ${(emergency.stepIndex || 0) + 1}/${emergency.stepCount} | ${emergencySession.progress}/${emergencySession.required}`
+        ? t("emergency.stepProgress", {
+            step: (emergency.stepIndex || 0) + 1,
+            total: emergency.stepCount,
+            progress: emergencySession.progress,
+            required: emergencySession.required
+          })
         : `${emergencySession.progress}/${emergencySession.required}`;
 
     if (emergencyActionBtn) {
       emergencyActionBtn.disabled = locked || !emergencySession.active;
-      emergencyActionBtn.textContent = emergency.actionLabel || "MASH KEY / CLICK";
+      emergencyActionBtn.textContent = emergency.actionLabel || t("emergency.mash");
     }
 
     if (emergencyFailBtn) {
       emergencyFailBtn.disabled = locked || !emergencySession.active;
-      emergencyFailBtn.textContent = emergency.abortLabel || "ABORT EVENT";
+      emergencyFailBtn.textContent = emergency.abortLabel || t("emergency.abort");
     }
   }
 
@@ -1749,14 +2417,21 @@ export function bootGameUI({
     updateMissionSkipControls();
   }
 
+  document.addEventListener("languagechange", () => {
+    renderAll();
+  });
+
   async function runAndRender(events) {
     const renderId = ++storyRenderId;
     isAnimatingEvents = true;
     textPlaybackController.start();
     renderAll();
+
+    const displayEvents = events.map(translateEventForDisplay);
+
     await playEventSequence(
       [storyText, shopStoryText],
-      events,
+      displayEvents,
       24,
       460,
       () => renderId !== storyRenderId,
@@ -2044,6 +2719,7 @@ export function bootGameUI({
         engine.state.analytics.savesMade += 1;
         const result = await saveGameToBackend(engine);
         const message = result.ok ? "Game saved successfully." : result.message || "Save failed.";
+        const displayMessage = translateEventForDisplay(message);
 
         if (result.ok) {
           playSaveBeep();
@@ -2051,13 +2727,14 @@ export function bootGameUI({
           playErrorBeep();
         }
 
-        appendCombatLog(message);
-        setStoryText(message);
+        appendCombatLog(displayMessage);
+        setStoryText(displayMessage);
       } catch (error) {
         console.error("Save failed:", error);
         playErrorBeep();
-        appendCombatLog("Save failed.");
-        setStoryText("Save failed.");
+        const displayMessage = translateEventForDisplay("Save failed.");
+        appendCombatLog(displayMessage);
+        setStoryText(displayMessage);
       }
     });
   }

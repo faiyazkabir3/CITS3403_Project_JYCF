@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ preferred_language }}" data-preferred-language="{{ preferred_language }}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register</title>
+  <title data-i18n="register.pageTitle">Register</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,8 +14,8 @@
   {% include "_background_video.html" %}
 
   <div class="login-container">
-    <h1>Register</h1>
-    <p class="subtitle">Create your account below.</p>
+    <h1 data-i18n="register.heading">Register</h1>
+    <p class="subtitle" data-i18n="register.subtitle">Create your account below.</p>
 
     {% if error %}
       <p class="subtitle">{{ error }}</p>
@@ -24,7 +24,7 @@
     <form id="register-form" method="POST" action="/register">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-      <label for="username">Username</label>
+      <label for="username" data-i18n="register.username">Username</label>
       <input
         type="text"
         id="username"
@@ -34,9 +34,10 @@
         minlength="3"
         maxlength="80"
         autocomplete="username"
+        data-i18n-placeholder="register.usernamePlaceholder"
       />
 
-      <label for="password">Password</label>
+      <label for="password" data-i18n="register.password">Password</label>
       <input
         type="password"
         id="password"
@@ -46,9 +47,10 @@
         minlength="6"
         maxlength="255"
         autocomplete="new-password"
+        data-i18n-placeholder="register.passwordPlaceholder"
       />
 
-      <label for="confirm-password">Confirm Password</label>
+      <label for="confirm-password" data-i18n="register.confirmPassword">Confirm Password</label>
       <input
         type="password"
         id="confirm-password"
@@ -58,21 +60,23 @@
         minlength="6"
         maxlength="255"
         autocomplete="new-password"
+        data-i18n-placeholder="register.confirmPasswordPlaceholder"
       />
 
-      <button type="submit" class="signup-btn">Register</button>
+      <button type="submit" class="signup-btn" data-i18n="register.submit">Register</button>
     </form>
 
     <div class="secondary-buttons">
-      <button type="button" class="login-btn" onclick="window.location.href='/login'">Back to Login</button>
+      <button type="button" class="login-btn" onclick="window.location.href='/login'" data-i18n="register.backToLogin">Back to Login</button>
 
       <form method="POST" action="/guest-login" class="guest-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="guest-btn">Guest Login</button>
+        <button type="submit" class="guest-btn" data-i18n="register.guest">Guest Login</button>
       </form>
     </div>
   </div>
 
   <script src="{{ url_for('static', filename='js/register.js') }}" defer></script>
+  <script type="module" src="{{ url_for('static', filename='js/translation.js') }}"></script>
 </body>
 </html>

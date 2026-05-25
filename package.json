@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "check:js": "node scripts/check-js-sanity.mjs",
+    "check:i18n": "node scripts/check-i18n-parity.mjs",
     "lint:js": "eslint app/static/js",
     "lint:js:fix": "eslint app/static/js --fix",
-    "sanity:js": "npm run lint:js && npm run check:js"
+    "sanity:js": "npm run lint:js && npm run check:js && npm run check:i18n"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

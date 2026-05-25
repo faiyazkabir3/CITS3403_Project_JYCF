@@ -171,3 +171,74 @@ def test_post_world_chat_message_saves_plaintext_message(client):
         assert stored_messages[0].message == "Hello world chat", (
             "World chat database row should store the normalized message text."
         )
+
+
+def test_language_settings_defaults_to_english_for_guest(client):
+    response = client.get("/settings/language")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["language"] == "en"
+    assert payload["authenticated"] is False
+    assert {language["code"] for language in payload["languages"]} >= {"en", "nl", "bn", "zh-cn", "ja"}
+
+
+def test_language_settings_rejects_unsupported_language(client):
+    response = client.post(
+        "/settings/language",
+        json={"language": "pirate"},
+        headers=get_csrf_headers(client),
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 400
+    assert payload["ok"] is False
+    assert payload["message"] == "Unsupported language."
+
+
+def test_language_settings_persists_registered_user_preference(client):
+    user_id = create_user("language_user")
+    login_user_session(client, user_id, "language_user")
+
+    response = client.post(
+        "/settings/language",
+        json={"language": "ja"},
+        headers=get_csrf_headers(client, "/main_menu"),
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["language"] == "ja"
+    assert payload["authenticated"] is True
+
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.preferred_language == "ja"
+
+    followup = client.get("/settings/language")
+    assert followup.get_json()["language"] == "ja"
+
+
+def test_language_settings_saves_guest_preference_in_session_only(client):
+    guest_user_id = create_user("language_guest")
+    login_user_session(client, guest_user_id, "language_guest", is_guest=True)
+
+    response = client.post(
+        "/settings/language",
+        json={"language": "nl"},
+        headers=get_csrf_headers(client, "/main_menu"),
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["ok"] is True
+    assert payload["language"] == "nl"
+    assert payload["authenticated"] is False
+
+    with app.app_context():
+        user = db.session.get(User, guest_user_id)
+        assert user.preferred_language == "en"
+
+    assert client.get("/settings/language").get_json()["language"] == "nl"

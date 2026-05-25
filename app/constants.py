@@ -9,6 +9,18 @@ PROFILE_IMAGE_ALLOWED_EXTENSIONS = {".jpg", ".jpeg"}
 PROFILE_IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 ONLINE_WINDOW = timedelta(minutes=2)
 PRESENCE_REFRESH_INTERVAL = timedelta(seconds=30)
+DEFAULT_LANGUAGE = "en"
+SUPPORTED_LANGUAGE_OPTIONS = [
+    {"code": "en", "label": "English"},
+    {"code": "nl", "label": "Dutch"},
+    {"code": "bn", "label": "Bengali"},
+    {"code": "zh-cn", "label": "Chinese (Simplified)"},
+    {"code": "ja", "label": "Japanese"},
+]
+SUPPORTED_LANGUAGE_VALUES = {
+    option["code"]
+    for option in SUPPORTED_LANGUAGE_OPTIONS
+}
 
 PROFILE_IMAGE_OPTIONS = [
     {"label": "Shadows", "filename": PROFILE_IMAGE_DEFAULT},
